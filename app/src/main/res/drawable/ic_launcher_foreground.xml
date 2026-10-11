@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Özgün işaret: yuvarlatılmış oynat üçgeni + altında ince bir ilerleme çizgisi. 108dp adaptif tuval, güvenli alan ortada. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/play_accent"
+        android:pathData="M44,36.5 Q44,32 48,34.3 L69,46.6 Q73,49 69,51.4 L48,63.7 Q44,66 44,61.5 Z" />
+    <path
+        android:fillColor="#4DF5A524"
+        android:pathData="M40,72 h28 a2,2 0 0 1 0,4 h-28 a2,2 0 0 1 0,-4 z" />
+    <path
+        android:fillColor="@color/play_accent"
+        android:pathData="M40,72 h14 a2,2 0 0 1 0,4 h-14 a2,2 0 0 1 0,-4 z" />
+</vector>

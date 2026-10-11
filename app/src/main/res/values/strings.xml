@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Play</string>
+
+    <string name="tab_home">Ana sayfa</string>
+    <string name="tab_search">Ara</string>
+    <string name="tab_library">Kütüphane</string>
+    <string name="tab_settings">Ayarlar</string>
+
+    <string name="home_empty_message">Henüz hiçbir eklenti yok.</string>
+    <string name="home_empty_action">Başlamak için bir eklenti ekle</string>
+    <string name="placeholder_coming_soon">Yakında</string>
+</resources>
