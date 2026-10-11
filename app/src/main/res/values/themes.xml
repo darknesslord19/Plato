@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Koyu tema varsayılan: pencere arka planı da koyu, açılışta beyaz parlama olmasın. -->
-    <style name="Theme.Play" parent="@android:style/Theme.Material.NoActionBar">
+    <!-- AppCompatActivity (uygulama başına dil için) AppCompat teması ister.
+         Koyu tema varsayılan: pencere arka planı da koyu, açılışta beyaz parlama olmasın. -->
+    <style name="Theme.Play" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@color/play_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>

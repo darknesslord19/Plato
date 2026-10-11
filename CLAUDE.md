@@ -6,7 +6,14 @@ Sade, özgün bir Android film/dizi istemcisi. Kotlin + Jetpack Compose + Materi
 - Her şey sıfırdan yazılır. Başka bir uygulamadan kod, ikon, logo, metin, renk veya kart biçimi kopyalanmaz.
 - `referans/` içindeki ekran görüntüleri yalnızca **düzen ve bilgi hiyerarşisi** için bakılır. Renk, ikon, metin ve kart biçimi özgün olur. Referanstaki fazla ayar ve süsler taşınmaz.
 - Görsel kimlik: soğuk koyu zemin (`#0E1116`) + tek kehribar vurgu (`#F5A524`), kendi çizgi ikonlarımız (`ui/nav/PlayIcons.kt`), kendi launcher ikonumuz.
-- Arayüzde "Stremio" ismi geçmez; "eklenti/addon" denir. Arayüz dili Türkçe.
+- Arayüzde "Stremio" ismi geçmez; "eklenti/addon" denir (İngilizcede "addon").
+
+## Dil desteği (İngilizce + Türkçe, baştan)
+- Arayüzdeki **hiçbir metin koda gömülmez**; hepsi string resource. Varsayılan `values/strings.xml` İngilizce, `values-tr/strings.xml` Türkçe. Yeni string eklerken iki dosyaya birden eklenir (`StringResourcesTest` anahtar eşitliğini denetler). Çevrilmeyecek metinler (dil adları, uygulama adı) `translatable="false"`.
+- Cihaz dili Türkçeyse Türkçe, değilse İngilizce açılır. Ayarlar'da "Dil": Sistem / English / Türkçe; AppCompat per-app language ile uygulanır (`i18n/AppLanguage.kt`, `MainActivity` bu yüzden `AppCompatActivity`). Seçimin kaynağı AppCompat'tir, DataStore'a kopyalanmaz.
+- **TMDB** isteklerinde `language` parametresi `AppLanguage.effective().tmdbTag` (`tr-TR` / `en-US`). Türkçe özet/başlık boşsa İngilizceye (`en-US`) düşülür. Poster isteklerinde `include_image_language=<iso>,en,null`.
+- **Varsayılan altyazı dili** ayarı, kullanıcı seçmediyse seçili arayüz diline göre başlar (DataStore'da null = arayüz dilini izle).
+- Çok sayılı/biçimli metinler için `plurals` ve biçim argümanları kullanılır; metin birleştirme yapılmaz.
 
 ## Kapsam
 - Ekosistemler: (1) Nuvio addon'ları (manifest.json URL'li HTTP addon), (2) Faz 2 Nuvio plugin'leri (JS scraper), (3) Faz 3 CloudStream .cs3.
@@ -28,7 +35,7 @@ Aniyomi, ayrı Stremio ekosistemi, manga, IPTV, Telegram, tracker, profil/kilit,
 
 ## Ekranlar
 Ana sayfa (TMDB satırları + "devam et"), Ara, Detay, Kaynak seçimi (alttan liste; en uygun seçili, tek dokunuş; satırda yalnızca kalite ve boyut), Oynatıcı (tam ekran, oynat/durdur, ileri-geri, altyazı, hız), Kütüphane (geçmiş + favoriler), Ayarlar. Alt menü: Ana sayfa, Ara, Kütüphane, Ayarlar.
-Ayarlar yalnızca: eklenti yönetimi (ekle/sil/aç-kapat), kaynak zaman aşımı, oynatıcı varsayılanları (altyazı dili, hız), tema, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
+Ayarlar yalnızca: eklenti yönetimi (ekle/sil/aç-kapat), kaynak zaman aşımı, oynatıcı varsayılanları (altyazı dili, hız), tema, dil, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
 
 ## Çalışma şekli
 - Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı → (3) Room + addon yönetimi → (4) ana sayfa/arama/detay → (5) kaynak toplama → (6) oynatıcı → (7) kütüphane + ayarlar.

@@ -27,6 +27,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.kaan.play.R
+import com.kaan.play.ui.settings.SettingsScreen
 
 enum class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector) {
     Home("home", R.string.tab_home, PlayIcons.Home),
@@ -79,7 +80,7 @@ fun PlayRoot() {
             composable(Tab.Home.route) { HomeEmptyState(onAddAddon = { openTab(Tab.Settings) }) }
             composable(Tab.Search.route) { Placeholder(Tab.Search.label) }
             composable(Tab.Library.route) { Placeholder(Tab.Library.label) }
-            composable(Tab.Settings.route) { Placeholder(Tab.Settings.label) }
+            composable(Tab.Settings.route) { SettingsScreen() }
         }
     }
 }

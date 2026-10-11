@@ -19,4 +19,5 @@ TMDB_API_KEY=<tmdb v3 anahtarı>
 - **AGP 9 + yerleşik Kotlin:** `kotlin-android` eklentisi kullanılmaz; AGP 9 Kotlin'i kendisi derler.
 - **Düz metin HTTP:** manifest URL'lerini kullanıcı girer ve yerel ağdaki `http://` addon'lar yaygındır; bu yüzden `usesCleartextTraffic=true`. Bağlantı ile uygulamayı açma (deep link) yalnızca `https` için olacak.
 - **Alt menü ikonları:** `material-icons-extended` yerine kendi çizdiğimiz birkaç vektör ikon (`ui/nav/PlayIcons.kt`); hem özgün hem küçük.
+- **Diller:** İngilizce (varsayılan) ve Türkçe. Dil seçimi AppCompat per-app language'e devredildi (API 33+ sistem saklar, altında AppCompat'in metadata servisi); kendi DataStore kopyamız yok. APK'ya yalnızca `en` ve `tr` paketlenir (`localeFilters`). İngilizce arayüzde "addon" yazıyoruz.
 - **Yedekleme kapalı** (`allowBackup=false`): izleme geçmişi ve addon listesi buluta gitmez.
