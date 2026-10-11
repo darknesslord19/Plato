@@ -1,0 +1,29 @@
+# Gradle / build
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Yerel ayarlar ve gizli anahtarlar (TMDB_API_KEY burada)
+local.properties
+*.jks
+*.keystore
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.kotlin/
+
+# Android
+*.apk
+*.aab
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Referans ekran görüntüleri (yalnızca yerel bakış için, repoya girmez)
+referans/

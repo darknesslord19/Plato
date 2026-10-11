@@ -1,0 +1,41 @@
+# Play — proje kuralları
+
+Sade, özgün bir Android film/dizi istemcisi. Kotlin + Jetpack Compose + Material 3. applicationId `com.kaan.play`, minSdk 24, compileSdk/targetSdk 37.
+
+## Kopyalama yok, özgün kimlik (bağlayıcı kural)
+- Her şey sıfırdan yazılır. Başka bir uygulamadan kod, ikon, logo, metin, renk veya kart biçimi kopyalanmaz.
+- `referans/` içindeki ekran görüntüleri yalnızca **düzen ve bilgi hiyerarşisi** için bakılır. Renk, ikon, metin ve kart biçimi özgün olur. Referanstaki fazla ayar ve süsler taşınmaz.
+- Görsel kimlik: soğuk koyu zemin (`#0E1116`) + tek kehribar vurgu (`#F5A524`), kendi çizgi ikonlarımız (`ui/nav/PlayIcons.kt`), kendi launcher ikonumuz.
+- Arayüzde "Stremio" ismi geçmez; "eklenti/addon" denir. Arayüz dili Türkçe.
+
+## Kapsam
+- Ekosistemler: (1) Nuvio addon'ları (manifest.json URL'li HTTP addon), (2) Faz 2 Nuvio plugin'leri (JS scraper), (3) Faz 3 CloudStream .cs3.
+- **Şu an yalnızca Faz 1.** Faz 2 ve 3'e başlanmaz. Faz 1 bitince kullanıcıya "Faz 1 tamam" denir ve durulur.
+- Faz 1 hedefi: kullanıcı addon manifest URL'si ekler → ana sayfa TMDB'den beslenir → içeriğe girince addon'lardan kaynaklar toplanır → Media3 ile oynatılır → geçmiş, kaldığı yerden devam ve favoriler yerelde tutulur.
+
+## Kapsam dışı
+Aniyomi, ayrı Stremio ekosistemi, manga, IPTV, Telegram, tracker, profil/kilit, Android TV arayüzü, torrent motoru, toplu indirme.
+
+## Mimari kararlar
+- **Yığın:** Compose + M3, Navigation Compose, Coroutines/Flow, OkHttp, kotlinx.serialization (tek JSON kütüphanesi), Media3 (exoplayer, hls, dash, ui, datasource-okhttp), Coil, Room, DataStore. DI framework yok; elle kurulan `AppContainer`.
+- **Metadata:** TMDB (trend, popüler, arama, detay, sezon/bölüm, poster). Anahtar `local.properties` → `TMDB_API_KEY` → `BuildConfig`. Anahtar git'e girmez. Hakkında ekranı TMDB'nin zorunlu atıf metnini gösterir.
+- **Kimlik:** birincil kimlik TMDB id. Addon'lar IMDb `tt...` ister; TMDB `external_ids` ile türetilir.
+- **Akış kaynağı arayüzü:** `StreamProvider.streams(request: StreamRequest(tmdbId, imdbId, type, season?, episode?)): Flow<StreamResult>`. Faz 1'de tek implementasyon `AddonStreamProvider`; Faz 2/3 kaynakları aynı arayüze takılacak şekilde tasarlanır.
+- **Addon protokolü:** `GET {base}/manifest.json`, `GET {base}/stream/{movie|series}/{imdbId}.json` (dizide `{imdbId}:{sezon}:{bölüm}`). Manifest'teki `resources/types/idPrefixes` dikkate alınır; addon'a yalnızca desteklediği istek gider. Sadece `url` tipli akışlar gösterilir, `infoHash` yok sayılır. `behaviorHints.proxyHeaders` Media3 OkHttp datasource'una aktarılır. Akıştaki altyazılar oynatıcıya eklenir.
+- **Kaynak toplama:** aktif tüm addon'lara paralel istek, addon başına ayrı zaman aşımı (varsayılan 15 sn, ayarlanabilir). Biri takılırsa diğerleri beklemez; sonuçlar Flow ile akar. Hatalar yutulmaz; addon bazında "yanıt vermedi" bilgisi tutulur.
+- **Veri:** Room: `addons`, `watch_history`, `favorites`. Ayarlar DataStore'da. Oynatma konumu ~10 sn'de bir kaydedilir.
+- **Gömülü içerik yok:** uygulamaya hiçbir varsayılan addon/içerik kaynağı gömülmez. Addon'lar yalnızca kullanıcının girdiği URL'lerden gelir. https manifest bağlantıları uygulamayı açıp "addon ekle" akışını başlatır.
+
+## Ekranlar
+Ana sayfa (TMDB satırları + "devam et"), Ara, Detay, Kaynak seçimi (alttan liste; en uygun seçili, tek dokunuş; satırda yalnızca kalite ve boyut), Oynatıcı (tam ekran, oynat/durdur, ileri-geri, altyazı, hız), Kütüphane (geçmiş + favoriler), Ayarlar. Alt menü: Ana sayfa, Ara, Kütüphane, Ayarlar.
+Ayarlar yalnızca: eklenti yönetimi (ekle/sil/aç-kapat), kaynak zaman aşımı, oynatıcı varsayılanları (altyazı dili, hız), tema, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
+
+## Çalışma şekli
+- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı → (3) Room + addon yönetimi → (4) ana sayfa/arama/detay → (5) kaynak toplama → (6) oynatıcı → (7) kütüphane + ayarlar.
+- 1. adımdan sonra kullanıcı onayı beklenir. Her adımın sonunda derle, çalışan testleri çalıştır, iki cümleyle özetle.
+- Parser ve protokol kodu sahte JSON ile birim testlerle doğrulanır.
+- Belirsiz tasarım kararında en sade seçenek seçilir ve README'ye not düşülür.
+- Küçük, anlamlı commit'ler.
+
+## Ortam
+Windows + VS Code (Android Studio yok). JDK 17, SDK `%LOCALAPPDATA%\Android\Sdk`. Derleme: `.\gradlew assembleDebug`. Test cihazı LDPlayer: `adb connect 127.0.0.1:5555`. Sürümler `gradle/libs.versions.toml` içinde sabit.
