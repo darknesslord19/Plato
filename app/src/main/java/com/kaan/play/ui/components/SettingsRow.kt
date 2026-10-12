@@ -16,10 +16,17 @@ import androidx.compose.ui.unit.dp
 
 /** Ayarlar ve Eklentiler ekranlarının ortak tek satırı: başlık solda, (varsa) değer sağda. */
 @Composable
-fun SettingsRow(title: String, value: String = "", subtitle: String = "", divider: Boolean = true, onClick: () -> Unit) {
+fun SettingsRow(
+    title: String,
+    value: String = "",
+    subtitle: String = "",
+    divider: Boolean = true,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     Column {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
+            modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {

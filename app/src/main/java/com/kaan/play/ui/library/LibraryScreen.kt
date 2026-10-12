@@ -23,11 +23,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.kaan.play.ui.components.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.kaan.play.ui.components.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +51,8 @@ import com.kaan.play.data.tmdb.TmdbImages
 import com.kaan.play.ui.components.PosterCard
 import com.kaan.play.ui.containerViewModel
 import com.kaan.play.ui.nav.PlayIcons
+import com.kaan.play.ui.tv.focusMemory
+import com.kaan.play.ui.tv.rememberFocusMemory
 
 private val CardMinWidth = 132.dp
 private val Gutter = 20.dp
@@ -65,6 +67,9 @@ fun LibraryScreen(onOpenDetail: (MediaType, Int) -> Unit, onPlayEntry: (WatchHis
     val favorites by vm.favorites.collectAsStateWithLifecycle()
     val history by vm.history.collectAsStateWithLifecycle()
     var confirmClear by remember { mutableStateOf(false) }
+    // Kumanda: ilk favori (yoksa ilk geçmiş satırı) başlangıç odağı; geri dönünce son odaklanan öğe.
+    val focus = rememberFocusMemory(enabled = favorites != null && history != null)
+    val firstIsFavorite = !favorites.isNullOrEmpty()
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(CardMinWidth),
@@ -94,6 +99,7 @@ fun LibraryScreen(onOpenDetail: (MediaType, Int) -> Unit, onPlayEntry: (WatchHis
                     subtitle = stringResource(if (fav.type == MediaType.Movie) R.string.type_movie else R.string.type_series),
                     imageUrl = TmdbImages.url(fav.posterPath, TmdbImages.Size.Poster),
                     onClick = { onOpenDetail(fav.type, fav.tmdbId) },
+                    modifier = Modifier.focusMemory(focus, "fav-${fav.type}-${fav.tmdbId}", isDefault = fav == favs.first()),
                     overlay = {
                         IconButton(
                             onClick = { vm.removeFavorite(fav) },
@@ -126,7 +132,12 @@ fun LibraryScreen(onOpenDetail: (MediaType, Int) -> Unit, onPlayEntry: (WatchHis
             fullWidth { EmptyText(stringResource(R.string.library_history_empty)) }
         } else if (hist != null) {
             items(hist, key = { "hist-${it.id}" }, span = { GridItemSpan(maxLineSpan) }) { entry ->
-                HistoryRow(entry, onClick = { onPlayEntry(entry) }, onRemove = { vm.removeHistory(entry) })
+                HistoryRow(
+                    entry,
+                    onClick = { onPlayEntry(entry) },
+                    onRemove = { vm.removeHistory(entry) },
+                    modifier = Modifier.focusMemory(focus, "hist-${entry.id}", isDefault = !firstIsFavorite && entry == hist.first()),
+                )
             }
         }
     }
@@ -166,7 +177,7 @@ private fun EmptyText(text: String) {
 }
 
 @Composable
-private fun HistoryRow(entry: WatchHistoryEntity, onClick: () -> Unit, onRemove: () -> Unit) {
+private fun HistoryRow(entry: WatchHistoryEntity, onClick: () -> Unit, onRemove: () -> Unit, modifier: Modifier = Modifier) {
     val watched = WatchRules.isWatched(entry.positionMs, entry.durationMs)
     val minutesLeft = (((entry.durationMs - entry.positionMs) + 59_999L) / 60_000L).toInt().coerceAtLeast(1)
     val isSeries = entry.type == MediaType.Tv
@@ -179,7 +190,7 @@ private fun HistoryRow(entry: WatchHistoryEntity, onClick: () -> Unit, onRemove:
     val progress = (entry.positionMs.toFloat() / entry.durationMs.toFloat()).coerceIn(0f, 1f)
 
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(

@@ -12,7 +12,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +36,8 @@ import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.rememberContainer
+import com.kaan.play.ui.tv.rememberInitialFocus
+import androidx.compose.ui.focus.focusRequester
 import kotlinx.coroutines.flow.onCompletion
 
 /**
@@ -51,10 +56,20 @@ fun SourcesSheet(request: StreamRequest, onDismiss: () -> Unit, onPicked: (Playa
             .collect { value += it }
     }
 
+    // Kumanda: kaynaklar gelince önerilen satır (yoksa ilk satır) odak alır; Tamam seçer.
+    val focus = rememberInitialFocus(enabled = state.streams.isNotEmpty())
+    val focusStream = state.recommended ?: state.streams.firstOrNull()
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface,
+        // Sürükleme tutamacı yalnızca dokunmada: kumandada odak ona takılmasın, doğrudan kaynak satırına gelsin.
+        dragHandle = if (LocalInputModeManager.current.inputMode == InputMode.Touch) {
+            { BottomSheetDefaults.DragHandle() }
+        } else {
+            null
+        },
     ) {
         Column(Modifier.navigationBarsPadding()) {
             Text(
@@ -68,7 +83,12 @@ fun SourcesSheet(request: StreamRequest, onDismiss: () -> Unit, onPicked: (Playa
             }
             LazyColumn(Modifier.heightIn(max = 420.dp)) {
                 items(state.streams) { stream ->
-                    SourceRow(stream, isRecommended = stream == state.recommended, onClick = { onPicked(stream) })
+                    SourceRow(
+                        stream,
+                        isRecommended = stream == state.recommended,
+                        onClick = { onPicked(stream) },
+                        modifier = if (stream == focusStream) Modifier.focusRequester(focus) else Modifier,
+                    )
                 }
                 items(state.failed) { source ->
                     Text(
@@ -96,9 +116,9 @@ fun SourcesSheet(request: StreamRequest, onDismiss: () -> Unit, onPicked: (Playa
 }
 
 @Composable
-private fun SourceRow(stream: PlayableStream, isRecommended: Boolean, onClick: () -> Unit) {
+private fun SourceRow(stream: PlayableStream, isRecommended: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

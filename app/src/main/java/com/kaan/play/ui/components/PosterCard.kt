@@ -3,6 +3,11 @@ package com.kaan.play.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -45,15 +50,22 @@ fun PosterCard(
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     val shape = MaterialTheme.shapes.medium
+    // Odak halkası yalnızca afişte (kart yazısını ezmez): tıklama göstergesi dalga olarak kalır, halka afişe çizilir.
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
     // Tüm sütunu yuvarlak kırpmayız: alt satırın ilk harfini keserdi. Yalnızca afiş kırpılır.
-    Column(modifier = modifier.clickable(onClick = onClick)) {
+    Column(modifier = modifier.clickable(interactionSource = interaction, indication = ripple(), onClick = onClick)) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
                 .clip(shape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .border(1.dp, MaterialTheme.colorScheme.outline, shape),
+                .border(
+                    width = if (focused) 3.dp else 1.dp,
+                    color = if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    shape = shape,
+                ),
         ) {
             if (imageUrl != null) {
                 AsyncImage(

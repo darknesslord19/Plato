@@ -17,7 +17,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.material3.Button
+import com.kaan.play.ui.components.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +41,10 @@ import com.kaan.play.ui.components.cardSubtitle
 import com.kaan.play.ui.components.posterUrl
 import com.kaan.play.ui.containerViewModel
 import com.kaan.play.ui.rememberContainer
+import com.kaan.play.ui.tv.focusMemory
+import com.kaan.play.ui.tv.rememberFocusMemory
+import com.kaan.play.ui.tv.rememberInitialFocus
+import androidx.compose.ui.focus.focusRequester
 
 private val CardWidth = 132.dp
 private val ScreenPadding = 20.dp
@@ -76,7 +80,8 @@ private fun HomeEmptyState(onAddAddon: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        Button(onClick = onAddAddon) { Text(stringResource(R.string.home_empty_action)) }
+        val focus = rememberInitialFocus()
+        Button(onClick = onAddAddon, modifier = Modifier.focusRequester(focus)) { Text(stringResource(R.string.home_empty_action)) }
     }
 }
 
@@ -87,6 +92,9 @@ private fun HomeContent(onOpenDetail: (MediaType, Int) -> Unit, onContinue: (Con
     val rows by vm.rows.collectAsStateWithLifecycle()
     // Durum kompozisyon kapsamında okunur (LazyColumn DSL bloğunda değil): değişince bu ekran yeniden çizilir.
     val continueWatching = vm.continueWatching.collectAsStateWithLifecycle().value
+    // Kumanda: başlangıç odağı ilk karta (devam et varsa ona); geri dönünce son odaklanan karta.
+    val firstReady = continueWatching.isNotEmpty() || rows.getValue(HomeRow.Trending) is Loadable.Ready
+    val focus = rememberFocusMemory(enabled = firstReady)
 
     // LazyColumn anahtar bazlı konumu korur: en üste sonradan eklenen "devam et" satırı ekranın üstüne itilirdi.
     val listState = rememberLazyListState()
@@ -107,7 +115,10 @@ private fun HomeContent(onOpenDetail: (MediaType, Int) -> Unit, onContinue: (Con
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         items(continueWatching, key = { "${it.entry.type}-${it.entry.tmdbId}" }) { item ->
-                            ContinueCard(item) { onContinue(item) }
+                            ContinueCard(
+                                item,
+                                modifier = Modifier.focusMemory(focus, "c-${item.entry.type}-${item.entry.tmdbId}", isDefault = item === continueWatching.first()),
+                            ) { onContinue(item) }
                         }
                     }
                 }
@@ -129,7 +140,13 @@ private fun HomeContent(onOpenDetail: (MediaType, Int) -> Unit, onContinue: (Con
                                     subtitle = media.cardSubtitle(),
                                     imageUrl = media.posterUrl(),
                                     onClick = { onOpenDetail(media.type, media.id) },
-                                    modifier = Modifier.width(CardWidth),
+                                    modifier = Modifier
+                                        .width(CardWidth)
+                                        .focusMemory(
+                                            focus,
+                                            "${row.name}-${media.type}-${media.id}",
+                                            isDefault = continueWatching.isEmpty() && row == HomeRow.Trending && media == state.value.first(),
+                                        ),
                                 )
                             }
                         }
@@ -153,7 +170,7 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun ContinueCard(item: ContinueItem, onClick: () -> Unit) {
+private fun ContinueCard(item: ContinueItem, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val entry = item.entry
     val subtitle: String
     val progress: Float?
@@ -178,7 +195,7 @@ private fun ContinueCard(item: ContinueItem, onClick: () -> Unit) {
         subtitle = subtitle,
         imageUrl = TmdbImages.url(entry.posterPath, TmdbImages.Size.Poster),
         onClick = onClick,
-        modifier = Modifier.width(CardWidth),
+        modifier = modifier.width(CardWidth),
         progress = progress,
     )
 }

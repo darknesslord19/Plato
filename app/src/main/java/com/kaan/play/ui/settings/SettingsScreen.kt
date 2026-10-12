@@ -25,6 +25,8 @@ import com.kaan.play.i18n.LanguageChoice
 import com.kaan.play.ui.components.ChoiceDialog
 import com.kaan.play.ui.components.SettingsRow
 import com.kaan.play.ui.rememberContainer
+import com.kaan.play.ui.tv.focusMemory
+import com.kaan.play.ui.tv.rememberFocusMemory
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -43,6 +45,7 @@ fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbo
     val theme by container.settings.themeMode.collectAsStateWithLifecycle(initialValue = ThemeMode.Dark)
     var language by remember { mutableStateOf(AppLanguage.choice()) }
     var dialog by remember { mutableStateOf<OpenDialog?>(null) }
+    val focus = rememberFocusMemory()
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         Text(
@@ -53,12 +56,31 @@ fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbo
         SettingsRow(
             title = stringResource(R.string.addons_title),
             value = addonCount?.let { pluralStringResource(R.plurals.addons_count, it, it) }.orEmpty(),
+            modifier = Modifier.focusMemory(focus, "addons", isDefault = true),
             onClick = onOpenAddons,
         )
-        SettingsRow(title = stringResource(R.string.settings_player), onClick = onOpenPlayer)
-        SettingsRow(stringResource(R.string.settings_theme), stringResource(theme.labelRes())) { dialog = OpenDialog.Theme }
-        SettingsRow(stringResource(R.string.settings_language), stringResource(language.labelRes())) { dialog = OpenDialog.Language }
-        SettingsRow(stringResource(R.string.settings_about), BuildConfig.VERSION_NAME, divider = false, onClick = onOpenAbout)
+        SettingsRow(
+            title = stringResource(R.string.settings_player),
+            modifier = Modifier.focusMemory(focus, "player"),
+            onClick = onOpenPlayer,
+        )
+        SettingsRow(
+            stringResource(R.string.settings_theme),
+            stringResource(theme.labelRes()),
+            modifier = Modifier.focusMemory(focus, "theme"),
+        ) { dialog = OpenDialog.Theme }
+        SettingsRow(
+            stringResource(R.string.settings_language),
+            stringResource(language.labelRes()),
+            modifier = Modifier.focusMemory(focus, "language"),
+        ) { dialog = OpenDialog.Language }
+        SettingsRow(
+            stringResource(R.string.settings_about),
+            BuildConfig.VERSION_NAME,
+            divider = false,
+            modifier = Modifier.focusMemory(focus, "about"),
+            onClick = onOpenAbout,
+        )
     }
 
     when (dialog) {

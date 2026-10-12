@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android TV ana ekranı afişi (320x180dp): koyu zemin, launcher işareti (oynat üçgeni + ilerleme çizgisi) ve
+     kendi çizgi stilimizle "Play" yazısı. Yalnızca Play'in kendi renkleri. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path
+        android:fillColor="@color/play_background"
+        android:pathData="M0,0h320v180h-320z" />
+
+    <!-- İşaret: launcher ön planıyla aynı biçim, 2 kat büyütülmüş. -->
+    <group
+        android:scaleX="2"
+        android:scaleY="2"
+        android:translateX="-44"
+        android:translateY="-14">
+        <path
+            android:fillColor="@color/play_accent"
+            android:pathData="M44,36.5 Q44,32 48,34.3 L69,46.6 Q73,49 69,51.4 L48,63.7 Q44,66 44,61.5 Z" />
+        <path
+            android:fillColor="#4D2DD4BF"
+            android:pathData="M40,72 h28 a2,2 0 0 1 0,4 h-28 a2,2 0 0 1 0,-4 z" />
+        <path
+            android:fillColor="@color/play_accent"
+            android:pathData="M40,72 h14 a2,2 0 0 1 0,4 h-14 a2,2 0 0 1 0,-4 z" />
+    </group>
+
+    <!-- "Play": yuvarlak uçlu çizgilerle P, l, a, y. -->
+    <group android:translateX="-9">
+        <path
+            android:pathData="M148,122 V56 H164 A17,17 0 0 1 164,90 H148 M196,122 V50 M256,84 V122 M256,103 A19,19 0 1 0 218,103 A19,19 0 1 0 256,103 M273,84 L288,116 L303,84 M288,116 L279,138"
+            android:strokeColor="@color/play_on_background"
+            android:strokeWidth="9"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

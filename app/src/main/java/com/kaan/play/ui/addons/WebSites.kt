@@ -11,11 +11,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.kaan.play.ui.components.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.kaan.play.ui.components.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -33,6 +33,7 @@ import com.kaan.play.data.web.WebSiteException
 import com.kaan.play.data.web.WebSiteRepository
 import com.kaan.play.data.web.WebSiteUrl
 import com.kaan.play.ui.nav.PlayIcons
+import com.kaan.play.ui.tv.dpadLeavesTextField
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -84,14 +85,14 @@ class WebSitesViewModel(private val repo: WebSiteRepository) : ViewModel() {
 
 /** Eklenmiş bir site: dokununca açılır; sağdaki düğme siler. */
 @Composable
-fun WebSiteRow(site: WebSite, onOpen: () -> Unit, onRemove: () -> Unit) {
+fun WebSiteRow(site: WebSite, onOpen: () -> Unit, onRemove: () -> Unit, modifier: Modifier = Modifier) {
     val host = remember(site.url) { WebSiteUrl.displayHost(site.url) }
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(start = 20.dp, end = 12.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = 64.dp).padding(start = 8.dp, end = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
-            modifier = Modifier.weight(1f).clickable(onClick = onOpen).padding(vertical = 8.dp),
+            modifier = Modifier.weight(1f).clickable(onClick = onOpen).padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Text(site.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
@@ -131,7 +132,7 @@ fun AddWebSiteDialog(
                     label = { Text(stringResource(R.string.web_add_name)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(),
                 )
                 OutlinedTextField(
                     value = state.address,
@@ -142,7 +143,7 @@ fun AddWebSiteDialog(
                     isError = state.error != null,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { onConfirm() }),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(),
                 )
                 state.error?.let { kind ->
                     Text(

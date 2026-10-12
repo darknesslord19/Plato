@@ -29,7 +29,7 @@ Sade, özgün bir Android film/dizi istemcisi. Kotlin + Jetpack Compose + Materi
 - Faz 1 hedefi: kullanıcı addon manifest URL'si ekler → ana sayfa TMDB'den beslenir → içeriğe girince addon'lardan kaynaklar toplanır → Media3 ile oynatılır → geçmiş, kaldığı yerden devam ve favoriler yerelde tutulur.
 
 ## Kapsam dışı
-Aniyomi, ayrı Stremio ekosistemi, manga, IPTV, Telegram, tracker, profil/kilit, Android TV arayüzü, torrent motoru, toplu indirme.
+Aniyomi, ayrı Stremio ekosistemi, manga, IPTV, Telegram, tracker, profil/kilit, ayrı bir Android TV arayüzü (Compose for TV / Leanback ekranları; mevcut ekranlar kumandayla da kullanılır), torrent motoru, toplu indirme.
 
 ## Mimari kararlar
 - **Yığın:** Compose + M3, Navigation Compose, Coroutines/Flow, OkHttp, kotlinx.serialization (tek JSON kütüphanesi), Media3 (exoplayer, hls, dash, ui, datasource-okhttp), Coil, Room, DataStore. DI framework yok; elle kurulan `AppContainer`.
@@ -49,7 +49,7 @@ Web görünümü (Ayarlar > Eklentiler > Web siteleri'nden açılır): üstte sa
 Ayarlar en çok beş kalem: Eklentiler (ekle/sil/aç-kapat; web sitesi ekle/sil; kaynak zaman aşımı bu ekranın altında küçük bir ayar), Oynatıcı (altyazı görünümü, kaldığın yerden devam; 7. adım), Tema, Dil, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
 
 ## Çalışma şekli
-- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay ✅ → (5) kaynak toplama ✅ → (6) oynatıcı ✅ → (7) kütüphane + ayarlar ✅ → (8) web sitesi ekle (reklamsız web görünümü; kullanıcı isteğiyle eklendi) ✅. Sıradaki adım için kullanıcı onayı beklenir.
+- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay ✅ → (5) kaynak toplama ✅ → (6) oynatıcı ✅ → (7) kütüphane + ayarlar ✅ → (8) web sitesi ekle (reklamsız web görünümü; kullanıcı isteğiyle eklendi) ✅ → (9) TV, tablet ve kumanda desteği ✅. **Faz 1 tamamlandı.** Faz 2'ye kendiliğinden başlanmaz; sıradaki adım için kullanıcı onayı beklenir.
 - 1. adımdan sonra kullanıcı onayı beklenir. Her adımın sonunda derle, çalışan testleri çalıştır, iki cümleyle özetle.
 - Parser ve protokol kodu sahte JSON ile birim testlerle doğrulanır.
 - Belirsiz tasarım kararında en sade seçenek seçilir ve README'ye not düşülür.
@@ -61,7 +61,7 @@ Ayarlar en çok beş kalem: Eklentiler (ekle/sil/aç-kapat; web sitesi ekle/sil;
 - Yalnızca dokunmaya bağlı hareketlere (sürükle, çift dokun, uzun bas) dayanma; her işlemin düğmeyle bir karşılığı olsun.
 - Oynatıcı kontrolleri kumanda ile erişilebilir olsun.
 - Sabit piksel yerine esnek düzen kullan; ızgara sütun sayısı ekran genişliğinden hesaplansın.
-- Android TV desteği (leanback girişi, banner, yatay düzen, odak vurgusu) Faz 1 sonrasında ayrı bir adım olarak yapılacak; şimdi uygulama.
+- Android TV/tablet/kumanda desteği 9. adımda yapıldı: leanback girişi + afiş, her tıklanabilir öğede turkuaz odak halkası (`ui/tv`: `PlayIndication`, `focusRing`, `PlayButtons`), ekran başına başlangıç odağı ve geri dönüşte odak hafızası (`focusMemory`), oynatıcı kumanda eşlemesi (`PlayerKeys`), geniş ekranda yan menü ve iki sütunlu Detay (`PlayLayout`). Yeni ekran/öğe eklerken: Material düğmeleri yerine `ui/components/PlayButtons.kt` içindekileri içe aktar, kendi `clickable` satırında ek bir şey gerekmez, menü/anahtar gibi öğelere `Modifier.focusRing`, listelere `rememberFocusMemory`. Ayrı bir TV arayüzü yoktur; aynı ekranlar kumandayla kullanılır. Hava kumandası imleci için ekstra bir şey yapılmaz.
 
 ## Ortam
 Windows + VS Code (Android Studio yok). JDK 17, SDK `%LOCALAPPDATA%\Android\Sdk`. Derleme: `.\gradlew assembleDebug`. Test cihazı LDPlayer: `adb connect 127.0.0.1:5555`. Sürümler `gradle/libs.versions.toml` içinde sabit.

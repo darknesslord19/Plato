@@ -3,6 +3,16 @@ package com.kaan.play.ui.nav
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
+import com.kaan.play.ui.tv.ReadableWidth
+import com.kaan.play.ui.tv.focusRing
+import com.kaan.play.ui.tv.rememberPlayLayout
+import com.kaan.play.ui.tv.PlayLayout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -13,7 +23,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.kaan.play.ui.components.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -179,36 +189,69 @@ fun PlayRoot() {
         context.startActivity(PlaySession(start.target, stream, start.startMs, start.autoResumed).toIntent(context))
     }
 
+    val layout = rememberPlayLayout()
+    // Detay tam ekran: alt menü/yan menü gizli.
+    val showNav = currentRoute != DETAIL_ROUTE
+    val navColors = NavigationBarItemDefaults.colors(
+        selectedIconColor = MaterialTheme.colorScheme.primary,
+        selectedTextColor = MaterialTheme.colorScheme.primary,
+        indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    val railColors = NavigationRailItemDefaults.colors(
+        selectedIconColor = MaterialTheme.colorScheme.primary,
+        selectedTextColor = MaterialTheme.colorScheme.primary,
+        indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    fun selected(tab: Tab) = currentRoute == tab.route || currentRoute?.startsWith(tab.route + "/") == true
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            // Detay tam ekran: alt menü gizli.
-            if (currentRoute != DETAIL_ROUTE) {
+            // Telefon (ve alçak yatay telefon): alt menü. Geniş ekranda yan menü kullanılır.
+            if (showNav && !layout.useRail) {
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                     Tab.entries.forEach { tab ->
                         NavigationBarItem(
-                            selected = currentRoute == tab.route || currentRoute?.startsWith(tab.route + "/") == true,
+                            selected = selected(tab),
                             onClick = { openTab(tab) },
                             icon = { Icon(tab.icon, contentDescription = stringResource(tab.label)) },
                             alwaysShowLabel = true,
                             label = { Text(stringResource(tab.label), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
+                            colors = navColors,
+                            modifier = Modifier.focusRing(RoundedCornerShape(16.dp)),
                         )
                     }
                 }
             }
         },
     ) { padding ->
+        Row(Modifier.padding(padding)) {
+        if (showNav && layout.useRail) {
+            NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+                // Menü öğeleri dikeyde ortalanır; kumandada Yukarı/Aşağı ile gezilir, Sağ içeriğe geçer.
+                Spacer(Modifier.weight(1f))
+                Tab.entries.forEach { tab ->
+                    NavigationRailItem(
+                        selected = selected(tab),
+                        onClick = { openTab(tab) },
+                        icon = { Icon(tab.icon, contentDescription = stringResource(tab.label)) },
+                        alwaysShowLabel = true,
+                        label = { Text(stringResource(tab.label), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        colors = railColors,
+                        modifier = Modifier.focusRing(RoundedCornerShape(16.dp)).padding(vertical = 4.dp),
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+            }
+        }
         NavHost(
             navController = navController,
             startDestination = Tab.Home.route,
-            modifier = Modifier.padding(padding),
+            modifier = Modifier.weight(1f),
         ) {
             composable(Tab.Home.route) {
                 HomeScreen(
@@ -217,32 +260,36 @@ fun PlayRoot() {
                     onAddAddon = { openAddons(startAdding = true) },
                 )
             }
-            composable(Tab.Search.route) { SearchScreen(onOpenDetail = ::openDetail) }
+            composable(Tab.Search.route) { ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { SearchScreen(onOpenDetail = ::openDetail) } }
             composable(Tab.Library.route) {
-                LibraryScreen(onOpenDetail = ::openDetail, onPlayEntry = ::playHistory)
+                ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { LibraryScreen(onOpenDetail = ::openDetail, onPlayEntry = ::playHistory) }
             }
             composable(Tab.Settings.route) {
-                SettingsScreen(
-                    onOpenAddons = { navController.navigate(addonsRoute(false)) },
-                    onOpenPlayer = { navController.navigate(PLAYER_SETTINGS_ROUTE) },
-                    onOpenAbout = { navController.navigate(ABOUT_ROUTE) },
-                )
+                ReadableWidth {
+                    SettingsScreen(
+                        onOpenAddons = { navController.navigate(addonsRoute(false)) },
+                        onOpenPlayer = { navController.navigate(PLAYER_SETTINGS_ROUTE) },
+                        onOpenAbout = { navController.navigate(ABOUT_ROUTE) },
+                    )
+                }
             }
-            composable(PLAYER_SETTINGS_ROUTE) { PlayerSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable(PLAYER_SETTINGS_ROUTE) { ReadableWidth { PlayerSettingsScreen(onBack = { navController.popBackStack() }) } }
             composable(
                 route = ADDONS_ROUTE,
                 arguments = listOf(navArgument("add") { type = NavType.BoolType; defaultValue = false }),
             ) { entry ->
-                AddonsScreen(
-                    startAdding = entry.arguments?.getBoolean("add") == true,
-                    onBack = { navController.popBackStack() },
-                    onOpenRepos = { navController.navigate(ADDONS_REPOS_ROUTE) },
-                    onOpenInstalled = { navController.navigate(ADDONS_INSTALLED_ROUTE) },
-                )
+                ReadableWidth {
+                    AddonsScreen(
+                        startAdding = entry.arguments?.getBoolean("add") == true,
+                        onBack = { navController.popBackStack() },
+                        onOpenRepos = { navController.navigate(ADDONS_REPOS_ROUTE) },
+                        onOpenInstalled = { navController.navigate(ADDONS_INSTALLED_ROUTE) },
+                    )
+                }
             }
-            composable(ADDONS_REPOS_ROUTE) { RepositoriesScreen(onBack = { navController.popBackStack() }) }
-            composable(ADDONS_INSTALLED_ROUTE) { InstalledAddonsScreen(onBack = { navController.popBackStack() }) }
-            composable(ABOUT_ROUTE) { AboutScreen(onBack = { navController.popBackStack() }) }
+            composable(ADDONS_REPOS_ROUTE) { ReadableWidth { RepositoriesScreen(onBack = { navController.popBackStack() }) } }
+            composable(ADDONS_INSTALLED_ROUTE) { ReadableWidth { InstalledAddonsScreen(onBack = { navController.popBackStack() }) } }
+            composable(ABOUT_ROUTE) { ReadableWidth { AboutScreen(onBack = { navController.popBackStack() }) } }
             composable(
                 route = DETAIL_ROUTE,
                 arguments = listOf(
@@ -259,6 +306,7 @@ fun PlayRoot() {
                     onPlay = { target -> play(target) },
                 )
             }
+        }
         }
     }
 

@@ -12,16 +12,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.kaan.play.ui.components.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Switch
+import com.kaan.play.ui.tv.focusRing
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.kaan.play.ui.components.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +40,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +57,9 @@ import com.kaan.play.ui.components.SettingsRow
 import com.kaan.play.ui.containerViewModel
 import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.rememberContainer
+import com.kaan.play.ui.tv.dpadLeavesTextField
+import com.kaan.play.ui.tv.focusMemory
+import com.kaan.play.ui.tv.rememberFocusMemory
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -75,6 +82,7 @@ fun AddonsScreen(
     val timeout by container.settings.sourceTimeoutSeconds
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_TIMEOUT_SECONDS)
     var showTimeout by remember { mutableStateOf(false) }
+    val focus = rememberFocusMemory()
 
     // Ana sayfadaki "eklenti ekle" düğmesinden geldiyse pencere hemen açılır.
     LaunchedEffect(startAdding) { if (startAdding) vm.startAddingOnce() }
@@ -86,16 +94,29 @@ fun AddonsScreen(
     val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        ScreenHeader(title = stringResource(R.string.addons_title), onBack = onBack)
+        ScreenHeader(title = stringResource(R.string.addons_title), onBack = onBack, initialFocus = false)
 
         // Satırlar ve web siteleri listesi birlikte kayar (büyük yazı boyutunda ya da çok siteyle taşmasın).
         LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            item { SettingsRow(title = stringResource(R.string.addons_add), onClick = { vm.openAdd() }) }
-            item { SettingsRow(title = stringResource(R.string.addons_repos), onClick = onOpenRepos) }
+            item {
+                SettingsRow(
+                    title = stringResource(R.string.addons_add),
+                    modifier = Modifier.focusMemory(focus, "add", isDefault = true),
+                    onClick = { vm.openAdd() },
+                )
+            }
+            item {
+                SettingsRow(
+                    title = stringResource(R.string.addons_repos),
+                    modifier = Modifier.focusMemory(focus, "repos"),
+                    onClick = onOpenRepos,
+                )
+            }
             item {
                 SettingsRow(
                     title = stringResource(R.string.addons_installed),
                     value = addons?.let { pluralStringResource(R.plurals.addons_count, it.size, it.size) }.orEmpty(),
+                    modifier = Modifier.focusMemory(focus, "installed"),
                     onClick = onOpenInstalled,
                 )
             }
@@ -104,6 +125,7 @@ fun AddonsScreen(
                     title = stringResource(R.string.web_add),
                     subtitle = stringResource(R.string.web_add_subtitle),
                     divider = false,
+                    modifier = Modifier.focusMemory(focus, "web"),
                     onClick = { webVm.openAdd() },
                 )
             }
@@ -119,6 +141,7 @@ fun AddonsScreen(
                 items(list, key = { "site-${it.id}" }) { site ->
                     WebSiteRow(
                         site = site,
+                        modifier = Modifier.focusMemory(focus, "site-${site.id}"),
                         onOpen = { context.startActivity(WebActivity.intent(context, site.name, site.url)) },
                         onRemove = { siteToRemove = site },
                     )
@@ -280,7 +303,7 @@ private fun AddonRow(addon: Addon, onToggle: (Boolean) -> Unit, onRemove: () -> 
         Switch(
             checked = addon.enabled,
             onCheckedChange = onToggle,
-            modifier = Modifier.semantics { contentDescription = toggleLabel },
+            modifier = Modifier.focusRing(CircleShape).semantics { contentDescription = toggleLabel },
         )
         IconButton(onClick = onRemove) {
             Icon(
@@ -312,8 +335,9 @@ private fun AddAddonDialog(
                     singleLine = true,
                     enabled = !state.busy,
                     isError = state.error != null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (!state.busy && state.input.isNotBlank()) onConfirm() }),
+                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(),
                 )
                 when {
                     state.busy -> Row(verticalAlignment = Alignment.CenterVertically) {

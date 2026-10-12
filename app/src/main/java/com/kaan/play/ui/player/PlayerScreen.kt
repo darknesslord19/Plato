@@ -1,6 +1,7 @@
 package com.kaan.play.ui.player
 
 import android.graphics.Color as AndroidColor
+import android.os.SystemClock
 import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
@@ -22,18 +23,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.kaan.play.ui.components.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
+import com.kaan.play.ui.components.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.kaan.play.ui.components.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.kaan.play.ui.components.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -78,6 +79,7 @@ import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.settings.SubtitlePreview
 import com.kaan.play.ui.settings.SubtitleStyleControls
 import com.kaan.play.ui.sources.SourcesSheet
+import com.kaan.play.ui.tv.rememberInitialFocus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -85,6 +87,7 @@ import java.util.Locale
 private const val SEEK_STEP_MS = 10_000L
 private const val HIDE_AFTER_MS = 4_000L
 private const val RESUME_NOTICE_MS = 5_000L
+private const val SEEK_HOLD_MS = 1_200L
 
 /**
  * Tam ekran oynatıcı. Kontroller sade: geri/ileri 10 sn, oynat/duraklat, ilerleme çubuğu, altyazı, kaynak değiştir.
@@ -111,6 +114,8 @@ fun PlayerScreen(
     var showSources by remember { mutableStateOf(false) }
     var showSubtitles by remember { mutableStateOf(false) }
     var showAppearance by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    var lastSeekKeyAt by remember { mutableLongStateOf(0L) }
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     // "Kaldığın yerden devam ediliyor · Baştan başla": ~5 sn; düğmede odak varken (kumanda) süre işlemez.
@@ -119,7 +124,7 @@ fun PlayerScreen(
     val rootFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
     val noticeFocus = remember { FocusRequester() }
-    val dialogOpen = showSources || showSubtitles || showAppearance
+    val dialogOpen = showSources || showSubtitles || showAppearance || showMenu
     val showControls = controlsVisible || ui.error != null
 
     fun bump() { interaction++ }
@@ -128,6 +133,11 @@ fun PlayerScreen(
         controller.seekBy(deltaMs)
         position = controller.positionMs()
         reveal()
+    }
+    fun seekByKey(direction: Int, repeat: Int) {
+        val step = SeekAcceleration.stepMs(repeat)
+        lastSeekKeyAt = SystemClock.uptimeMillis()
+        if (step > 0) seek(direction * step) else bump()
     }
 
     // Kontroller bir süre dokunulmazsa (ve oynatma sürerken) kendiliğinden gizlenir.
@@ -171,18 +181,16 @@ fun PlayerScreen(
                 }
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 bump()
-                when (event.key) {
-                    Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause -> { controller.togglePlay(); reveal(); true }
-                    Key.MediaFastForward, Key.MediaStepForward -> { seek(SEEK_STEP_MS); true }
-                    Key.MediaRewind, Key.MediaStepBackward -> { seek(-SEEK_STEP_MS); true }
-                    else -> if (showControls) {
-                        false // kontroller açıkken yön tuşları düğmeler arasında gezinir
-                    } else when (event.key) {
-                        Key.DirectionLeft -> { seek(-SEEK_STEP_MS); true }
-                        Key.DirectionRight -> { seek(SEEK_STEP_MS); true }
-                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.DirectionUp, Key.DirectionDown -> { reveal(); true }
-                        else -> false
-                    }
+                val repeat = event.nativeKeyEvent.repeatCount
+                // Sarma sürerken (basılı tutma) kontroller açılsa da Sol/Sağ sarmaya devam eder, odağı gezdirmez.
+                val seeking = SystemClock.uptimeMillis() - lastSeekKeyAt < SEEK_HOLD_MS
+                when (PlayerKeys.actionFor(event.key, controlsVisible = showControls && !seeking)) {
+                    PlayerKeyAction.PassThrough -> false
+                    PlayerKeyAction.TogglePlay -> { if (repeat == 0) controller.togglePlay(); reveal(); true }
+                    PlayerKeyAction.SeekBack -> { seekByKey(-1, repeat); true }
+                    PlayerKeyAction.SeekForward -> { seekByKey(1, repeat); true }
+                    PlayerKeyAction.Reveal -> { reveal(); true }
+                    PlayerKeyAction.OpenMenu -> { reveal(); showMenu = true; true }
                 }
             }
             // Açık focusable(): clickable dokunmatik modda odak almaz; gizli kontrollerde tuşlar buraya gelmeli.
@@ -259,6 +267,14 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+
+    if (showMenu) {
+        PlayerMenu(
+            onSubtitles = { showMenu = false; showSubtitles = true },
+            onSources = { showMenu = false; showSources = true },
+            onDismiss = { showMenu = false },
+        )
     }
 
     if (showSubtitles) {
@@ -529,4 +545,31 @@ internal fun formatTime(ms: Long): String {
     val m = (total % 3600) / 60
     val s = total % 60
     return if (h > 0) String.format(Locale.ROOT, "%d:%02d:%02d", h, m, s) else String.format(Locale.ROOT, "%d:%02d", m, s)
+}
+
+/** Kumandada Aşağı ile açılan küçük menü: altyazı ya da kaynak değiştir. İlk satır başlangıç odağındadır. */
+@Composable
+private fun PlayerMenu(onSubtitles: () -> Unit, onSources: () -> Unit, onDismiss: () -> Unit) {
+    val focus = rememberInitialFocus()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = {
+            Column {
+                MenuRow(PlayIcons.Subtitles, stringResource(R.string.player_subtitles), onSubtitles, Modifier.focusRequester(focus))
+                MenuRow(PlayIcons.SwitchSource, stringResource(R.string.player_sources), onSources)
+            }
+        },
+        confirmButton = {},
+    )
+}
+
+@Composable
+private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null)
+        Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 16.dp))
+    }
 }

@@ -14,13 +14,19 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.kaan.play.ui.components.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.focusRequester
+import com.kaan.play.ui.tv.dpadLeavesTextField
+import com.kaan.play.ui.tv.focusMemory
+import com.kaan.play.ui.tv.rememberFocusMemory
+import com.kaan.play.ui.tv.rememberInitialFocus
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +55,10 @@ fun SearchScreen(onOpenDetail: (MediaType, Int) -> Unit) {
     val vm = containerViewModel(key = "search-${AppLanguage.effective().iso}") { SearchViewModel(it.tmdb) }
     val state by vm.state.collectAsStateWithLifecycle()
     val keyboard = LocalSoftwareKeyboardController.current
+    // Kumanda: sonuçlarla (geri dönüş) açılırsa son sonuç, aksi halde arama kutusu başlangıç odağını alır.
+    val startedWithResults = remember { state.items.isNotEmpty() }
+    val fieldFocus = rememberInitialFocus(enabled = !startedWithResults)
+    val focus = rememberFocusMemory(enabled = startedWithResults)
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         OutlinedTextField(
@@ -65,9 +75,10 @@ fun SearchScreen(onOpenDetail: (MediaType, Int) -> Unit) {
             },
             singleLine = true,
             shape = MaterialTheme.shapes.large,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            // Kumanda/klavye ile odaklanınca klavye kendiliğinden açılmaz; Tamam/dokunma açar. Ara: sonucu gösterir, klavyeyi kapatır.
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search, showKeyboardOnFocus = false),
             keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp).focusRequester(fieldFocus).dpadLeavesTextField(),
         )
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -99,6 +110,7 @@ fun SearchScreen(onOpenDetail: (MediaType, Int) -> Unit) {
                                 subtitle = media.cardSubtitle(),
                                 imageUrl = media.posterUrl(),
                                 onClick = { onOpenDetail(media.type, media.id) },
+                                modifier = Modifier.focusMemory(focus, "${media.type}-${media.id}", isDefault = media == state.items.first()),
                             )
                         }
                     }

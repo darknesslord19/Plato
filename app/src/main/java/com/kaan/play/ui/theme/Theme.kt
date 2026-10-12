@@ -5,8 +5,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
+import com.kaan.play.ui.tv.PlayIndication
 
 private val DarkScheme = darkColorScheme(
     primary = PlayColors.Accent,
@@ -54,10 +58,10 @@ private val PlayShapes = Shapes(
 
 @Composable
 fun PlayTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkScheme else LightScheme,
-        shapes = PlayShapes,
-        typography = PlayTypography,
-        content = content,
-    )
+    val scheme = if (darkTheme) DarkScheme else LightScheme
+    MaterialTheme(colorScheme = scheme, shapes = PlayShapes, typography = PlayTypography) {
+        // Odaktaki her tıklanabilir öğe turkuaz halka alır (TV/kumanda/klavye); dokunmatikte görünüm aynı kalır.
+        val indication = remember(scheme.primary) { PlayIndication(scheme.primary) }
+        CompositionLocalProvider(LocalIndication provides indication, content = content)
+    }
 }

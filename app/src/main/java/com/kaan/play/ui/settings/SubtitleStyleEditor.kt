@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
+import com.kaan.play.ui.tv.focusRing
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -121,6 +123,7 @@ private fun <T> ChipGroup(
                 FilterChip(
                     selected = isSelected,
                     onClick = { onSelect(option) },
+                    modifier = Modifier.focusRing(RoundedCornerShape(8.dp)),
                     label = { Text(stringResource(label(option))) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
