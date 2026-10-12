@@ -64,6 +64,35 @@ object PlayIcons {
         }
     }
 
+    val Back: ImageVector by lazy {
+        icon("Back") {
+            line {
+                moveTo(15f, 5f); lineTo(8f, 12f); lineTo(15f, 19f)
+            }
+        }
+    }
+
+    val Plus: ImageVector by lazy {
+        icon("Plus") {
+            line {
+                moveTo(12f, 5f); verticalLineTo(19f)
+                moveTo(5f, 12f); horizontalLineTo(19f)
+            }
+        }
+    }
+
+    val Trash: ImageVector by lazy {
+        icon("Trash") {
+            line {
+                moveTo(4.5f, 7f); horizontalLineTo(19.5f)
+                moveTo(9.5f, 7f); verticalLineTo(4.5f); horizontalLineTo(14.5f); verticalLineTo(7f)
+                moveTo(6.5f, 7f); lineTo(7.5f, 19.5f); horizontalLineTo(16.5f); lineTo(17.5f, 7f)
+                moveTo(10f, 11f); verticalLineTo(16f)
+                moveTo(14f, 11f); verticalLineTo(16f)
+            }
+        }
+    }
+
     val Settings: ImageVector by lazy {
         icon("Settings") {
             line {

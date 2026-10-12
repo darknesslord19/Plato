@@ -11,4 +11,37 @@
 
     <string name="language_title">Dil</string>
     <string name="language_system">Sistem</string>
+
+    <string name="common_back">Geri</string>
+    <string name="common_cancel">İptal</string>
+
+    <string name="addons_title">Eklentiler</string>
+    <plurals name="addons_count">
+        <item quantity="one">%d eklenti</item>
+        <item quantity="other">%d eklenti</item>
+    </plurals>
+    <string name="addons_empty">Henüz hiçbir eklenti yok. Manifest bağlantısıyla bir tane ekle.</string>
+    <string name="addons_add">Eklenti ekle</string>
+    <string name="addons_add_title">Eklenti ekle</string>
+    <string name="addons_add_field">Manifest bağlantısı</string>
+    <string name="addons_add_hint">https://ornek.com/manifest.json</string>
+    <string name="addons_add_confirm">Ekle</string>
+    <string name="addons_add_checking">Eklenti denetleniyor…</string>
+    <string name="addons_remove">Kaldır</string>
+    <string name="addons_remove_title">Eklenti kaldırılsın mı?</string>
+    <string name="addons_remove_message">“%1$s” Play\'den kaldırılacak.</string>
+    <string name="addons_enabled_toggle">%1$s eklentisini aç/kapat</string>
+    <string name="addons_row_info">v%1$s · %2$s</string>
+
+    <string name="addon_error_invalid_url">Eklentinin manifest bağlantısını gir: bir web adresi (http veya https), genellikle manifest.json ile biter ve “?” işaretinden sonra bir şey içermez.</string>
+    <string name="addon_error_already_added">Bu eklenti zaten ekli.</string>
+    <string name="addon_error_unsupported_kind">Bu tür eklentiler henüz desteklenmiyor.</string>
+    <string name="addon_error_network">Eklentiye ulaşılamadı. Bağlantıyı ve internetini kontrol et.</string>
+    <string name="addon_error_http">Eklentinin sunucusu hata verdi (HTTP %1$s). Bağlantıyı kontrol et.</string>
+    <string name="addon_error_too_large">Manifest dosyası beklenmedik ölçüde büyük, bu yüzden yüklenmedi.</string>
+    <string name="addon_error_not_json">Bu bağlantı geçerli bir manifest döndürmedi (yanıt JSON değil). manifest.json dosyasına işaret ettiğinden emin ol.</string>
+    <string name="addon_error_missing_field">Manifest’te “%1$s” alanı yok.</string>
+    <string name="addon_error_invalid_field">Manifest’teki “%1$s” alanı bozuk.</string>
+    <string name="addon_error_no_stream">Bu eklenti akış sunmuyor, bu yüzden Play onu kullanamaz.</string>
+    <string name="addon_error_unsupported_types">Bu eklenti film veya dizi sunmuyor, bu yüzden Play onu kullanamaz.</string>
 </resources>

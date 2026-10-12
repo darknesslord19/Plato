@@ -26,8 +26,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kaan.play.ui.addons.AddonsScreen
+import com.kaan.play.ui.rememberContainer
 import com.kaan.play.R
 import com.kaan.play.ui.settings.SettingsScreen
+
+private const val ADDONS_ROUTE = "settings/addons?add={add}"
+private fun addonsRoute(startAdding: Boolean) = "settings/addons?add=$startAdding"
 
 enum class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector) {
     Home("home", R.string.tab_home, PlayIcons.Home),
@@ -41,6 +50,12 @@ fun PlayRoot() {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
+
+    // https manifest bağlantısıyla açılınca (MainActivity -> pendingAddonUrl) ekleme ekranına git.
+    val pendingAddonUrl by rememberContainer().pendingAddonUrl.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingAddonUrl) {
+        if (pendingAddonUrl != null) navController.navigate(addonsRoute(false)) { launchSingleTop = true }
+    }
 
     fun openTab(tab: Tab) {
         navController.navigate(tab.route) {
@@ -56,7 +71,7 @@ fun PlayRoot() {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 Tab.entries.forEach { tab ->
                     NavigationBarItem(
-                        selected = currentRoute == tab.route,
+                        selected = currentRoute == tab.route || currentRoute?.startsWith(tab.route + "/") == true,
                         onClick = { openTab(tab) },
                         icon = { Icon(tab.icon, contentDescription = null) },
                         label = { Text(stringResource(tab.label)) },
@@ -77,10 +92,23 @@ fun PlayRoot() {
             startDestination = Tab.Home.route,
             modifier = Modifier.padding(padding),
         ) {
-            composable(Tab.Home.route) { HomeEmptyState(onAddAddon = { openTab(Tab.Settings) }) }
+            composable(Tab.Home.route) {
+                HomeEmptyState(onAddAddon = { navController.navigate(addonsRoute(true)) { launchSingleTop = true } })
+            }
             composable(Tab.Search.route) { Placeholder(Tab.Search.label) }
             composable(Tab.Library.route) { Placeholder(Tab.Library.label) }
-            composable(Tab.Settings.route) { SettingsScreen() }
+            composable(Tab.Settings.route) {
+                SettingsScreen(onOpenAddons = { navController.navigate(addonsRoute(false)) })
+            }
+            composable(
+                route = ADDONS_ROUTE,
+                arguments = listOf(navArgument("add") { type = NavType.BoolType; defaultValue = false }),
+            ) { entry ->
+                AddonsScreen(
+                    startAdding = entry.arguments?.getBoolean("add") == true,
+                    onBack = { navController.popBackStack() },
+                )
+            }
         }
     }
 }

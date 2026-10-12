@@ -31,7 +31,7 @@ Aniyomi, ayrı Stremio ekosistemi, manga, IPTV, Telegram, tracker, profil/kilit,
 - **Akış kaynağı arayüzü:** `StreamProvider.streams(request: StreamRequest(tmdbId, imdbId, type, season?, episode?)): Flow<StreamResult>`. Faz 1'de tek implementasyon `AddonStreamProvider`; Faz 2/3 kaynakları aynı arayüze takılacak şekilde tasarlanır.
 - **Addon protokolü:** `GET {base}/manifest.json`, `GET {base}/stream/{movie|series}/{imdbId}.json` (dizide `{imdbId}:{sezon}:{bölüm}`). Manifest'teki `resources/types/idPrefixes` dikkate alınır; addon'a yalnızca desteklediği istek gider. Sadece `url` tipli akışlar gösterilir, `infoHash` yok sayılır. `behaviorHints.proxyHeaders` Media3 OkHttp datasource'una aktarılır. Akıştaki altyazılar oynatıcıya eklenir.
 - **Kaynak toplama:** aktif tüm addon'lara paralel istek, addon başına ayrı zaman aşımı (varsayılan 15 sn, ayarlanabilir). Biri takılırsa diğerleri beklemez; sonuçlar Flow ile akar. Hatalar yutulmaz; addon bazında "yanıt vermedi" bilgisi tutulur.
-- **Veri:** Room: `addons`, `watch_history`, `favorites`. Ayarlar DataStore'da. Oynatma konumu ~10 sn'de bir kaydedilir.
+- **Veri:** Room (`PlayDatabase` v1, şema `app/schemas/`'e dışa aktarılır): `addons` (`type`: NUVIO_ADDON / NUVIO_PLUGIN_REPO / CLOUDSTREAM_REPO; Faz 1'de yalnızca NUVIO_ADDON eklenebilir ve okunur), `plugins` (depo → plugin, Faz 2/3 için hazır, Faz 1'de boş), `watch_history`, `favorites` (şema hazır, davranış 7. adımda). Ayarlar DataStore'da. Oynatma konumu ~10 sn'de bir kaydedilir.
 - **Gömülü içerik yok:** uygulamaya hiçbir varsayılan addon/içerik kaynağı gömülmez. Addon'lar yalnızca kullanıcının girdiği URL'lerden gelir. https manifest bağlantıları uygulamayı açıp "addon ekle" akışını başlatır.
 
 ## Ekranlar
@@ -39,7 +39,7 @@ Ana sayfa (TMDB satırları + "devam et"), Ara, Detay, Kaynak seçimi (alttan li
 Ayarlar yalnızca: eklenti yönetimi (ekle/sil/aç-kapat), kaynak zaman aşımı, oynatıcı varsayılanları (altyazı dili, hız), tema, dil, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
 
 ## Çalışma şekli
-- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi → (4) ana sayfa/arama/detay → (5) kaynak toplama → (6) oynatıcı → (7) kütüphane + ayarlar.
+- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay → (5) kaynak toplama → (6) oynatıcı → (7) kütüphane + ayarlar.
 - 1. adımdan sonra kullanıcı onayı beklenir. Her adımın sonunda derle, çalışan testleri çalıştır, iki cümleyle özetle.
 - Parser ve protokol kodu sahte JSON ile birim testlerle doğrulanır.
 - Belirsiz tasarım kararında en sade seçenek seçilir ve README'ye not düşülür.

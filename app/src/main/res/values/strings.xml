@@ -17,4 +17,37 @@
     <!-- Dil adları her zaman kendi dillerinde yazılır. -->
     <string name="language_english" translatable="false">English</string>
     <string name="language_turkish" translatable="false">Türkçe</string>
+
+    <string name="common_back">Back</string>
+    <string name="common_cancel">Cancel</string>
+
+    <string name="addons_title">Addons</string>
+    <plurals name="addons_count">
+        <item quantity="one">%d addon</item>
+        <item quantity="other">%d addons</item>
+    </plurals>
+    <string name="addons_empty">No addons yet. Add one using its manifest link.</string>
+    <string name="addons_add">Add addon</string>
+    <string name="addons_add_title">Add an addon</string>
+    <string name="addons_add_field">Manifest link</string>
+    <string name="addons_add_hint">https://example.com/manifest.json</string>
+    <string name="addons_add_confirm">Add</string>
+    <string name="addons_add_checking">Checking addon…</string>
+    <string name="addons_remove">Remove</string>
+    <string name="addons_remove_title">Remove addon?</string>
+    <string name="addons_remove_message">“%1$s” will be removed from Play.</string>
+    <string name="addons_enabled_toggle">Enable %1$s</string>
+    <string name="addons_row_info">v%1$s · %2$s</string>
+
+    <string name="addon_error_invalid_url">Enter the addon\'s manifest link: a web address (http or https), usually ending in manifest.json, without anything after a “?”.</string>
+    <string name="addon_error_already_added">This addon is already added.</string>
+    <string name="addon_error_unsupported_kind">This kind of addon isn\'t supported yet.</string>
+    <string name="addon_error_network">Couldn\'t reach the addon. Check the link and your connection.</string>
+    <string name="addon_error_http">The addon\'s server answered with an error (HTTP %1$s). Check the link.</string>
+    <string name="addon_error_too_large">The manifest file is unexpectedly large, so it was not loaded.</string>
+    <string name="addon_error_not_json">That link didn\'t return a valid manifest (the response isn\'t JSON). Check that it points to manifest.json.</string>
+    <string name="addon_error_missing_field">The manifest is missing the “%1$s” field.</string>
+    <string name="addon_error_invalid_field">The manifest\'s “%1$s” field is malformed.</string>
+    <string name="addon_error_no_stream">This addon doesn\'t provide streams, so Play can\'t use it.</string>
+    <string name="addon_error_unsupported_types">This addon doesn\'t offer movies or series, so Play can\'t use it.</string>
 </resources>
