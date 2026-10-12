@@ -45,6 +45,7 @@ import com.kaan.play.R
 import com.kaan.play.data.addon.Addon
 import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.ui.components.ChoiceDialog
+import com.kaan.play.ui.components.ScreenHeader
 import com.kaan.play.ui.components.SettingsRow
 import com.kaan.play.ui.containerViewModel
 import com.kaan.play.ui.nav.PlayIcons
@@ -175,19 +176,6 @@ fun InstalledAddonsScreen(onBack: () -> Unit) {
                 TextButton(onClick = { toRemove = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
-    }
-}
-
-@Composable
-private fun ScreenHeader(title: String, onBack: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(PlayIcons.Back, contentDescription = stringResource(R.string.common_back))
-        }
-        Text(text = title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
     }
 }
 

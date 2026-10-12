@@ -18,7 +18,17 @@ class LibraryRepository(
     /** Her içeriğin (film/dizi) en son kaydı, yeniden eskiye. "İzlendi" olanlar da dahildir; süzme [ContinueWatching]'de. */
     val latestPerContent: Flow<List<WatchHistoryEntity>> = history.observeLatestPerContent()
 
+    /** Geçmiş ekranı: her kayıt ayrı (film, dizide her bölüm), son izlenen üstte. */
+    val watchHistory: Flow<List<WatchHistoryEntity>> = history.observeHistory()
+
     val allFavorites: Flow<List<FavoriteEntity>> = favorites.observeAll()
+
+    suspend fun removeFavorite(type: MediaType, tmdbId: Int) = favorites.remove(tmdbId, type)
+
+    suspend fun removeHistory(id: Long) = history.delete(id)
+
+    /** Yalnızca geçmişi siler; favoriler etkilenmez. */
+    suspend fun clearHistory() = history.clear()
 
     fun isFavorite(type: MediaType, tmdbId: Int): Flow<Boolean> = favorites.observeIsFavorite(tmdbId, type)
 

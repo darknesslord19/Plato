@@ -5,6 +5,7 @@ import com.kaan.play.data.db.FavoriteEntity
 import com.kaan.play.data.db.WatchHistoryDao
 import com.kaan.play.data.db.WatchHistoryEntity
 import com.kaan.play.data.model.Episode
+import com.kaan.play.data.model.MediaSummary
 import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.model.SeasonDetail
 import com.kaan.play.data.stream.PlayTarget
@@ -43,15 +44,34 @@ private class FakeHistoryDao : WatchHistoryDao {
         rows.value = kept + entity.copy(id = if (entity.id != 0L) entity.id else nextId++)
     }
 
+    override fun observeHistory(): Flow<List<WatchHistoryEntity>> = rows.map { list ->
+        list.sortedWith(compareByDescending<WatchHistoryEntity> { it.lastWatchedAt }.thenByDescending { it.id }).take(200)
+    }
+
+    override suspend fun delete(id: Long) {
+        rows.value = rows.value.filterNot { it.id == id }
+    }
+
+    override suspend fun clear() {
+        rows.value = emptyList()
+    }
+
     override suspend fun find(tmdbId: Int, type: MediaType, season: Int, episode: Int) =
         rows.value.firstOrNull { it.tmdbId == tmdbId && it.type == type && it.season == season && it.episode == episode }
 }
 
-private class NoFavorites : FavoriteDao {
-    override fun observeAll(): Flow<List<FavoriteEntity>> = MutableStateFlow(emptyList())
-    override fun observeIsFavorite(tmdbId: Int, type: MediaType): Flow<Boolean> = MutableStateFlow(false)
-    override suspend fun add(entity: FavoriteEntity) = Unit
-    override suspend fun remove(tmdbId: Int, type: MediaType) = Unit
+/** Room'un REPLACE davranışını taklit eden bellek içi favori DAO'su. */
+private class FakeFavorites : FavoriteDao {
+    val rows = MutableStateFlow<List<FavoriteEntity>>(emptyList())
+    override fun observeAll(): Flow<List<FavoriteEntity>> = rows.map { it.sortedByDescending { f -> f.addedAt } }
+    override fun observeIsFavorite(tmdbId: Int, type: MediaType): Flow<Boolean> =
+        rows.map { list -> list.any { it.tmdbId == tmdbId && it.type == type } }
+    override suspend fun add(entity: FavoriteEntity) {
+        rows.value = rows.value.filterNot { it.tmdbId == entity.tmdbId && it.type == entity.type } + entity
+    }
+    override suspend fun remove(tmdbId: Int, type: MediaType) {
+        rows.value = rows.value.filterNot { it.tmdbId == tmdbId && it.type == type }
+    }
 }
 
 class WatchRulesTest {
@@ -96,7 +116,7 @@ class LibraryRepositoryTest {
 
     private val dao = FakeHistoryDao()
     private var now = 1_000L
-    private val repo = LibraryRepository(dao, NoFavorites(), clock = { now })
+    private val repo = LibraryRepository(dao, FakeFavorites(), clock = { now })
 
     private fun movie(id: Int = 1) = PlayTarget(StreamRequest(id, "tt$id", MediaType.Movie), "Film $id", "/p$id.jpg")
     private fun episode(id: Int = 2, s: Int = 1, e: Int = 1) =
@@ -154,7 +174,7 @@ class ContinueWatchingTest {
 
     private val dao = FakeHistoryDao()
     private var clock = 0L
-    private val repo = LibraryRepository(dao, NoFavorites(), clock = { ++clock })
+    private val repo = LibraryRepository(dao, FakeFavorites(), clock = { ++clock })
 
     private fun movie(id: Int) = PlayTarget(StreamRequest(id, "tt$id", MediaType.Movie), "Film $id", null)
     private fun episode(id: Int, s: Int, e: Int) = PlayTarget(StreamRequest(id, "tt$id", MediaType.Tv, s, e), "Dizi $id", null)
@@ -283,5 +303,76 @@ class NextEpisodeResolverTest {
         r.next(7, 1, 1)
         r.next(7, 1, 1)
         assertEquals(1, calls)
+    }
+}
+
+/** Kütüphane ekranının işlemleri: geçmiş listesi, tek tek silme, hepsini temizleme, favoriler. */
+class LibraryManagementTest {
+
+    private val history = FakeHistoryDao()
+    private val favorites = FakeFavorites()
+    private var clock = 0L
+    private val repo = LibraryRepository(history, favorites, clock = { ++clock })
+
+    private fun movie(id: Int) = PlayTarget(StreamRequest(id, "tt$id", MediaType.Movie), "Film $id", null)
+    private fun episode(id: Int, s: Int, e: Int) = PlayTarget(StreamRequest(id, "tt$id", MediaType.Tv, s, e), "Dizi $id", null)
+    private fun summary(id: Int, type: MediaType = MediaType.Movie) =
+        MediaSummary(id, type, "Başlık $id", "", "/p$id.jpg", null, 2020, null)
+
+    @Test
+    fun historyListsEveryRecordNewestFirstIncludingWatchedOnes() = runTest {
+        repo.saveProgress(movie(1), 60_000, 600_000)
+        repo.saveProgress(episode(2, 1, 1), 1_390_000, 1_400_000) // izlendi
+        repo.saveProgress(episode(2, 1, 2), 300_000, 1_400_000) // aynı dizinin ikinci bölümü: ayrı satır
+        repo.saveProgress(movie(1), 120_000, 600_000) // güncelleme: en üste çıkar, satır çoğalmaz
+
+        val list = repo.watchHistory.first()
+
+        assertEquals(listOf(1 to 0, 2 to 2, 2 to 1), list.map { it.tmdbId to it.episode })
+    }
+
+    @Test
+    fun removingOneHistoryRowLeavesTheOthers() = runTest {
+        repo.saveProgress(movie(1), 60_000, 600_000)
+        repo.saveProgress(movie(2), 60_000, 600_000)
+        val first = repo.watchHistory.first().first { it.tmdbId == 1 }
+
+        repo.removeHistory(first.id)
+
+        assertEquals(listOf(2), repo.watchHistory.first().map { it.tmdbId })
+    }
+
+    @Test
+    fun clearingHistoryKeepsFavorites() = runTest {
+        repo.saveProgress(movie(1), 60_000, 600_000)
+        repo.setFavorite(summary(9), true)
+
+        repo.clearHistory()
+
+        assertTrue(repo.watchHistory.first().isEmpty())
+        assertEquals(listOf(9), repo.allFavorites.first().map { it.tmdbId })
+    }
+
+    @Test
+    fun favoritesToggleKeepOneRowAndListNewestFirst() = runTest {
+        repo.setFavorite(summary(1), true)
+        repo.setFavorite(summary(2, MediaType.Tv), true)
+        repo.setFavorite(summary(1), true) // tekrar ekleme satır çoğaltmaz
+        assertTrue(repo.isFavorite(MediaType.Movie, 1).first())
+        assertEquals(listOf(1 to MediaType.Movie, 2 to MediaType.Tv), repo.allFavorites.first().map { it.tmdbId to it.type })
+
+        repo.setFavorite(summary(1), false)
+        assertFalse(repo.isFavorite(MediaType.Movie, 1).first())
+
+        repo.removeFavorite(MediaType.Tv, 2)
+        assertTrue(repo.allFavorites.first().isEmpty())
+    }
+
+    @Test
+    fun favoriteKeepsTitleAndPosterCopyForOfflineDisplay() = runTest {
+        repo.setFavorite(summary(5), true)
+        val fav = repo.allFavorites.first().single()
+        assertEquals("Başlık 5", fav.title)
+        assertEquals("/p5.jpg", fav.posterPath)
     }
 }

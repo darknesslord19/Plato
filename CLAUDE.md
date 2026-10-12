@@ -44,10 +44,10 @@ Aniyomi, ayrı Stremio ekosistemi, manga, IPTV, Telegram, tracker, profil/kilit,
 
 ## Ekranlar
 Ana sayfa (TMDB satırları + "devam et"), Ara, Detay, Kaynak seçimi (alttan liste; en uygun seçili, tek dokunuş; satırda yalnızca kalite ve boyut), Oynatıcı (tam ekran, oynat/durdur, ileri-geri, altyazı, hız), Kütüphane (geçmiş + favoriler), Ayarlar. Alt menü: Ana sayfa, Ara, Kütüphane, Ayarlar.
-Ayarlar en çok beş kalem: Eklentiler (ekle/sil/aç-kapat; kaynak zaman aşımı bu ekranın altında küçük bir ayar), Oynatıcı (altyazı dili, hız; 6. adımda gelir), Tema, Dil, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
+Ayarlar en çok beş kalem: Eklentiler (ekle/sil/aç-kapat; kaynak zaman aşımı bu ekranın altında küçük bir ayar), Oynatıcı (altyazı görünümü, kaldığın yerden devam; 7. adım), Tema, Dil, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
 
 ## Çalışma şekli
-- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay ✅ → (5) kaynak toplama ✅ → (6) oynatıcı ✅ → (7) kütüphane + ayarlar.
+- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay ✅ → (5) kaynak toplama ✅ → (6) oynatıcı ✅ → (7) kütüphane + ayarlar ✅.
 - 1. adımdan sonra kullanıcı onayı beklenir. Her adımın sonunda derle, çalışan testleri çalıştır, iki cümleyle özetle.
 - Parser ve protokol kodu sahte JSON ile birim testlerle doğrulanır.
 - Belirsiz tasarım kararında en sade seçenek seçilir ve README'ye not düşülür.

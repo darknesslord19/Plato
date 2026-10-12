@@ -53,14 +53,19 @@ import com.kaan.play.ui.detail.DetailScreen
 import com.kaan.play.ui.home.HomeScreen
 import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.search.SearchScreen
+import com.kaan.play.data.db.WatchHistoryEntity
+import com.kaan.play.ui.library.LibraryScreen
 import com.kaan.play.ui.settings.AboutScreen
+import com.kaan.play.ui.settings.PlayerSettingsScreen
 import com.kaan.play.ui.settings.SettingsScreen
+import kotlinx.coroutines.flow.first
 import com.kaan.play.ui.sources.SourcesSheet
 import kotlinx.coroutines.launch
 
 private const val ADDONS_ROUTE = "settings/addons?add={add}"
 private const val ADDONS_REPOS_ROUTE = "settings/addons/repos"
 private const val ADDONS_INSTALLED_ROUTE = "settings/addons/installed"
+private const val PLAYER_SETTINGS_ROUTE = "settings/player"
 private const val ABOUT_ROUTE = "settings/about"
 private const val DETAIL_ROUTE = "detail/{type}/{id}"
 
@@ -118,7 +123,12 @@ fun PlayRoot() {
             if (startAtMs == null) {
                 val saved = container.library.progress(target)
                 if (saved != null && WatchRules.isResumable(saved.positionMs, saved.durationMs)) {
-                    resumePrompt = target to saved.positionMs
+                    // "Her zaman kaldığım yerden devam et" açıksa (varsayılan) soru sorulmadan devam edilir.
+                    if (container.settings.alwaysResume.first()) {
+                        sourcesFor = target to saved.positionMs
+                    } else {
+                        resumePrompt = target to saved.positionMs
+                    }
                     return@launch
                 }
             }
@@ -126,24 +136,35 @@ fun PlayRoot() {
         }
     }
 
-    // "İzlemeye devam et" kartı: filmde/bölümde kayıtlı konumdan, önerilen sıradaki bölümde baştan oynatır.
-    // IMDb kimliği için TMDB'ye bir kez sorulur; olmazsa detay sayfası açılır.
-    fun continueWatching(item: ContinueItem) {
+    // Geçmiş/"devam et" kaydından oynatma. IMDb kimliği için TMDB'ye bir kez sorulur; olmazsa detay açılır.
+    fun playEntry(entry: WatchHistoryEntity, season: Int?, episode: Int?, startAt: Long) {
         scope.launch {
-            val entry = item.entry
             val imdbId = try {
                 container.tmdb.detail(entry.type, entry.tmdbId).imdbId
             } catch (_: TmdbException) {
                 openDetail(entry.type, entry.tmdbId)
                 return@launch
             }
-            val isSeries = entry.type == MediaType.Tv
-            val (season, episode, startAt) = when (item) {
-                is ContinueItem.Resume -> Triple(entry.season.takeIf { isSeries }, entry.episode.takeIf { isSeries }, entry.positionMs)
-                is ContinueItem.Next -> Triple(item.season, item.episode, 0L)
-            }
             play(PlayTarget(StreamRequest(entry.tmdbId, imdbId, entry.type, season, episode), entry.title, entry.posterPath), startAt)
         }
+    }
+
+    // "İzlemeye devam et" kartı: filmde/bölümde kayıtlı konumdan, önerilen sıradaki bölümde baştan oynatır.
+    fun continueWatching(item: ContinueItem) {
+        val entry = item.entry
+        val isSeries = entry.type == MediaType.Tv
+        when (item) {
+            is ContinueItem.Resume ->
+                playEntry(entry, entry.season.takeIf { isSeries }, entry.episode.takeIf { isSeries }, entry.positionMs)
+            is ContinueItem.Next -> playEntry(entry, item.season, item.episode, 0L)
+        }
+    }
+
+    // Kütüphane > Geçmiş satırı: yarım kaldıysa kayıtlı konumdan, izlendiyse baştan.
+    fun playHistory(entry: WatchHistoryEntity) {
+        val isSeries = entry.type == MediaType.Tv
+        val startAt = if (WatchRules.isResumable(entry.positionMs, entry.durationMs)) entry.positionMs else 0L
+        playEntry(entry, entry.season.takeIf { isSeries }, entry.episode.takeIf { isSeries }, startAt)
     }
 
     val context = LocalContext.current
@@ -192,13 +213,17 @@ fun PlayRoot() {
                 )
             }
             composable(Tab.Search.route) { SearchScreen(onOpenDetail = ::openDetail) }
-            composable(Tab.Library.route) { Placeholder(Tab.Library.label) }
+            composable(Tab.Library.route) {
+                LibraryScreen(onOpenDetail = ::openDetail, onPlayEntry = ::playHistory)
+            }
             composable(Tab.Settings.route) {
                 SettingsScreen(
                     onOpenAddons = { navController.navigate(addonsRoute(false)) },
+                    onOpenPlayer = { navController.navigate(PLAYER_SETTINGS_ROUTE) },
                     onOpenAbout = { navController.navigate(ABOUT_ROUTE) },
                 )
             }
+            composable(PLAYER_SETTINGS_ROUTE) { PlayerSettingsScreen(onBack = { navController.popBackStack() }) }
             composable(
                 route = ADDONS_ROUTE,
                 arguments = listOf(navArgument("add") { type = NavType.BoolType; defaultValue = false }),
@@ -250,22 +275,6 @@ fun PlayRoot() {
                     Text(stringResource(R.string.resume_restart))
                 }
             },
-        )
-    }
-}
-
-@Composable
-private fun Placeholder(@StringRes title: Int) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(stringResource(title), style = MaterialTheme.typography.titleLarge)
-        Text(
-            stringResource(R.string.placeholder_coming_soon),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

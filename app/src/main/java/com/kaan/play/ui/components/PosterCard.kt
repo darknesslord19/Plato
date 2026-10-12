@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -31,6 +32,7 @@ import com.kaan.play.data.tmdb.TmdbImages
 /**
  * Play'in kart biçimi: ince çerçeveli 2:3 afiş (12dp köşe), altında başlık ve soluk alt satır.
  * [progress] (0..1) verilirse afişin altında ince ilerleme çizgisi çıkar ("devam et").
+ * [overlay]: afişin üstüne çizilen küçük eylem (ör. favoriden çıkar düğmesi).
  */
 @Composable
 fun PosterCard(
@@ -40,6 +42,7 @@ fun PosterCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     progress: Float? = null,
+    overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     val shape = MaterialTheme.shapes.medium
     // Tüm sütunu yuvarlak kırpmayız: alt satırın ilk harfini keserdi. Yalnızca afiş kırpılır.
@@ -60,6 +63,7 @@ fun PosterCard(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+            overlay()
             if (progress != null) {
                 Box(
                     Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp)

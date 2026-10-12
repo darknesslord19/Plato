@@ -31,11 +31,11 @@ import kotlinx.coroutines.launch
 private enum class OpenDialog { Theme, Language }
 
 /**
- * Ayarlar: en çok beş kalem, her biri tek satır (başlık solda, değer sağda).
- * Şimdilik dört kalem var; "Oynatıcı" satırı oynatıcı (6. adım) gelince eklenecek.
+ * Ayarlar: tam beş kalem (Eklentiler, Oynatıcı, Tema, Dil, Hakkında), her biri tek satır
+ * (başlık solda, değer sağda). Yeni kalem eklenmez (arayüz ilkesi 4).
  */
 @Composable
-fun SettingsScreen(onOpenAddons: () -> Unit, onOpenAbout: () -> Unit) {
+fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbout: () -> Unit) {
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
     val addonCount by remember(container) { container.addons.addons.map { it.size } }
@@ -55,6 +55,7 @@ fun SettingsScreen(onOpenAddons: () -> Unit, onOpenAbout: () -> Unit) {
             value = addonCount?.let { pluralStringResource(R.plurals.addons_count, it, it) }.orEmpty(),
             onClick = onOpenAddons,
         )
+        SettingsRow(title = stringResource(R.string.settings_player), onClick = onOpenPlayer)
         SettingsRow(stringResource(R.string.settings_theme), stringResource(theme.labelRes())) { dialog = OpenDialog.Theme }
         SettingsRow(stringResource(R.string.settings_language), stringResource(language.labelRes())) { dialog = OpenDialog.Language }
         SettingsRow(stringResource(R.string.settings_about), BuildConfig.VERSION_NAME, divider = false, onClick = onOpenAbout)

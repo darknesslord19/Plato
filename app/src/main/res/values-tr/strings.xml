@@ -13,8 +13,6 @@
     <string name="type_movie">Film</string>
     <string name="type_series">Dizi</string>
 
-    <string name="placeholder_coming_soon">Yakında</string>
-
     <!-- Ana sayfa -->
     <string name="home_empty_message">Henüz hiçbir eklenti yok.</string>
     <string name="home_empty_action">Başlamak için bir eklenti ekle</string>
@@ -119,4 +117,40 @@
     <string name="addon_error_invalid_field">Eklentinin “%1$s” alanı bozuk.</string>
     <string name="addon_error_no_stream">Bu eklenti akış sunmuyor, bu yüzden Play onu kullanamaz.</string>
     <string name="addon_error_unsupported_types">Bu eklenti film veya dizi sunmuyor, bu yüzden Play onu kullanamaz.</string>
+
+    <!-- Kütüphane -->
+    <string name="library_favorites">Favoriler</string>
+    <string name="library_favorites_empty">Henüz favorin yok. Bir içeriğin kalbine dokunarak buraya ekle.</string>
+    <string name="library_history">Geçmiş</string>
+    <string name="library_history_empty">Henüz bir şey izlemedin.</string>
+    <string name="library_watched">İzlendi</string>
+    <string name="library_episode_watched">S%1$d B%2$d · İzlendi</string>
+    <string name="library_remove_history">Geçmişten kaldır</string>
+    <string name="library_clear_history">Tümünü temizle</string>
+    <string name="library_clear_title">Geçmiş temizlensin mi?</string>
+    <string name="library_clear_message">İzlediklerin bu listeden silinecek. Favorilerin etkilenmez.</string>
+    <string name="library_clear_confirm">Temizle</string>
+
+    <!-- Ayarlar: oynatıcı ve altyazı görünümü -->
+    <string name="settings_player">Oynatıcı</string>
+    <string name="settings_always_resume">Her zaman kaldığım yerden devam et</string>
+    <string name="common_done">Tamam</string>
+    <string name="subtitle_preview">Altyazıların böyle görünecek.</string>
+    <string name="subtitle_size">Boyut</string>
+    <string name="subtitle_size_small">Küçük</string>
+    <string name="subtitle_size_normal">Normal</string>
+    <string name="subtitle_size_large">Büyük</string>
+    <string name="subtitle_size_xlarge">Çok büyük</string>
+    <string name="subtitle_bold">Kalın</string>
+    <string name="subtitle_italic">İtalik</string>
+    <string name="subtitle_color">Yazı rengi</string>
+    <string name="subtitle_color_white">Beyaz</string>
+    <string name="subtitle_color_yellow">Sarı</string>
+    <string name="subtitle_background">Arka plan</string>
+    <string name="subtitle_background_none">Yok</string>
+    <string name="subtitle_background_translucent">Yarı saydam</string>
+    <string name="subtitle_background_black">Siyah</string>
+    <string name="player_subtitle_appearance">Görünüm</string>
+    <string name="about_no_content">Play hiçbir içerik sağlamaz; kullanıcı kendi eklentilerini ekler.</string>
+    <string name="about_tmdb_attribution">Bu ürün TMDB API\'sini kullanır ancak TMDB tarafından onaylanmamıştır veya sertifikalandırılmamıştır.</string>
 </resources>

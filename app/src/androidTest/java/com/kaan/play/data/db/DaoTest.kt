@@ -1,4 +1,4 @@
-﻿package com.kaan.play.data.db
+package com.kaan.play.data.db
 
 import android.content.Context
 import androidx.room.Room
@@ -96,6 +96,35 @@ class DaoTest {
         assertEquals(60_000L, list.single().positionMs)
         assertEquals(60_000L, dao.find(10, MediaType.Tv, 2, 3)!!.positionMs)
         assertNull(dao.find(10, MediaType.Tv, 2, 4))
+    }
+
+    @Test
+    fun historyListsEveryRecordNewestFirstThenDeleteAndClear() = runBlocking {
+        val dao = db.watchHistoryDao()
+        dao.upsert(history(1, position = 10_000, at = 100))
+        dao.upsert(history(10, MediaType.Tv, 1, 1, position = 99_000, at = 200)) // izlendi de listelenir
+        dao.upsert(history(10, MediaType.Tv, 1, 2, position = 30_000, at = 300)) // aynı dizinin ayrı bölümü
+        dao.upsert(history(2, position = 5_000, duration = 0, at = 400)) // süre bilinmese de geçmiştedir
+
+        val all = dao.observeHistory().first()
+        assertEquals(listOf(2, 10, 10, 1), all.map { it.tmdbId })
+        assertEquals(listOf(0, 2, 1, 0), all.map { it.episode })
+
+        dao.delete(all.first { it.tmdbId == 1 }.id)
+        assertEquals(3, dao.observeHistory().first().size)
+
+        dao.clear()
+        assertTrue(dao.observeHistory().first().isEmpty())
+    }
+
+    @Test
+    fun clearingHistoryDoesNotTouchFavorites() = runBlocking {
+        db.favoriteDao().add(FavoriteEntity(1, MediaType.Movie, "A", null, addedAt = 100))
+        db.watchHistoryDao().upsert(history(1, position = 10_000, at = 100))
+
+        db.watchHistoryDao().clear()
+
+        assertEquals(1, db.favoriteDao().observeAll().first().size)
     }
 
     // ---- favoriler ----

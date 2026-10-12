@@ -17,9 +17,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -27,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +39,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +47,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -51,18 +58,24 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.kaan.play.R
 import com.kaan.play.data.model.MediaType
+import com.kaan.play.data.settings.SubtitleStyle
 import com.kaan.play.data.stream.PlayTarget
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.ui.components.ChoiceDialog
 import com.kaan.play.ui.nav.PlayIcons
+import com.kaan.play.ui.rememberContainer
+import com.kaan.play.ui.settings.SubtitlePreview
+import com.kaan.play.ui.settings.SubtitleStyleControls
 import com.kaan.play.ui.sources.SourcesSheet
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 private const val SEEK_STEP_MS = 10_000L
@@ -71,8 +84,8 @@ private const val HIDE_AFTER_MS = 4_000L
 /**
  * Tam ekran oynatıcı. Kontroller sade: geri/ileri 10 sn, oynat/duraklat, ilerleme çubuğu, altyazı, kaynak değiştir.
  * Hepsi dokunmayla ve yön tuşlarıyla (D-pad/klavye/kumanda) kullanılır: kontroller gizliyken Orta/Enter
- * kontrolleri açar, Sol/Sağ 10 sn atlar, medya tuşları doğrudan çalışır. Yalnızca düğme/çubuk/dokunma kullanır;
- * sürükle-bırak, çift dokunma ya da uzun basma gerekmez.
+ * kontrolleri açar, Sol/Sağ 10 sn atlar, medya tuşları doğrudan çalışır. Sürükle-bırak, çift dokunma ya da
+ * uzun basma gerekmez. Altyazı menüsündeki "Görünüm" ayarları değişince altyazı oynatma kesilmeden güncellenir.
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -82,16 +95,21 @@ fun PlayerScreen(
     onBack: () -> Unit,
     onSourcePicked: (PlayableStream) -> Unit,
 ) {
+    val container = rememberContainer()
+    val scope = rememberCoroutineScope()
+    val subtitleStyle by container.settings.subtitleStyle.collectAsStateWithLifecycle(initialValue = SubtitleStyle())
+
     val ui = controller.ui
     var controlsVisible by remember { mutableStateOf(true) }
     var interaction by remember { mutableIntStateOf(0) }
     var showSources by remember { mutableStateOf(false) }
     var showSubtitles by remember { mutableStateOf(false) }
+    var showAppearance by remember { mutableStateOf(false) }
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     val rootFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
-    val dialogOpen = showSources || showSubtitles
+    val dialogOpen = showSources || showSubtitles || showAppearance
     val showControls = controlsVisible || ui.error != null
 
     fun bump() { interaction++ }
@@ -128,6 +146,12 @@ fun PlayerScreen(
             .background(Color.Black)
             .focusRequester(rootFocus)
             .onPreviewKeyEvent { event ->
+                // Geri tuşu burada ele alınır: aralıklı olarak (kontroller açıkken) görünüm ağacındaki bir öğe
+                // DOWN olayını tüketiyor ve etkinliğe hiç ulaşmıyordu; kök yakalayıcı ise olayı her zaman görür.
+                if (event.key == Key.Back) {
+                    if (event.type == KeyEventType.KeyUp) onBack()
+                    return@onPreviewKeyEvent true
+                }
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 bump()
                 when (event.key) {
@@ -163,6 +187,8 @@ fun PlayerScreen(
                     descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                 }
             },
+            // Ayar değişince anında uygulanır; oynatma kesilmez.
+            update = { view -> view.subtitleView?.let { SubtitleStyling.apply(it, subtitleStyle) } },
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -217,6 +243,38 @@ fun PlayerScreen(
             label = { subtitleLabel(it) },
             onSelect = { controller.selectSubtitle(it); showSubtitles = false },
             onDismiss = { showSubtitles = false },
+            footer = {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(vertical = 4.dp))
+                Text(
+                    text = stringResource(R.string.player_subtitle_appearance),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showSubtitles = false; showAppearance = true }
+                        .padding(vertical = 12.dp),
+                )
+            },
+        )
+    }
+
+    if (showAppearance) {
+        AlertDialog(
+            onDismissRequest = { showAppearance = false },
+            title = { Text(stringResource(R.string.player_subtitle_appearance)) },
+            text = {
+                // Yatay ekranda alçak: kaydırılabilir. Önizleme, karartılmış videoda altyazı görünmese de etkiyi gösterir.
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    SubtitlePreview(subtitleStyle)
+                    SubtitleStyleControls(subtitleStyle) { transform ->
+                        scope.launch { container.settings.updateSubtitleStyle(transform) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showAppearance = false }) { Text(stringResource(R.string.common_done)) } },
         )
     }
 
@@ -315,7 +373,7 @@ private fun Controls(
 
 @Composable
 private fun SeekButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     description: String,
     tint: Color,
     iconFirst: Boolean = true,

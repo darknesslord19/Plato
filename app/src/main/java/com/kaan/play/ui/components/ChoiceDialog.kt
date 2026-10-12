@@ -30,6 +30,8 @@ fun <T> ChoiceDialog(
     label: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     onDismiss: () -> Unit,
+    /** Seçeneklerin altına eklenen isteğe bağlı satır (ör. oynatıcıdaki "Görünüm"). */
+    footer: (@Composable () -> Unit)? = null,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -52,6 +54,7 @@ fun <T> ChoiceDialog(
                         )
                     }
                 }
+                footer?.invoke()
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
