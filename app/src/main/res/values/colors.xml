@@ -2,6 +2,8 @@
 <resources>
     <color name="play_background">#0E1116</color>
     <color name="play_accent">#2DD4BF</color>
+    <!-- Launcher ikonu arka planı: tema zemini ile aynı. -->
+    <color name="ic_launcher_background">#0E1116</color>
     <!-- Koyu temadaki ana yazı rengi (PlayColors.DarkOnBackground ile aynı); banner için. -->
     <color name="play_on_background">#E8ECF1</color>
 </resources>

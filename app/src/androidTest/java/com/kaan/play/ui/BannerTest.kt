@@ -19,7 +19,7 @@ class BannerTest {
     @Test
     fun bannerIsA320x180dpDrawableThatRendersTheMarkOnTheDarkBackground() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val drawable = ResourcesCompat.getDrawable(context.resources, R.drawable.banner, null)
+        val drawable = ResourcesCompat.getDrawable(context.resources, R.drawable.tv_banner, null)
         assertNotNull(drawable)
 
         val bitmap = Bitmap.createBitmap(960, 540, Bitmap.Config.ARGB_8888)

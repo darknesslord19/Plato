@@ -8,10 +8,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.data.settings.ThemeMode
+import com.kaan.play.ui.components.SplashOverlay
 import com.kaan.play.ui.nav.PlayRoot
 import com.kaan.play.ui.theme.PlayTheme
 import kotlinx.coroutines.flow.first
@@ -47,7 +49,10 @@ class MainActivity : AppCompatActivity() {
                 onDispose { }
             }
             PlayTheme(darkTheme = dark) {
-                PlayRoot()
+                Box {
+                    PlayRoot()
+                    SplashOverlay()
+                }
             }
         }
     }
