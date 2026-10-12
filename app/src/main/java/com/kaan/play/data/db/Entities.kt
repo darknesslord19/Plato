@@ -7,10 +7,11 @@ import androidx.room.PrimaryKey
 import com.kaan.play.data.model.MediaType
 
 /**
- * Eklenti kaynağının türü. Faz 1'de yalnızca [NUVIO_ADDON] çalışır; diğer ikisi şema olarak hazır
- * (Faz 2: Nuvio plugin deposu, Faz 3: CloudStream deposu).
+ * Eklenti kaynağının türü. Faz 1'de yalnızca [NUVIO_ADDON] çalışır; diğerleri şema olarak hazır
+ * (Faz 2: Nuvio plugin deposu, Faz 3: CloudStream deposu, 8. adım: [WEB_SITE]). Tür TEXT olarak
+ * (enum adıyla) saklanır; yeni değer eklemek şemayı değiştirmez, bu yüzden göç gerekmez.
  */
-enum class AddonType { NUVIO_ADDON, NUVIO_PLUGIN_REPO, CLOUDSTREAM_REPO }
+enum class AddonType { NUVIO_ADDON, NUVIO_PLUGIN_REPO, CLOUDSTREAM_REPO, WEB_SITE }
 
 /**
  * Kullanıcının eklediği kaynak. [sourceUrl]: addon için manifest.json adresi, depolar için depo adresi.

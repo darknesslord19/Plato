@@ -127,7 +127,7 @@ class AddonRepositoryTest {
 
     @Test
     fun onlyNuvioAddonsAreSupportedInPhase1() = runTest {
-        listOf(AddonType.NUVIO_PLUGIN_REPO, AddonType.CLOUDSTREAM_REPO).forEach { type ->
+        listOf(AddonType.NUVIO_PLUGIN_REPO, AddonType.CLOUDSTREAM_REPO, AddonType.WEB_SITE).forEach { type ->
             try {
                 repo.add("https://a.example.com", type)
                 fail()

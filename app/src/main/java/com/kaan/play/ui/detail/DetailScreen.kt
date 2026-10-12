@@ -49,6 +49,7 @@ import com.kaan.play.data.model.Episode
 import com.kaan.play.data.model.MediaDetail
 import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.model.SeasonInfo
+import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.tmdb.TmdbImages
 import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.ui.components.CenteredLoading
@@ -59,10 +60,10 @@ import com.kaan.play.ui.nav.PlayIcons
 
 /**
  * Detay. Film: tek ana iş "Oynat". Dizi: ana iş bölüm seçmek (sezon seçici + bölüm listesi).
- * [onPlay]: film için (null, null), dizi için (sezon, bölüm).
+ * [onPlay]: kaynak isteğiyle çağrılır (film: sezon/bölüm yok; dizi: seçilen bölüm).
  */
 @Composable
-fun DetailScreen(type: MediaType, id: Int, onBack: () -> Unit, onPlay: (season: Int?, episode: Int?) -> Unit) {
+fun DetailScreen(type: MediaType, id: Int, onBack: () -> Unit, onPlay: (StreamRequest) -> Unit) {
     val vm = containerViewModel(key = "detail-${type.tmdbPath}-$id-${AppLanguage.effective().iso}") {
         DetailViewModel(it.tmdb, it.library, type, id)
     }
@@ -83,7 +84,10 @@ fun DetailScreen(type: MediaType, id: Int, onBack: () -> Unit, onPlay: (season: 
                 onToggleFavorite = vm::toggleFavorite,
                 onSelectSeason = vm::selectSeason,
                 onRetryEpisodes = vm::retryEpisodes,
-                onPlay = onPlay,
+                onPlay = { s, e ->
+                    val media = d.value.summary
+                    onPlay(StreamRequest(media.id, d.value.imdbId, media.type, s, e))
+                },
             )
         }
         // Geri oku: kapağın üstünde de okunsun diye yarı saydam daire içinde.

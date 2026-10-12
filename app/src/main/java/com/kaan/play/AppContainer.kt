@@ -10,12 +10,16 @@ import com.kaan.play.data.db.PlayDatabase
 import com.kaan.play.data.library.LibraryRepository
 import com.kaan.play.data.net.PlayJson
 import com.kaan.play.data.settings.SettingsRepository
+import com.kaan.play.data.stream.AddonStreamProvider
+import com.kaan.play.data.stream.StreamProvider
 import com.kaan.play.data.tmdb.TmdbRepository
 import com.kaan.play.i18n.AppLanguage
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Elle kurulan bağımlılık kabı. DI framework'ü yok; katmanlar eklendikçe
@@ -54,8 +58,17 @@ class AppContainer(context: Context) {
         AddonRepository(database.addonDao(), OkHttpManifestFetcher(httpClient))
     }
 
+    /** Faz 1'de kaynaklar yalnızca aktif addon'lardan gelir; zaman aşımı her istekte Ayarlar'dan okunur. */
+    val streams: StreamProvider by lazy {
+        AddonStreamProvider(
+            addons = addons::enabledAddons,
+            client = httpClient,
+            timeout = { settings.sourceTimeoutSeconds.first().seconds },
+        )
+    }
+
     /**
-     * Dışarıdan (https manifest bağlantısı) gelen addon adresi. Etkinlik yazar,
+     * Dışarıdan (https eklenti bağlantısı) gelen addon adresi. Etkinlik yazar,
      * [com.kaan.play.ui.addons.AddonsViewModel] alıp sıfırlar.
      */
     val pendingAddonUrl = MutableStateFlow<String?>(null)

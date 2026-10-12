@@ -41,6 +41,13 @@
     <string name="runtime_hours_minutes">%1$d sa %2$d dk</string>
     <string name="runtime_minutes">%1$d dk</string>
 
+    <!-- Kaynak seçimi -->
+    <string name="sources_title">Kaynak seç</string>
+    <string name="sources_empty">Kaynak bulunamadı.</string>
+    <string name="sources_failed">%1$s yanıt vermedi</string>
+    <string name="sources_quality_unknown">Bilinmiyor</string>
+    <string name="sources_picked">Seçildi: %1$s</string>
+
     <!-- TMDB hataları -->
     <string name="tmdb_error_missing_key">Bu derlemede TMDB anahtarı yok.</string>
     <string name="tmdb_error_invalid_key">TMDB, API anahtarını reddetti.</string>
@@ -63,11 +70,13 @@
         <item quantity="one">%d eklenti</item>
         <item quantity="other">%d eklenti</item>
     </plurals>
-    <string name="addons_empty">Henüz hiçbir eklenti yok. Manifest bağlantısıyla bir tane ekle.</string>
+    <string name="addons_empty">Yüklü eklenti yok.</string>
     <string name="addons_add">Eklenti ekle</string>
+    <string name="addons_repos">Kurulu tüm depolar</string>
+    <string name="addons_repos_empty">Kurulu depo yok.</string>
+    <string name="addons_installed">Yüklü eklentiler</string>
     <string name="addons_add_title">Eklenti ekle</string>
-    <string name="addons_add_field">Manifest bağlantısı</string>
-    <string name="addons_add_hint">https://ornek.com/manifest.json</string>
+    <string name="addons_add_field">Eklenti adresi</string>
     <string name="addons_add_confirm">Ekle</string>
     <string name="addons_add_checking">Eklenti denetleniyor…</string>
     <string name="addons_remove">Kaldır</string>
@@ -79,15 +88,15 @@
     <string name="addons_timeout_title">Kaynak zaman aşımı</string>
     <string name="addons_timeout_option">%1$d saniye</string>
 
-    <string name="addon_error_invalid_url">Eklentinin manifest bağlantısını gir: bir web adresi (http veya https), genellikle manifest.json ile biter ve “?” işaretinden sonra bir şey içermez.</string>
+    <string name="addon_error_invalid_url">Eklentinin web adresini gir (http veya https). Genellikle manifest.json ile biter ve “?” işaretinden sonra bir şey içermez.</string>
     <string name="addon_error_already_added">Bu eklenti zaten ekli.</string>
     <string name="addon_error_unsupported_kind">Bu tür eklentiler henüz desteklenmiyor.</string>
     <string name="addon_error_network">Eklentiye ulaşılamadı. Bağlantıyı ve internetini kontrol et.</string>
     <string name="addon_error_http">Eklentinin sunucusu hata verdi (HTTP %1$s). Bağlantıyı kontrol et.</string>
-    <string name="addon_error_too_large">Manifest dosyası beklenmedik ölçüde büyük, bu yüzden yüklenmedi.</string>
-    <string name="addon_error_not_json">Bu bağlantı geçerli bir manifest döndürmedi (yanıt JSON değil). manifest.json dosyasına işaret ettiğinden emin ol.</string>
-    <string name="addon_error_missing_field">Manifest’te “%1$s” alanı yok.</string>
-    <string name="addon_error_invalid_field">Manifest’teki “%1$s” alanı bozuk.</string>
+    <string name="addon_error_too_large">Eklentinin yanıtı beklenmedik ölçüde büyük, bu yüzden yüklenmedi.</string>
+    <string name="addon_error_not_json">Bu adres geçerli bir eklenti döndürmedi (yanıt JSON değil). Adresin manifest.json ile bittiğinden emin ol.</string>
+    <string name="addon_error_missing_field">Eklentide “%1$s” alanı yok.</string>
+    <string name="addon_error_invalid_field">Eklentinin “%1$s” alanı bozuk.</string>
     <string name="addon_error_no_stream">Bu eklenti akış sunmuyor, bu yüzden Play onu kullanamaz.</string>
     <string name="addon_error_unsupported_types">Bu eklenti film veya dizi sunmuyor, bu yüzden Play onu kullanamaz.</string>
 </resources>

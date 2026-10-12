@@ -47,7 +47,7 @@ Ana sayfa (TMDB satırları + "devam et"), Ara, Detay, Kaynak seçimi (alttan li
 Ayarlar en çok beş kalem: Eklentiler (ekle/sil/aç-kapat; kaynak zaman aşımı bu ekranın altında küçük bir ayar), Oynatıcı (altyazı dili, hız; 6. adımda gelir), Tema, Dil, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
 
 ## Çalışma şekli
-- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay ✅ → (5) kaynak toplama → (6) oynatıcı → (7) kütüphane + ayarlar.
+- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay ✅ → (5) kaynak toplama ✅ → (6) oynatıcı → (7) kütüphane + ayarlar.
 - 1. adımdan sonra kullanıcı onayı beklenir. Her adımın sonunda derle, çalışan testleri çalıştır, iki cümleyle özetle.
 - Parser ve protokol kodu sahte JSON ile birim testlerle doğrulanır.
 - Belirsiz tasarım kararında en sade seçenek seçilir ve README'ye not düşülür.

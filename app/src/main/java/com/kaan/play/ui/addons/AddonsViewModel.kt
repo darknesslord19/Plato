@@ -37,7 +37,7 @@ class AddonsViewModel(
     private var submitJob: Job? = null
 
     init {
-        // Dışarıdan gelen https manifest bağlantısı: pencereyi adres dolu açar, kutuyu boşaltır.
+        // Dışarıdan gelen https eklenti bağlantısı: pencereyi adres dolu açar, kutuyu boşaltır.
         viewModelScope.launch {
             pendingUrl.filterNotNull().collect { url ->
                 pendingUrl.value = null
@@ -82,6 +82,15 @@ class AddonsViewModel(
             }
         }
     }
+
+}
+
+/** "Yüklü eklentiler" listesi: aç/kapat ve kaldır. */
+class InstalledAddonsViewModel(private val repo: AddonRepository) : ViewModel() {
+
+    /** null = henüz yüklenmedi (boş liste mesajı yanıp sönmesin). */
+    val addons: StateFlow<List<Addon>?> =
+        repo.addons.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun setEnabled(addon: Addon, enabled: Boolean) {
         viewModelScope.launch { repo.setEnabled(addon.id, enabled) }

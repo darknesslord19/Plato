@@ -110,6 +110,10 @@ object PlayIcons {
         }
     }
 
+    val Check: ImageVector by lazy {
+        icon("Check") { line { moveTo(5f, 12.5f); lineTo(10f, 17.5f); lineTo(19f, 7f) } }
+    }
+
     val Back: ImageVector by lazy {
         icon("Back") {
             line {

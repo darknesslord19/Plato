@@ -1,5 +1,7 @@
 package com.kaan.play.ui.nav
 
+import android.util.Log
+import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,11 +17,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -31,16 +38,23 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kaan.play.R
 import com.kaan.play.data.model.MediaType
+import com.kaan.play.data.stream.PlayableStream
+import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.ui.addons.AddonsScreen
+import com.kaan.play.ui.addons.InstalledAddonsScreen
+import com.kaan.play.ui.addons.RepositoriesScreen
 import com.kaan.play.ui.detail.DetailScreen
 import com.kaan.play.ui.home.HomeScreen
 import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.search.SearchScreen
 import com.kaan.play.ui.settings.AboutScreen
 import com.kaan.play.ui.settings.SettingsScreen
+import com.kaan.play.ui.sources.SourcesSheet
 import kotlinx.coroutines.launch
 
 private const val ADDONS_ROUTE = "settings/addons?add={add}"
+private const val ADDONS_REPOS_ROUTE = "settings/addons/repos"
+private const val ADDONS_INSTALLED_ROUTE = "settings/addons/installed"
 private const val ABOUT_ROUTE = "settings/about"
 private const val DETAIL_ROUTE = "detail/{type}/{id}"
 
@@ -79,17 +93,26 @@ fun PlayRoot() {
         navController.navigate(addonsRoute(startAdding)) { launchSingleTop = true }
     }
 
-    // https manifest bağlantısıyla açılınca (MainActivity -> pendingAddonUrl) ekleme ekranına git.
+    // https eklenti bağlantısıyla açılınca (MainActivity -> pendingAddonUrl) ekleme ekranına git.
     val pendingAddonUrl by container.pendingAddonUrl.collectAsStateWithLifecycle()
     LaunchedEffect(pendingAddonUrl) {
         if (pendingAddonUrl != null) openAddons(startAdding = false)
     }
 
-    // Kaynak seçimi 5. adımda gelir. Eklenti yoksa oynatmanın tek yolu eklenti eklemektir.
-    fun play() {
+    // Oynat: aktif eklenti yoksa tek yol eklenti eklemektir; varsa kaynak seçimi açılır.
+    var sourcesFor by remember { mutableStateOf<StreamRequest?>(null) }
+    fun play(request: StreamRequest) {
         scope.launch {
-            if (container.addons.enabledAddons().isEmpty()) openAddons(startAdding = true)
+            if (container.addons.enabledAddons().isEmpty()) openAddons(startAdding = true) else sourcesFor = request
         }
+    }
+
+    // Oynatıcı 6. adımda gelir; şimdilik seçilen kaynak kaydedilir (yalnızca adres yolu, sorgu dizesi yok).
+    val context = LocalContext.current
+    fun onSourcePicked(stream: PlayableStream) {
+        sourcesFor = null
+        Log.d("Play", "Seçilen kaynak: ${stream.url.substringBefore('?')} (${stream.source.addonName})")
+        Toast.makeText(context, context.getString(R.string.sources_picked, stream.source.addonName), Toast.LENGTH_SHORT).show()
     }
 
     Scaffold(
@@ -103,9 +126,8 @@ fun PlayRoot() {
                             selected = currentRoute == tab.route || currentRoute?.startsWith(tab.route + "/") == true,
                             onClick = { openTab(tab) },
                             icon = { Icon(tab.icon, contentDescription = stringResource(tab.label)) },
-                            // Büyük yazıda/uzun Türkçe etiketlerde dört sekmeye sığması için yalnızca seçili sekme etiket gösterir.
-                            alwaysShowLabel = false,
-                            label = { Text(stringResource(tab.label), maxLines = 1) },
+                            alwaysShowLabel = true,
+                            label = { Text(stringResource(tab.label), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -145,8 +167,12 @@ fun PlayRoot() {
                 AddonsScreen(
                     startAdding = entry.arguments?.getBoolean("add") == true,
                     onBack = { navController.popBackStack() },
+                    onOpenRepos = { navController.navigate(ADDONS_REPOS_ROUTE) },
+                    onOpenInstalled = { navController.navigate(ADDONS_INSTALLED_ROUTE) },
                 )
             }
+            composable(ADDONS_REPOS_ROUTE) { RepositoriesScreen(onBack = { navController.popBackStack() }) }
+            composable(ADDONS_INSTALLED_ROUTE) { InstalledAddonsScreen(onBack = { navController.popBackStack() }) }
             composable(ABOUT_ROUTE) { AboutScreen(onBack = { navController.popBackStack() }) }
             composable(
                 route = DETAIL_ROUTE,
@@ -161,10 +187,14 @@ fun PlayRoot() {
                     type = type,
                     id = id,
                     onBack = { navController.popBackStack() },
-                    onPlay = { _, _ -> play() },
+                    onPlay = ::play,
                 )
             }
         }
+    }
+
+    sourcesFor?.let { request ->
+        SourcesSheet(request = request, onDismiss = { sourcesFor = null }, onPicked = ::onSourcePicked)
     }
 }
 

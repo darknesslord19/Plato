@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,10 +27,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -44,19 +45,27 @@ import com.kaan.play.R
 import com.kaan.play.data.addon.Addon
 import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.ui.components.ChoiceDialog
+import com.kaan.play.ui.components.SettingsRow
 import com.kaan.play.ui.containerViewModel
+import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.rememberContainer
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import com.kaan.play.ui.nav.PlayIcons
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
+/**
+ * Ayarlar > Eklentiler: yalnızca üç satır (ekle, depolar, yüklü eklentiler). Kaynak zaman aşımı
+ * ikincil bir ayar olarak altta küçük durur.
+ */
 @Composable
-fun AddonsScreen(startAdding: Boolean, onBack: () -> Unit) {
+fun AddonsScreen(
+    startAdding: Boolean,
+    onBack: () -> Unit,
+    onOpenRepos: () -> Unit,
+    onOpenInstalled: () -> Unit,
+) {
     val vm = containerViewModel { AddonsViewModel(it.addons, it.pendingAddonUrl) }
     val addons by vm.addons.collectAsStateWithLifecycle()
     val dialog by vm.dialog.collectAsStateWithLifecycle()
-    var toRemove by remember { mutableStateOf<Addon?>(null) }
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
     val timeout by container.settings.sourceTimeoutSeconds
@@ -67,55 +76,27 @@ fun AddonsScreen(startAdding: Boolean, onBack: () -> Unit) {
     LaunchedEffect(startAdding) { if (startAdding) vm.startAddingOnce() }
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(PlayIcons.Back, contentDescription = stringResource(R.string.common_back))
-            }
-            Text(
-                text = stringResource(R.string.addons_title),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        ScreenHeader(title = stringResource(R.string.addons_title), onBack = onBack)
 
-        val list = addons
-        when {
-            list == null -> Unit // yükleniyor: boş mesaj yanıp sönmesin
-            list.isEmpty() -> EmptyAddons(onAdd = { vm.openAdd() })
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    items(list, key = { it.id }) { addon ->
-                        AddonRow(
-                            addon = addon,
-                            onToggle = { vm.setEnabled(addon, it) },
-                            onRemove = { toRemove = addon },
-                        )
-                    }
-                }
-                Button(
-                    onClick = { vm.openAdd() },
-                    modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp),
-                ) {
-                    Icon(PlayIcons.Plus, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Text(stringResource(R.string.addons_add), modifier = Modifier.padding(start = 8.dp))
-                }
-                // İkincil ayar: altta, küçük ve soluk.
-                TextButton(
-                    onClick = { showTimeout = true },
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 4.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.addons_timeout, timeout),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+        SettingsRow(title = stringResource(R.string.addons_add), onClick = { vm.openAdd() })
+        SettingsRow(title = stringResource(R.string.addons_repos), onClick = onOpenRepos)
+        SettingsRow(
+            title = stringResource(R.string.addons_installed),
+            value = addons?.let { pluralStringResource(R.plurals.addons_count, it.size, it.size) }.orEmpty(),
+            divider = false,
+            onClick = onOpenInstalled,
+        )
+
+        Column(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.Bottom) {
+            // İkincil ayar: altta, küçük ve soluk.
+            TextButton(
+                onClick = { showTimeout = true },
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+            ) {
+                Text(
+                    stringResource(R.string.addons_timeout, timeout),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -139,6 +120,46 @@ fun AddonsScreen(startAdding: Boolean, onBack: () -> Unit) {
             onDismiss = vm::dismissAdd,
         )
     }
+}
+
+/** "Kurulu tüm depolar": depolar (Faz 2/3) gelene kadar boştur. */
+@Composable
+fun RepositoriesScreen(onBack: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        ScreenHeader(title = stringResource(R.string.addons_repos), onBack = onBack)
+        EmptyMessage(stringResource(R.string.addons_repos_empty))
+    }
+}
+
+/** "Yüklü eklentiler": aç/kapat ve kaldır. */
+@Composable
+fun InstalledAddonsScreen(onBack: () -> Unit) {
+    val vm = containerViewModel { InstalledAddonsViewModel(it.addons) }
+    val addons by vm.addons.collectAsStateWithLifecycle()
+    var toRemove by remember { mutableStateOf<Addon?>(null) }
+
+    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        ScreenHeader(title = stringResource(R.string.addons_installed), onBack = onBack)
+
+        val list = addons
+        when {
+            list == null -> Unit // yükleniyor: boş mesaj yanıp sönmesin
+            list.isEmpty() -> EmptyMessage(stringResource(R.string.addons_empty))
+            else -> LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                items(list, key = { it.id }) { addon ->
+                    AddonRow(
+                        addon = addon,
+                        onToggle = { vm.setEnabled(addon, it) },
+                        onRemove = { toRemove = addon },
+                    )
+                }
+            }
+        }
+    }
 
     toRemove?.let { addon ->
         AlertDialog(
@@ -158,19 +179,31 @@ fun AddonsScreen(startAdding: Boolean, onBack: () -> Unit) {
 }
 
 @Composable
-private fun EmptyAddons(onAdd: () -> Unit) {
+private fun ScreenHeader(title: String, onBack: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(PlayIcons.Back, contentDescription = stringResource(R.string.common_back))
+        }
+        Text(text = title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun EmptyMessage(text: String) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = stringResource(R.string.addons_empty),
-            style = MaterialTheme.typography.bodyLarge,
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        Button(onClick = onAdd) { Text(stringResource(R.string.addons_add)) }
     }
 }
 
@@ -188,7 +221,7 @@ private fun AddonRow(addon: Addon, onToggle: (Boolean) -> Unit, onRemove: () -> 
             Text(text = name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 text = stringResource(R.string.addons_row_info, addon.manifest.version ?: "–", host),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

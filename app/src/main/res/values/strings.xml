@@ -47,6 +47,15 @@
     <string name="runtime_hours_minutes">%1$d h %2$d min</string>
     <string name="runtime_minutes">%1$d min</string>
 
+    <!-- Kaynak seçimi -->
+    <string name="sources_title">Choose a source</string>
+    <string name="sources_empty">No sources found.</string>
+    <string name="sources_failed">%1$s didn\'t respond</string>
+    <string name="sources_quality_unknown">Unknown</string>
+    <string name="sources_picked">Selected: %1$s</string>
+    <string name="quality_p" translatable="false">%1$dp</string>
+    <string name="quality_4k" translatable="false">4K</string>
+
     <!-- TMDB hataları -->
     <string name="tmdb_error_missing_key">The TMDB key is missing from this build.</string>
     <string name="tmdb_error_invalid_key">TMDB rejected the API key.</string>
@@ -74,11 +83,14 @@
         <item quantity="one">%d addon</item>
         <item quantity="other">%d addons</item>
     </plurals>
-    <string name="addons_empty">No addons yet. Add one using its manifest link.</string>
+    <string name="addons_empty">No addons installed.</string>
     <string name="addons_add">Add addon</string>
+    <string name="addons_repos">All installed repositories</string>
+    <string name="addons_repos_empty">No repositories installed.</string>
+    <string name="addons_installed">Installed addons</string>
     <string name="addons_add_title">Add an addon</string>
-    <string name="addons_add_field">Manifest link</string>
-    <string name="addons_add_hint">https://example.com/manifest.json</string>
+    <string name="addons_add_field">Addon URL</string>
+    <string name="addons_add_hint" translatable="false">https://.../manifest.json</string>
     <string name="addons_add_confirm">Add</string>
     <string name="addons_add_checking">Checking addon…</string>
     <string name="addons_remove">Remove</string>
@@ -90,15 +102,15 @@
     <string name="addons_timeout_title">Source timeout</string>
     <string name="addons_timeout_option">%1$d seconds</string>
 
-    <string name="addon_error_invalid_url">Enter the addon\'s manifest link: a web address (http or https), usually ending in manifest.json, without anything after a “?”.</string>
+    <string name="addon_error_invalid_url">Enter the addon\'s web address (http or https), usually ending in manifest.json, without anything after a “?”.</string>
     <string name="addon_error_already_added">This addon is already added.</string>
     <string name="addon_error_unsupported_kind">This kind of addon isn\'t supported yet.</string>
     <string name="addon_error_network">Couldn\'t reach the addon. Check the link and your connection.</string>
     <string name="addon_error_http">The addon\'s server answered with an error (HTTP %1$s). Check the link.</string>
-    <string name="addon_error_too_large">The manifest file is unexpectedly large, so it was not loaded.</string>
-    <string name="addon_error_not_json">That link didn\'t return a valid manifest (the response isn\'t JSON). Check that it points to manifest.json.</string>
-    <string name="addon_error_missing_field">The manifest is missing the “%1$s” field.</string>
-    <string name="addon_error_invalid_field">The manifest\'s “%1$s” field is malformed.</string>
+    <string name="addon_error_too_large">The addon\'s answer is unexpectedly large, so it was not loaded.</string>
+    <string name="addon_error_not_json">That address didn\'t return a valid addon (the response isn\'t JSON). Check that it ends in manifest.json.</string>
+    <string name="addon_error_missing_field">The addon is missing the “%1$s” field.</string>
+    <string name="addon_error_invalid_field">The addon\'s “%1$s” field is malformed.</string>
     <string name="addon_error_no_stream">This addon doesn\'t provide streams, so Play can\'t use it.</string>
     <string name="addon_error_unsupported_types">This addon doesn\'t offer movies or series, so Play can\'t use it.</string>
 </resources>

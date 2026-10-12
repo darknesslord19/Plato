@@ -1,13 +1,9 @@
 package com.kaan.play.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,11 +12,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.BuildConfig
@@ -29,6 +23,7 @@ import com.kaan.play.data.settings.ThemeMode
 import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.i18n.LanguageChoice
 import com.kaan.play.ui.components.ChoiceDialog
+import com.kaan.play.ui.components.SettingsRow
 import com.kaan.play.ui.rememberContainer
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -87,27 +82,6 @@ fun SettingsScreen(onOpenAddons: () -> Unit, onOpenAbout: () -> Unit) {
             onDismiss = { dialog = null },
         )
         null -> Unit
-    }
-}
-
-@Composable
-private fun SettingsRow(title: String, value: String, divider: Boolean = true, onClick: () -> Unit) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 16.dp),
-            )
-        }
-        if (divider) HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outline)
     }
 }
 
