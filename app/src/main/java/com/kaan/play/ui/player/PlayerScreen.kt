@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -44,7 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -80,6 +84,7 @@ import java.util.Locale
 
 private const val SEEK_STEP_MS = 10_000L
 private const val HIDE_AFTER_MS = 4_000L
+private const val RESUME_NOTICE_MS = 5_000L
 
 /**
  * Tam ekran oynatıcı. Kontroller sade: geri/ileri 10 sn, oynat/duraklat, ilerleme çubuğu, altyazı, kaynak değiştir.
@@ -92,6 +97,7 @@ private const val HIDE_AFTER_MS = 4_000L
 fun PlayerScreen(
     controller: PlaybackController,
     target: PlayTarget,
+    showResumeNotice: Boolean,
     onBack: () -> Unit,
     onSourcePicked: (PlayableStream) -> Unit,
 ) {
@@ -107,8 +113,12 @@ fun PlayerScreen(
     var showAppearance by remember { mutableStateOf(false) }
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
+    // "Kaldığın yerden devam ediliyor · Baştan başla": ~5 sn; düğmede odak varken (kumanda) süre işlemez.
+    var resumeNotice by remember { mutableStateOf(showResumeNotice) }
+    var noticeFocused by remember { mutableStateOf(false) }
     val rootFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
+    val noticeFocus = remember { FocusRequester() }
     val dialogOpen = showSources || showSubtitles || showAppearance
     val showControls = controlsVisible || ui.error != null
 
@@ -127,6 +137,13 @@ fun PlayerScreen(
             controlsVisible = false
         }
     }
+    LaunchedEffect(resumeNotice, noticeFocused) {
+        if (resumeNotice && !noticeFocused) {
+            delay(RESUME_NOTICE_MS)
+            resumeNotice = false
+        }
+    }
+    LaunchedEffect(ui.error) { if (ui.error != null) resumeNotice = false }
     // Odak: kontroller açıkken (ya da hata düğmesi varken) oynat/seç düğmesinde, gizliyken kök yüzeyde
     // (yön tuşları orada yakalanır).
     LaunchedEffect(controlsVisible, ui.error) {
@@ -204,6 +221,7 @@ fun PlayerScreen(
                 position = position,
                 duration = duration,
                 playFocus = playFocus,
+                noticeFocus = if (resumeNotice) noticeFocus else null,
                 onBack = onBack,
                 onTogglePlay = { controller.togglePlay(); bump() },
                 onSeek = ::seek,
@@ -211,6 +229,16 @@ fun PlayerScreen(
                 onSubtitles = { showSubtitles = true },
                 onSources = { showSources = true },
                 onInteract = ::bump,
+            )
+        }
+
+        if (resumeNotice && ui.error == null) {
+            ResumeNotice(
+                onRestart = { controller.seekTo(0L); position = 0L; resumeNotice = false; bump() },
+                focus = noticeFocus,
+                upFocus = playFocus,
+                onFocusChange = { noticeFocused = it },
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 96.dp),
             )
         }
 
@@ -282,8 +310,42 @@ fun PlayerScreen(
         SourcesSheet(
             request = target.request,
             onDismiss = { showSources = false },
-            onPicked = { showSources = false; onSourcePicked(it) },
+            onPicked = { showSources = false; resumeNotice = false; onSourcePicked(it) },
         )
+    }
+}
+
+/** Sade, kısa ömürlü bildirim: konum korunur, tek düğme baştan başlatır. */
+@Composable
+private fun ResumeNotice(
+    onRestart: () -> Unit,
+    focus: FocusRequester,
+    upFocus: FocusRequester,
+    onFocusChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(24.dp))
+            .padding(start = 20.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.player_resuming),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White,
+            modifier = Modifier.padding(end = 4.dp),
+        )
+        // Kumanda: oynat düğmesinden Aşağı ile gelinir (Controls), Yukarı ile oynat düğmesine dönülür.
+        TextButton(
+            onClick = onRestart,
+            modifier = Modifier
+                .focusRequester(focus)
+                .focusProperties { up = upFocus }
+                .onFocusChanged { onFocusChange(it.hasFocus) },
+        ) {
+            Text(stringResource(R.string.resume_restart))
+        }
     }
 }
 
@@ -295,6 +357,7 @@ private fun Controls(
     position: Long,
     duration: Long,
     playFocus: FocusRequester,
+    noticeFocus: FocusRequester?,
     onBack: () -> Unit,
     onTogglePlay: () -> Unit,
     onSeek: (Long) -> Unit,
@@ -347,7 +410,10 @@ private fun Controls(
                 SeekButton(PlayIcons.SeekBack, stringResource(R.string.player_rewind), tint) { onSeek(-10_000L) }
                 FilledIconButton(
                     onClick = onTogglePlay,
-                    modifier = Modifier.size(72.dp).focusRequester(playFocus),
+                    modifier = Modifier
+                        .size(72.dp)
+                        .focusRequester(playFocus)
+                        .focusProperties { down = noticeFocus ?: FocusRequester.Default },
                     colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primary),
                 ) {
                     Icon(

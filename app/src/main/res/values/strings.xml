@@ -73,6 +73,7 @@
     <string name="resume_title">Continue watching?</string>
     <string name="resume_continue">Resume · %1$s</string>
     <string name="resume_restart">Start over</string>
+    <string name="player_resuming">Resuming where you left off</string>
     <string name="quality_p" translatable="false">%1$dp</string>
     <string name="quality_4k" translatable="false">4K</string>
 

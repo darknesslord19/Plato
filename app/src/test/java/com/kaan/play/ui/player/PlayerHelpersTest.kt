@@ -72,5 +72,23 @@ class PlayerHelpersTest {
 
         assertEquals(session, back)
         assertNotNull(back.stream.headers["Referer"])
+        assertEquals(false, back.autoResumed) // varsayılan: bildirim yok
+    }
+
+    @Test
+    fun autoResumedFlagSurvivesTheIntentRoundTripAndOldSessionsDefaultToFalse() {
+        val json = com.kaan.play.data.net.PlayJson
+        val session = PlaySession(
+            target = PlayTarget(StreamRequest(1, "tt1", MediaType.Movie, null, null), "Film", null),
+            stream = PlayableStream(StreamSource(1, "A"), "https://x/v.mp4", null, null, emptyMap(), emptyList()),
+            startPositionMs = 40_000,
+            autoResumed = true,
+        )
+        val text = json.encodeToString(PlaySession.serializer(), session)
+        assertEquals(true, json.decodeFromString(PlaySession.serializer(), text).autoResumed)
+
+        // alan hiç yazılmamışsa (varsayılan) false okunur
+        val withoutField = text.replace(Regex(",?\"autoResumed\":true"), "")
+        assertEquals(false, json.decodeFromString(PlaySession.serializer(), withoutField).autoResumed)
     }
 }

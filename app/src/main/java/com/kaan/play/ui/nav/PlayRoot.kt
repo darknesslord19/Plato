@@ -69,6 +69,9 @@ private const val PLAYER_SETTINGS_ROUTE = "settings/player"
 private const val ABOUT_ROUTE = "settings/about"
 private const val DETAIL_ROUTE = "detail/{type}/{id}"
 
+/** Kaynak seçimine giden iş: hedef, başlangıç konumu ve konumun sormadan (otomatik) seçilip seçilmediği. */
+private data class PlayStart(val target: PlayTarget, val startMs: Long, val autoResumed: Boolean)
+
 private fun addonsRoute(startAdding: Boolean) = "settings/addons?add=$startAdding"
 private fun detailRoute(type: MediaType, id: Int) = "detail/${type.tmdbPath}/$id"
 
@@ -112,9 +115,9 @@ fun PlayRoot() {
 
     // Oynat: aktif eklenti yoksa tek yol eklenti eklemektir. Aynı içerik yarım izlenmişse önce
     // "devam / baştan" sorulur ([startAtMs] verilmişse sorulmaz); sonra kaynak seçimi, sonra oynatıcı.
-    var sourcesFor by remember { mutableStateOf<Pair<PlayTarget, Long>?>(null) }
+    var sourcesFor by remember { mutableStateOf<PlayStart?>(null) }
     var resumePrompt by remember { mutableStateOf<Pair<PlayTarget, Long>?>(null) }
-    fun play(target: PlayTarget, startAtMs: Long? = null) {
+    fun play(target: PlayTarget, startAtMs: Long? = null, autoResumed: Boolean = false) {
         scope.launch {
             if (container.addons.enabledAddons().isEmpty()) {
                 openAddons(startAdding = true)
@@ -125,14 +128,14 @@ fun PlayRoot() {
                 if (saved != null && WatchRules.isResumable(saved.positionMs, saved.durationMs)) {
                     // "Her zaman kaldığım yerden devam et" açıksa (varsayılan) soru sorulmadan devam edilir.
                     if (container.settings.alwaysResume.first()) {
-                        sourcesFor = target to saved.positionMs
+                        sourcesFor = PlayStart(target, saved.positionMs, autoResumed = true)
                     } else {
                         resumePrompt = target to saved.positionMs
                     }
                     return@launch
                 }
             }
-            sourcesFor = target to (startAtMs ?: 0L)
+            sourcesFor = PlayStart(target, startAtMs ?: 0L, autoResumed = autoResumed && (startAtMs ?: 0L) > 0)
         }
     }
 
@@ -145,7 +148,9 @@ fun PlayRoot() {
                 openDetail(entry.type, entry.tmdbId)
                 return@launch
             }
-            play(PlayTarget(StreamRequest(entry.tmdbId, imdbId, entry.type, season, episode), entry.title, entry.posterPath), startAt)
+            // Kart/satır kayıtlı konumdan sormadan başlatır: oynatıcıda "Baştan başla" bildirimi çıkar.
+            val target = PlayTarget(StreamRequest(entry.tmdbId, imdbId, entry.type, season, episode), entry.title, entry.posterPath)
+            play(target, startAt, autoResumed = true)
         }
     }
 
@@ -169,9 +174,9 @@ fun PlayRoot() {
 
     val context = LocalContext.current
     fun onSourcePicked(stream: PlayableStream) {
-        val (target, startAt) = sourcesFor ?: return
+        val start = sourcesFor ?: return
         sourcesFor = null
-        context.startActivity(PlaySession(target, stream, startAt).toIntent(context))
+        context.startActivity(PlaySession(start.target, stream, start.startMs, start.autoResumed).toIntent(context))
     }
 
     Scaffold(
@@ -257,8 +262,8 @@ fun PlayRoot() {
         }
     }
 
-    sourcesFor?.let { (target, _) ->
-        SourcesSheet(request = target.request, onDismiss = { sourcesFor = null }, onPicked = ::onSourcePicked)
+    sourcesFor?.let { start ->
+        SourcesSheet(request = start.target.request, onDismiss = { sourcesFor = null }, onPicked = ::onSourcePicked)
     }
 
     resumePrompt?.let { (target, positionMs) ->

@@ -61,6 +61,7 @@ class PlayerActivity : AppCompatActivity() {
                 PlayerScreen(
                     controller = controller,
                     target = session.target,
+                    showResumeNotice = session.autoResumed && session.startPositionMs > 0,
                     onBack = ::finish,
                     onSourcePicked = ::switchSource,
                 )

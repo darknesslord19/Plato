@@ -13,6 +13,8 @@ data class PlaySession(
     val target: PlayTarget,
     val stream: PlayableStream,
     val startPositionMs: Long,
+    /** Kayıtlı konumdan sormadan devam ediliyorsa true: oynatıcı kısa bir "Baştan başla" bildirimi gösterir. */
+    val autoResumed: Boolean = false,
 ) {
     fun toIntent(context: Context): Intent =
         Intent(context, PlayerActivity::class.java).putExtra(EXTRA, PlayJson.encodeToString(serializer(), this))

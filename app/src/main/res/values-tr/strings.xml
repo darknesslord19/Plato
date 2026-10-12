@@ -65,6 +65,7 @@
     <string name="resume_title">İzlemeye devam edilsin mi?</string>
     <string name="resume_continue">Devam et · %1$s</string>
     <string name="resume_restart">Baştan başla</string>
+    <string name="player_resuming">Kaldığın yerden devam ediliyor</string>
 
     <!-- TMDB hataları -->
     <string name="tmdb_error_missing_key">Bu derlemede TMDB anahtarı yok.</string>
