@@ -15,6 +15,14 @@ Sade, özgün bir Android film/dizi istemcisi. Kotlin + Jetpack Compose + Materi
 - **Varsayılan altyazı dili** ayarı, kullanıcı seçmediyse seçili arayüz diline göre başlar (DataStore'da null = arayüz dilini izle).
 - Çok sayılı/biçimli metinler için `plurals` ve biçim argümanları kullanılır; metin birleştirme yapılmaz.
 
+## Arayüz ilkeleri (kalıcı kural)
+1. **Tek ana iş:** her ekranın tek bir ana işi vardır. İkincil seçenekler gizli menüde ya da altta küçük durur.
+2. **Sade görünüm:** ekranda aynı anda en fazla bir vurgu rengi ve iki yazı boyutu/ağırlığı kullanılır.
+3. **Teknik ayrıntı yok:** codec, HDR, ses kanalı vb. arayüzde gösterilmez; kaynak satırında yalnızca kalite ve boyut.
+4. **Ayarlar ≤ 5 kalem:** her kalem tek satırda anlaşılır olmalı.
+5. **Yeni özellik testi:** eklemeden önce "bu olmadan uygulama çalışır mı?" diye sorulur; çalışıyorsa eklenmez.
+6. **İki dilde taşmasın:** her ekran Türkçe ve İngilizce metinle taşmadan görünür; uzun Türkçe metinlerle (ve büyük yazı boyutuyla) test edilir.
+
 ## Kapsam
 - Ekosistemler: (1) Nuvio addon'ları (manifest.json URL'li HTTP addon), (2) Faz 2 Nuvio plugin'leri (JS scraper), (3) Faz 3 CloudStream .cs3.
 - **Şu an yalnızca Faz 1.** Faz 2 ve 3'e başlanmaz. Faz 1 bitince kullanıcıya "Faz 1 tamam" denir ve durulur.
