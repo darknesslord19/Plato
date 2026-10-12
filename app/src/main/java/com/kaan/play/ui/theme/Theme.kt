@@ -57,6 +57,7 @@ fun PlayTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (darkTheme) DarkScheme else LightScheme,
         shapes = PlayShapes,
+        typography = PlayTypography,
         content = content,
     )
 }

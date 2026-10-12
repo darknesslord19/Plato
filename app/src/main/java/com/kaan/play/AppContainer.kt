@@ -1,11 +1,15 @@
 package com.kaan.play
 
 import android.content.Context
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.kaan.play.data.addon.AddonRepository
 import com.kaan.play.data.addon.OkHttpManifestFetcher
 import com.kaan.play.data.db.PlayDatabase
+import com.kaan.play.data.library.LibraryRepository
 import com.kaan.play.data.net.PlayJson
+import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.tmdb.TmdbRepository
 import com.kaan.play.i18n.AppLanguage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +40,14 @@ class AppContainer(context: Context) {
 
     val database: PlayDatabase by lazy {
         Room.databaseBuilder(appContext, PlayDatabase::class.java, "play.db").build()
+    }
+
+    val settings: SettingsRepository by lazy {
+        SettingsRepository(PreferenceDataStoreFactory.create { appContext.preferencesDataStoreFile("settings") })
+    }
+
+    val library: LibraryRepository by lazy {
+        LibraryRepository(database.watchHistoryDao(), database.favoriteDao())
     }
 
     val addons: AddonRepository by lazy {

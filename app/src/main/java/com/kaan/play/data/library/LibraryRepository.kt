@@ -1,0 +1,39 @@
+package com.kaan.play.data.library
+
+import com.kaan.play.data.db.FavoriteDao
+import com.kaan.play.data.db.FavoriteEntity
+import com.kaan.play.data.db.WatchHistoryDao
+import com.kaan.play.data.db.WatchHistoryEntity
+import com.kaan.play.data.model.MediaSummary
+import com.kaan.play.data.model.MediaType
+import kotlinx.coroutines.flow.Flow
+
+/** Yerel kütüphane: izleme geçmişi ve favoriler. Kütüphane ekranı 7. adımda bunun üstüne kurulur. */
+class LibraryRepository(
+    private val history: WatchHistoryDao,
+    private val favorites: FavoriteDao,
+    private val clock: () -> Long = System::currentTimeMillis,
+) {
+    val continueWatching: Flow<List<WatchHistoryEntity>> = history.observeContinueWatching()
+
+    val allFavorites: Flow<List<FavoriteEntity>> = favorites.observeAll()
+
+    fun isFavorite(type: MediaType, tmdbId: Int): Flow<Boolean> = favorites.observeIsFavorite(tmdbId, type)
+
+    /** Favori durumunu ayarlar. Başlık/poster, Kütüphane'nin ağsız çizilebilmesi için anlık kopyadır. */
+    suspend fun setFavorite(media: MediaSummary, favorite: Boolean) {
+        if (favorite) {
+            favorites.add(
+                FavoriteEntity(
+                    tmdbId = media.id,
+                    type = media.type,
+                    title = media.title,
+                    posterPath = media.posterPath,
+                    addedAt = clock(),
+                ),
+            )
+        } else {
+            favorites.remove(media.id, media.type)
+        }
+    }
+}

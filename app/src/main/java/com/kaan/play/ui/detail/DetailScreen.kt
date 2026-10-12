@@ -1,0 +1,311 @@
+package com.kaan.play.ui.detail
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import com.kaan.play.R
+import com.kaan.play.data.model.Episode
+import com.kaan.play.data.model.MediaDetail
+import com.kaan.play.data.model.MediaType
+import com.kaan.play.data.model.SeasonInfo
+import com.kaan.play.data.tmdb.TmdbImages
+import com.kaan.play.i18n.AppLanguage
+import com.kaan.play.ui.components.CenteredLoading
+import com.kaan.play.ui.components.ErrorMessage
+import com.kaan.play.ui.components.Loadable
+import com.kaan.play.ui.containerViewModel
+import com.kaan.play.ui.nav.PlayIcons
+
+/**
+ * Detay. Film: tek ana iş "Oynat". Dizi: ana iş bölüm seçmek (sezon seçici + bölüm listesi).
+ * [onPlay]: film için (null, null), dizi için (sezon, bölüm).
+ */
+@Composable
+fun DetailScreen(type: MediaType, id: Int, onBack: () -> Unit, onPlay: (season: Int?, episode: Int?) -> Unit) {
+    val vm = containerViewModel(key = "detail-${type.tmdbPath}-$id-${AppLanguage.effective().iso}") {
+        DetailViewModel(it.tmdb, it.library, type, id)
+    }
+    val detail by vm.detail.collectAsStateWithLifecycle()
+    val season by vm.season.collectAsStateWithLifecycle()
+    val episodes by vm.episodes.collectAsStateWithLifecycle()
+    val isFavorite by vm.isFavorite.collectAsStateWithLifecycle()
+
+    Box(Modifier.fillMaxSize()) {
+        when (val d = detail) {
+            Loadable.Loading -> CenteredLoading()
+            is Loadable.Failed -> ErrorMessage(d.error, onRetry = vm::loadDetail, modifier = Modifier.align(Alignment.Center))
+            is Loadable.Ready -> DetailContent(
+                detail = d.value,
+                isFavorite = isFavorite,
+                selectedSeason = season,
+                episodes = episodes,
+                onToggleFavorite = vm::toggleFavorite,
+                onSelectSeason = vm::selectSeason,
+                onRetryEpisodes = vm::retryEpisodes,
+                onPlay = onPlay,
+            )
+        }
+        // Geri oku: kapağın üstünde de okunsun diye yarı saydam daire içinde.
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier
+                .statusBarsPadding()
+                .padding(8.dp)
+                .size(40.dp)
+                .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+        ) {
+            Icon(PlayIcons.Back, contentDescription = stringResource(R.string.common_back), tint = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun DetailContent(
+    detail: MediaDetail,
+    isFavorite: Boolean,
+    selectedSeason: Int?,
+    episodes: Loadable<List<Episode>>,
+    onToggleFavorite: () -> Unit,
+    onSelectSeason: (Int) -> Unit,
+    onRetryEpisodes: () -> Unit,
+    onPlay: (Int?, Int?) -> Unit,
+) {
+    val media = detail.summary
+    val isSeries = media.type == MediaType.Tv
+
+    LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        item { Backdrop(media.backdropPath ?: media.posterPath) }
+        item {
+            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(media.title, style = MaterialTheme.typography.titleLarge)
+                metaLine(detail)?.let {
+                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (media.overview.isNotBlank()) ExpandableText(media.overview)
+
+                if (isSeries) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SeasonPicker(
+                            seasons = detail.seasons,
+                            selected = selectedSeason,
+                            onSelect = onSelectSeason,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        FavoriteButton(isFavorite, onToggleFavorite)
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Button(onClick = { onPlay(null, null) }, modifier = Modifier.weight(1f).height(48.dp)) {
+                            Icon(PlayIcons.PlayTriangle, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Text(stringResource(R.string.detail_play), modifier = Modifier.padding(start = 8.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        FavoriteButton(isFavorite, onToggleFavorite)
+                    }
+                }
+            }
+        }
+
+        if (isSeries) {
+            item { Spacer(Modifier.height(8.dp)) }
+            when (episodes) {
+                Loadable.Loading -> item { CenteredLoadingRow() }
+                is Loadable.Failed -> item {
+                    ErrorMessage(episodes.error, onRetry = onRetryEpisodes, modifier = Modifier.fillMaxWidth())
+                }
+                is Loadable.Ready -> if (episodes.value.isEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.detail_no_episodes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(20.dp),
+                        )
+                    }
+                } else {
+                    items(episodes.value, key = { it.number }) { episode ->
+                        EpisodeRow(episode) { selectedSeason?.let { onPlay(it, episode.number) } }
+                    }
+                }
+            }
+        }
+        item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+@Composable
+private fun Backdrop(path: String?) {
+    val url = TmdbImages.url(path, TmdbImages.Size.BackdropLarge)
+    val background = MaterialTheme.colorScheme.background
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        if (url != null) {
+            AsyncImage(model = url, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
+        // Alt kenar sayfa rengine erir: başlık okunur, kapak "kesilmiş" görünmez.
+        Box(
+            Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to background)),
+        )
+    }
+}
+
+/** Yıl · süre · en çok 3 tür. */
+@Composable
+private fun metaLine(detail: MediaDetail): String? {
+    val parts = buildList {
+        detail.summary.year?.let { add(it.toString()) }
+        detail.runtimeMinutes?.let { add(formatRuntime(it)) }
+        if (detail.genres.isNotEmpty()) add(detail.genres.take(3).joinToString(", "))
+    }
+    if (parts.isEmpty()) return null
+    return parts.reduce { acc, s -> stringResource(R.string.dot_join, acc, s) }
+}
+
+@Composable
+private fun formatRuntime(minutes: Int): String =
+    if (minutes >= 60) stringResource(R.string.runtime_hours_minutes, minutes / 60, minutes % 60)
+    else stringResource(R.string.runtime_minutes, minutes)
+
+/** Özet 4 satıra kısaltılır; dokununca açılır/kapanır. */
+@Composable
+private fun ExpandableText(text: String) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        maxLines = if (expanded) Int.MAX_VALUE else 4,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable { expanded = !expanded },
+    )
+}
+
+@Composable
+private fun FavoriteButton(isFavorite: Boolean, onToggle: () -> Unit) {
+    OutlinedIconButton(onClick = onToggle, modifier = Modifier.size(48.dp)) {
+        Icon(
+            imageVector = if (isFavorite) PlayIcons.HeartFilled else PlayIcons.Heart,
+            contentDescription = stringResource(if (isFavorite) R.string.detail_favorite_remove else R.string.detail_favorite_add),
+            tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun SeasonPicker(seasons: List<SeasonInfo>, selected: Int?, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+            Text(
+                text = stringResource(R.string.detail_season, selected ?: seasons.firstOrNull()?.number ?: 1),
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(PlayIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(20.dp))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            seasons.forEach { s ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.detail_season, s.number)) },
+                    onClick = { open = false; onSelect(s.number) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EpisodeRow(episode: Episode, onClick: () -> Unit) {
+    val title = if (episode.name.isBlank()) {
+        stringResource(R.string.detail_episode_fallback, episode.number)
+    } else {
+        stringResource(R.string.detail_episode_title, episode.number, episode.name)
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            Modifier
+                .width(112.dp)
+                .aspectRatio(16f / 9f)
+                .clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            TmdbImages.url(episode.stillPath, TmdbImages.Size.Still)?.let {
+                AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            episode.runtimeMinutes?.takeIf { it > 0 }?.let {
+                Text(formatRuntime(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (episode.overview.isNotBlank()) {
+                Text(
+                    episode.overview,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CenteredLoadingRow() {
+    Box(Modifier.fillMaxWidth().height(96.dp), contentAlignment = Alignment.Center) {
+        androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+    }
+}

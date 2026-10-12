@@ -2,10 +2,10 @@ package com.kaan.play.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-/** Play'in kendi paleti: soğuk, çok koyu arka plan + tek bir kehribar vurgu. */
+/** Play'in kendi paleti: soğuk, çok koyu arka plan + tek bir turkuaz vurgu. */
 object PlayColors {
-    val Accent = Color(0xFFF5A524)
-    val OnAccent = Color(0xFF1A1200)
+    val Accent = Color(0xFF2DD4BF)
+    val OnAccent = Color(0xFF04201C)
 
     // Koyu
     val DarkBackground = Color(0xFF0E1116)
@@ -16,7 +16,7 @@ object PlayColors {
     val DarkOnMuted = Color(0xFF9AA6B4)
 
     // Açık
-    val LightAccent = Color(0xFFB36A00)
+    val LightAccent = Color(0xFF0F766E)
     val LightBackground = Color(0xFFF8F5EF)
     val LightSurface = Color(0xFFFFFFFF)
     val LightSurfaceHigh = Color(0xFFEFEBE3)

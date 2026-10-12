@@ -64,6 +64,52 @@ object PlayIcons {
         }
     }
 
+    private fun ImageVector.Builder.solid(d: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit) =
+        path(fill = SolidColor(Color.Black), pathBuilder = d)
+
+    private fun androidx.compose.ui.graphics.vector.PathBuilder.heart() {
+        moveTo(12f, 20f)
+        curveTo(5.5f, 15f, 3f, 11.5f, 3f, 8.5f)
+        curveTo(3f, 5.5f, 5.2f, 4f, 7.3f, 4f)
+        curveTo(9.2f, 4f, 11f, 5.2f, 12f, 6.8f)
+        curveTo(13f, 5.2f, 14.8f, 4f, 16.7f, 4f)
+        curveTo(18.8f, 4f, 21f, 5.5f, 21f, 8.5f)
+        curveTo(21f, 11.5f, 18.5f, 15f, 12f, 20f)
+        close()
+    }
+
+    val Heart: ImageVector by lazy { icon("Heart") { line { heart() } } }
+
+    val HeartFilled: ImageVector by lazy { icon("HeartFilled") { solid { heart() } } }
+
+    val ChevronDown: ImageVector by lazy {
+        icon("ChevronDown") { line { moveTo(6f, 9f); lineTo(12f, 15f); lineTo(18f, 9f) } }
+    }
+
+    val Close: ImageVector by lazy {
+        icon("Close") {
+            line {
+                moveTo(6f, 6f); lineTo(18f, 18f)
+                moveTo(18f, 6f); lineTo(6f, 18f)
+            }
+        }
+    }
+
+    /** Yuvarlatılmış oynat üçgeni (launcher işaretiyle aynı biçim). */
+    val PlayTriangle: ImageVector by lazy {
+        icon("PlayTriangle") {
+            solid {
+                moveTo(8f, 5.5f)
+                curveTo(8f, 4.4f, 8.9f, 3.9f, 9.8f, 4.5f)
+                lineTo(19f, 10.6f)
+                curveTo(19.9f, 11.2f, 19.9f, 12.8f, 19f, 13.4f)
+                lineTo(9.8f, 19.5f)
+                curveTo(8.9f, 20.1f, 8f, 19.6f, 8f, 18.5f)
+                close()
+            }
+        }
+    }
+
     val Back: ImageVector by lazy {
         icon("Back") {
             line {

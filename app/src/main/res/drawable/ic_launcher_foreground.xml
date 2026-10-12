@@ -9,7 +9,7 @@
         android:fillColor="@color/play_accent"
         android:pathData="M44,36.5 Q44,32 48,34.3 L69,46.6 Q73,49 69,51.4 L48,63.7 Q44,66 44,61.5 Z" />
     <path
-        android:fillColor="#4DF5A524"
+        android:fillColor="#4D2DD4BF"
         android:pathData="M40,72 h28 a2,2 0 0 1 0,4 h-28 a2,2 0 0 1 0,-4 z" />
     <path
         android:fillColor="@color/play_accent"

@@ -5,16 +5,59 @@
     <string name="tab_library">Kütüphane</string>
     <string name="tab_settings">Ayarlar</string>
 
-    <string name="home_empty_message">Henüz hiçbir eklenti yok.</string>
-    <string name="home_empty_action">Başlamak için bir eklenti ekle</string>
-    <string name="placeholder_coming_soon">Yakında</string>
-
-    <string name="language_title">Dil</string>
-    <string name="language_system">Sistem</string>
-
     <string name="common_back">Geri</string>
     <string name="common_cancel">İptal</string>
+    <string name="common_retry">Tekrar dene</string>
+    <string name="common_system">Sistem</string>
 
+    <string name="type_movie">Film</string>
+    <string name="type_series">Dizi</string>
+
+    <string name="placeholder_coming_soon">Yakında</string>
+
+    <!-- Ana sayfa -->
+    <string name="home_empty_message">Henüz hiçbir eklenti yok.</string>
+    <string name="home_empty_action">Başlamak için bir eklenti ekle</string>
+    <string name="home_row_continue">İzlemeye devam et</string>
+    <string name="home_row_trending">Bu hafta trend olanlar</string>
+    <string name="home_row_popular_movies">Popüler filmler</string>
+    <string name="home_row_popular_series">Popüler diziler</string>
+    <string name="continue_left_movie">%1$d dk kaldı</string>
+    <string name="continue_left_episode">S%1$d B%2$d · %3$d dk kaldı</string>
+
+    <!-- Ara -->
+    <string name="search_hint">Film ve dizi ara</string>
+    <string name="search_clear">Temizle</string>
+    <string name="search_idle">Aramak için bir şey yaz.</string>
+    <string name="search_no_results">“%1$s” için sonuç yok.</string>
+
+    <!-- Detay -->
+    <string name="detail_play">Oynat</string>
+    <string name="detail_favorite_add">Favorilere ekle</string>
+    <string name="detail_favorite_remove">Favorilerden çıkar</string>
+    <string name="detail_season">%1$d. Sezon</string>
+    <string name="detail_episode_fallback">%1$d. Bölüm</string>
+    <string name="detail_no_episodes">Bölüm bilgisi yok.</string>
+    <string name="runtime_hours_minutes">%1$d sa %2$d dk</string>
+    <string name="runtime_minutes">%1$d dk</string>
+
+    <!-- TMDB hataları -->
+    <string name="tmdb_error_missing_key">Bu derlemede TMDB anahtarı yok.</string>
+    <string name="tmdb_error_invalid_key">TMDB, API anahtarını reddetti.</string>
+    <string name="tmdb_error_network">Yüklenemedi. Bağlantını kontrol et.</string>
+    <string name="tmdb_error_rate_limited">Çok fazla istek var. Biraz sonra tekrar dene.</string>
+    <string name="tmdb_error_not_found">Bu içerik bulunamadı.</string>
+    <string name="tmdb_error_generic">Bir şeyler ters gitti.</string>
+
+    <!-- Ayarlar -->
+    <string name="settings_theme">Tema</string>
+    <string name="settings_language">Dil</string>
+    <string name="settings_about">Hakkında</string>
+    <string name="theme_dark">Koyu</string>
+    <string name="theme_light">Açık</string>
+    <string name="about_version">Sürüm %1$s</string>
+
+    <!-- Eklentiler -->
     <string name="addons_title">Eklentiler</string>
     <plurals name="addons_count">
         <item quantity="one">%d eklenti</item>
@@ -32,6 +75,9 @@
     <string name="addons_remove_message">“%1$s” Play\'den kaldırılacak.</string>
     <string name="addons_enabled_toggle">%1$s eklentisini aç/kapat</string>
     <string name="addons_row_info">v%1$s · %2$s</string>
+    <string name="addons_timeout">Kaynak zaman aşımı: %1$d sn</string>
+    <string name="addons_timeout_title">Kaynak zaman aşımı</string>
+    <string name="addons_timeout_option">%1$d saniye</string>
 
     <string name="addon_error_invalid_url">Eklentinin manifest bağlantısını gir: bir web adresi (http veya https), genellikle manifest.json ile biter ve “?” işaretinden sonra bir şey içermez.</string>
     <string name="addon_error_already_added">Bu eklenti zaten ekli.</string>

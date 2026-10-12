@@ -7,24 +7,46 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kaan.play.data.settings.ThemeMode
 import com.kaan.play.ui.nav.PlayRoot
 import com.kaan.play.ui.theme.PlayTheme
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 // AppCompatActivity: uygulama başına dil (AppCompatDelegate.setApplicationLocales) için gerekli.
 class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Koyu tema varsayılan: sistem açık modda olsa bile çubuk ikonları açık renk olsun.
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-        )
+        val settings = (application as PlayApp).container.settings
+        // Açılışta tek seferlik okuma (milisaniyeler): kayıtlı tema ilk karede doğru çıksın, yanıp sönmesin.
+        val initialTheme = runBlocking { settings.themeMode.first() }
+
         // Yalnızca ilk açılışta: dil değişimi gibi yeniden oluşturmalarda aynı bağlantı tekrar işlenmesin.
         if (savedInstanceState == null) handleLink(intent)
+
         setContent {
-            // Tema ayarı DataStore ile 7. adımda bağlanacak; çubuk stili de o zaman temaya uyacak.
-            PlayTheme(darkTheme = true) {
+            val mode by settings.themeMode.collectAsStateWithLifecycle(initialValue = initialTheme)
+            val dark = when (mode) {
+                ThemeMode.Dark -> true
+                ThemeMode.Light -> false
+                ThemeMode.System -> isSystemInDarkTheme()
+            }
+            // Durum/gezinme çubuğu ikonları temaya uysun.
+            DisposableEffect(dark) {
+                val style = if (dark) {
+                    SystemBarStyle.dark(Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                }
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                onDispose { }
+            }
+            PlayTheme(darkTheme = dark) {
                 PlayRoot()
             }
         }

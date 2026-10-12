@@ -16,9 +16,15 @@ fun rememberContainer(): AppContainer {
     return remember(context) { (context.applicationContext as PlayApp).container }
 }
 
-/** Elle kurulan kaptan ViewModel üretir (DI framework'ü yok). */
+/**
+ * Elle kurulan kaptan ViewModel üretir (DI framework'ü yok).
+ * [key]: dile/kimliğe bağlı ViewModel'ler için; anahtar değişince eskisi atılıp yenisi kurulur.
+ */
 @Composable
-inline fun <reified VM : ViewModel> containerViewModel(crossinline create: (AppContainer) -> VM): VM {
+inline fun <reified VM : ViewModel> containerViewModel(
+    key: String? = null,
+    crossinline create: (AppContainer) -> VM,
+): VM {
     val container = rememberContainer()
-    return viewModel(factory = viewModelFactory { initializer { create(container) } })
+    return viewModel(key = key, factory = viewModelFactory { initializer { create(container) } })
 }

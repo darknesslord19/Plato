@@ -10,4 +10,6 @@ import androidx.room.RoomDatabase
 )
 abstract class PlayDatabase : RoomDatabase() {
     abstract fun addonDao(): AddonDao
+    abstract fun watchHistoryDao(): WatchHistoryDao
+    abstract fun favoriteDao(): FavoriteDao
 }

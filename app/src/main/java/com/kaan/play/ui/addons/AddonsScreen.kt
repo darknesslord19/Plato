@@ -42,7 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.R
 import com.kaan.play.data.addon.Addon
+import com.kaan.play.data.settings.SettingsRepository
+import com.kaan.play.ui.components.ChoiceDialog
 import com.kaan.play.ui.containerViewModel
+import com.kaan.play.ui.rememberContainer
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import com.kaan.play.ui.nav.PlayIcons
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -52,6 +57,11 @@ fun AddonsScreen(startAdding: Boolean, onBack: () -> Unit) {
     val addons by vm.addons.collectAsStateWithLifecycle()
     val dialog by vm.dialog.collectAsStateWithLifecycle()
     var toRemove by remember { mutableStateOf<Addon?>(null) }
+    val container = rememberContainer()
+    val scope = rememberCoroutineScope()
+    val timeout by container.settings.sourceTimeoutSeconds
+        .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_TIMEOUT_SECONDS)
+    var showTimeout by remember { mutableStateOf(false) }
 
     // Ana sayfadaki "eklenti ekle" düğmesinden geldiyse pencere hemen açılır.
     LaunchedEffect(startAdding) { if (startAdding) vm.startAddingOnce() }
@@ -91,13 +101,34 @@ fun AddonsScreen(startAdding: Boolean, onBack: () -> Unit) {
                 }
                 Button(
                     onClick = { vm.openAdd() },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp),
                 ) {
                     Icon(PlayIcons.Plus, contentDescription = null, modifier = Modifier.size(20.dp))
                     Text(stringResource(R.string.addons_add), modifier = Modifier.padding(start = 8.dp))
                 }
+                // İkincil ayar: altta, küçük ve soluk.
+                TextButton(
+                    onClick = { showTimeout = true },
+                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 4.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.addons_timeout, timeout),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
+    }
+
+    if (showTimeout) {
+        ChoiceDialog(
+            title = stringResource(R.string.addons_timeout_title),
+            options = SettingsRepository.TIMEOUT_OPTIONS,
+            selected = timeout,
+            label = { stringResource(R.string.addons_timeout_option, it) },
+            onSelect = { scope.launch { container.settings.setSourceTimeoutSeconds(it) }; showTimeout = false },
+            onDismiss = { showTimeout = false },
+        )
     }
 
     dialog?.let { state ->
