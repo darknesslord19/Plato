@@ -46,6 +46,32 @@ interface WatchHistoryDao {
 }
 
 @Dao
+interface SubtitleDao {
+
+    @Query("SELECT language FROM subtitle_language WHERE contentKey = :contentKey")
+    suspend fun language(contentKey: String): String?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putLanguage(entity: SubtitleLanguageEntity)
+
+    @Query("SELECT offsetMs FROM subtitle_offset WHERE contentKey = :contentKey AND subtitleKey = :subtitleKey")
+    suspend fun offset(contentKey: String, subtitleKey: String): Long?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putOffset(entity: SubtitleOffsetEntity)
+
+    @Query("DELETE FROM subtitle_offset WHERE contentKey = :contentKey AND subtitleKey = :subtitleKey")
+    suspend fun clearOffset(contentKey: String, subtitleKey: String)
+
+    /** Tablo sınırsız büyümesin: en yeni [keep] kaydırma kalır. */
+    @Query(
+        "DELETE FROM subtitle_offset WHERE rowid NOT IN " +
+            "(SELECT rowid FROM subtitle_offset ORDER BY updatedAt DESC LIMIT :keep)",
+    )
+    suspend fun pruneOffsets(keep: Int)
+}
+
+@Dao
 interface FavoriteDao {
 
     @Query("SELECT * FROM favorites ORDER BY addedAt DESC")

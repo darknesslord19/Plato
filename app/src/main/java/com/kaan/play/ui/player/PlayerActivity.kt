@@ -15,6 +15,7 @@ import androidx.media3.common.Player
 import com.kaan.play.PlayApp
 import com.kaan.play.data.library.WatchRules
 import com.kaan.play.data.stream.PlayableStream
+import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.ui.theme.PlayTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -27,6 +28,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private lateinit var session: PlaySession
     private lateinit var controller: PlaybackController
+    private lateinit var subtitles: SubtitleController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,12 +56,25 @@ class PlayerActivity : AppCompatActivity() {
                 }
             }
         })
+        subtitles = SubtitleController(
+            scope = lifecycleScope,
+            playback = controller,
+            request = session.target.request,
+            loader = container.subtitleLoader,
+            memory = container.subtitleMemory,
+            provider = container.subtitleProvider,
+            appLanguage = { AppLanguage.effective().iso },
+            persist = container.appScope,
+        )
+        subtitles.setStream(session.stream)
+        subtitles.start()
         controller.load(session.stream, session.startPositionMs)
 
         setContent {
             PlayTheme(darkTheme = true) {
                 PlayerScreen(
                     controller = controller,
+                    subtitles = subtitles,
                     target = session.target,
                     showResumeNotice = session.autoResumed && session.startPositionMs > 0,
                     onBack = ::finish,
@@ -90,6 +105,7 @@ class PlayerActivity : AppCompatActivity() {
         if (!::controller.isInitialized) return
         controller.player.pause()
         saveProgress()
+        subtitles.flush()
     }
 
     override fun onDestroy() {
@@ -99,6 +115,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun switchSource(stream: PlayableStream) {
         saveProgress()
+        subtitles.setStream(stream)
         controller.load(stream, controller.positionMs())
     }
 

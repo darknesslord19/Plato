@@ -97,6 +97,33 @@ data class WatchHistoryEntity(
     val posterPath: String?,
 )
 
+/**
+ * Faz 4/A: bir film/dizi için seçilen altyazı dili. [contentKey]: film `movie:{tmdbId}`, dizi `tv:{tmdbId}` (bölümler arası
+ * ortak: bir dizide seçilen dil sonraki bölümlerde otomatik seçilir). [language]: iki harfli dil ya da `off` (kullanıcı kapattı).
+ */
+@Entity(tableName = "subtitle_language")
+data class SubtitleLanguageEntity(
+    @PrimaryKey val contentKey: String,
+    val language: String,
+    val updatedAt: Long,
+)
+
+/**
+ * Faz 4/A: elle senkron kaydırması, (içerik, altyazı) başına. [contentKey]: film `movie:{tmdbId}`, bölüm `tv:{tmdbId}:{sezon}:{bölüm}`;
+ * [subtitleKey]: altyazı adresinin SHA-256'sı. 0 kaydırma saklanmaz (satır silinir).
+ */
+@Entity(
+    tableName = "subtitle_offset",
+    primaryKeys = ["contentKey", "subtitleKey"],
+    indices = [Index("updatedAt")],
+)
+data class SubtitleOffsetEntity(
+    val contentKey: String,
+    val subtitleKey: String,
+    val offsetMs: Long,
+    val updatedAt: Long,
+)
+
 @Entity(tableName = "favorites", primaryKeys = ["tmdbId", "type"])
 data class FavoriteEntity(
     val tmdbId: Int,

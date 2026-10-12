@@ -1,18 +1,11 @@
 package com.kaan.play.data.stream
 
 import com.kaan.play.data.addon.Addon
-import com.kaan.play.data.net.await
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.io.IOException
-import java.io.InterruptedIOException
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -53,35 +46,15 @@ class AddonStreamProvider(
         val source = StreamSource(addon.id, addon.manifest.name)
         val url = "${addon.baseUrl}/stream/$type/$contentId.json".toHttpUrlOrNull()
             ?: return StreamResult.Failed(source, FailureReason.Network)
-        val http = client.newBuilder().callTimeout(limit.inWholeMilliseconds, TimeUnit.MILLISECONDS).build()
-        val request = Request.Builder().url(url).header("Accept", "application/json").get().build()
 
         return try {
-            StreamResult.Found(source, StreamParser.parse(source, download(http, request)))
+            StreamResult.Found(source, StreamParser.parse(source, fetchAddonText(client, url, limit, maxBytes)))
         } catch (_: InvalidStreamResponse) {
             StreamResult.Failed(source, FailureReason.InvalidResponse)
-        } catch (e: Failure) {
+        } catch (e: AddonFetchFailure) {
             StreamResult.Failed(source, e.reason)
         }
     }
-
-    private suspend fun download(http: OkHttpClient, request: Request): String = withContext(Dispatchers.IO) {
-        try {
-            http.newCall(request).await().use { response ->
-                if (!response.isSuccessful) throw Failure(FailureReason.Http)
-                val body = response.body.source()
-                body.request(maxBytes + 1)
-                if (body.buffer.size > maxBytes) throw Failure(FailureReason.InvalidResponse)
-                body.readUtf8()
-            }
-        } catch (_: InterruptedIOException) { // SocketTimeoutException da bunun alt türü
-            throw Failure(FailureReason.Timeout)
-        } catch (_: IOException) {
-            throw Failure(FailureReason.Network)
-        }
-    }
-
-    private class Failure(val reason: FailureReason) : Exception()
 
     companion object {
         /** Akış cevapları manifest'ten büyük olabilir; yine de makul bir üst sınır. */

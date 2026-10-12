@@ -15,11 +15,9 @@ import kotlinx.serialization.json.JsonPrimitive
  *
  * Zorunlu: `id`, `name` (boş olmayan metin), `types` (boş olmayan metin dizisi),
  * `resources` (boş olmayan dizi; her öğe metin ya da `name`'li nesne).
- * Ayrıca addon'un film/dizi için `stream` kaynağı sunması gerekir.
+ * Ayrıca addon'un film/dizi için `stream` ya da `subtitles` kaynağı sunması gerekir.
  */
 object AddonManifestParser {
-
-    private val playableTypes = setOf("movie", "series")
 
     fun parse(raw: String): AddonManifest {
         val root = try {
@@ -42,10 +40,10 @@ object AddonManifestParser {
             idPrefixes = root.stringList("idPrefixes", required = false),
         )
 
-        val streamResources = manifest.resources.filter { it.name == AddonManifest.STREAM }
-        if (streamResources.isEmpty()) throw AddonException(Kind.NoStreamResource)
-        val servesPlayableType = streamResources.any { r -> (r.types ?: manifest.types).any { it in playableTypes } }
-        if (!servesPlayableType) throw AddonException(Kind.UnsupportedTypes)
+        // Akış ya da altyazı sunan addon kabul edilir (yalnızca altyazı verenler kaynak listesinde görünmez, altyazı seçicisinde kullanılır).
+        val useful = listOf(AddonManifest.STREAM, AddonManifest.SUBTITLES)
+        if (manifest.resources.none { it.name in useful }) throw AddonException(Kind.NoStreamResource)
+        if (useful.none { manifest.servesPlayableType(it) }) throw AddonException(Kind.UnsupportedTypes)
 
         return manifest
     }

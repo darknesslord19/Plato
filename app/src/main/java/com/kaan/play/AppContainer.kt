@@ -23,6 +23,10 @@ import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.stream.AddonStreamProvider
 import com.kaan.play.data.stream.CompositeStreamProvider
 import com.kaan.play.data.stream.StreamProvider
+import com.kaan.play.data.subtitle.AddonSubtitleProvider
+import com.kaan.play.data.subtitle.SubtitleLoader
+import com.kaan.play.data.subtitle.SubtitleMemory
+import com.kaan.play.data.subtitle.SubtitleProvider
 import com.kaan.play.data.tmdb.TmdbRepository
 import com.kaan.play.data.web.WebSiteRepository
 import com.kaan.play.ui.web.AndroidWebDataCleaner
@@ -66,7 +70,7 @@ class AppContainer(context: Context) {
 
     val database: PlayDatabase by lazy {
         Room.databaseBuilder(appContext, PlayDatabase::class.java, "play.db")
-            .addMigrations(PlayDatabase.MIGRATION_1_2)
+            .addMigrations(PlayDatabase.MIGRATION_1_2, PlayDatabase.MIGRATION_2_3)
             .build()
     }
 
@@ -136,25 +140,44 @@ class AppContainer(context: Context) {
      * ve her istekte yeniden okunur.
      */
     val streams: StreamProvider by lazy {
-        val timeout: suspend () -> kotlin.time.Duration = { settings.sourceTimeoutSeconds.first().seconds }
         CompositeStreamProvider(
-            AddonStreamProvider(addons = addons::enabledAddons, client = httpClient, timeout = timeout),
+            AddonStreamProvider(addons = addons::enabledAddons, client = httpClient, timeout = sourceTimeout),
             PluginStreamProvider(
                 plugins = plugins::enabledPlugins,
                 code = plugins::loadCode,
                 runner = { code, request, scraperId, timeoutMs, saved -> pluginRuntime.run(code, request, scraperId, timeoutMs, saved) },
                 settings = pluginSettings::get,
-                timeout = timeout,
+                timeout = sourceTimeout,
             ),
         )
     }
 
-    /** Oynatılabilecek en az bir açık kaynak (addon ya da eklenti) var mı? Yoksa Oynat "eklenti ekle"ye götürür. */
-    suspend fun hasEnabledSources(): Boolean = addons.enabledAddons().isNotEmpty() || plugins.enabledPlugins().isNotEmpty()
+    private val sourceTimeout: suspend () -> kotlin.time.Duration = { settings.sourceTimeoutSeconds.first().seconds }
 
-    /** Ana sayfa boş durumu için: hiç addon ve hiç eklenti deposu yok mu? (null: henüz yüklenmedi). */
+    /**
+     * Altyazı (Faz 4/A): `subtitles` kaynağı olan aktif addon'lar paralel sorulur (zaman aşımı kaynaklarla ortak). Yalnızca altyazı
+     * veren addon'lar kaynak listesinde görünmez; eklentilerin ve akışın kendi altyazıları seçilen akışla gelir.
+     */
+    val subtitleProvider: SubtitleProvider by lazy {
+        AddonSubtitleProvider(addons = addons::enabledAddons, client = httpClient, timeout = sourceTimeout)
+    }
+
+    /** Altyazıyı kendimiz indirir: kodlama UTF-8'e çevrilip uygulamanın önbellek dizinine yazılır (sistem boşaltabilir). */
+    val subtitleLoader: SubtitleLoader by lazy { SubtitleLoader(httpClient, File(appContext.cacheDir, "subtitles")) }
+
+    /** Seçilen altyazı dili (film/dizi başına) ve elle senkron kaydırması (içerik + altyazı başına). */
+    val subtitleMemory: SubtitleMemory by lazy { SubtitleMemory(database.subtitleDao()) }
+
+    /**
+     * Oynatılabilecek en az bir açık kaynak (akış veren addon ya da eklenti) var mı? Yoksa Oynat "eklenti ekle"ye götürür.
+     * Yalnızca altyazı veren bir addon kaynak sayılmaz.
+     */
+    suspend fun hasEnabledSources(): Boolean =
+        addons.enabledAddons().any { it.manifest.providesStreams } || plugins.enabledPlugins().isNotEmpty()
+
+    /** Ana sayfa boş durumu için: hiç akış addon'u ve hiç eklenti deposu yok mu? (null: henüz yüklenmedi). */
     val hasAnySource: Flow<Boolean> by lazy {
-        combine(addons.addons, plugins.repos) { a, r -> a.isNotEmpty() || r.isNotEmpty() }
+        combine(addons.addons, plugins.repos) { a, r -> a.any { it.manifest.providesStreams } || r.isNotEmpty() }
     }
 
     /**

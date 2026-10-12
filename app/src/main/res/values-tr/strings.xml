@@ -69,7 +69,6 @@
     <string name="player_pause">Duraklat</string>
     <string name="player_subtitles">Altyazı</string>
     <string name="player_subtitles_off">Kapalı</string>
-    <string name="player_subtitle_number">Altyazı %1$d</string>
     <string name="player_sources">Kaynağı değiştir</string>
     <string name="player_error_network">Bu kaynağa ulaşılamadı. Bağlantını kontrol et.</string>
     <string name="player_error_unavailable">Bu kaynak şu an kullanılamıyor.</string>
@@ -131,7 +130,7 @@
     <string name="addon_error_not_json">Bu adres geçerli bir eklenti döndürmedi (yanıt JSON değil). Adresin manifest.json ile bittiğinden emin ol.</string>
     <string name="addon_error_missing_field">Eklentide “%1$s” alanı yok.</string>
     <string name="addon_error_invalid_field">Eklentinin “%1$s” alanı bozuk.</string>
-    <string name="addon_error_no_stream">Bu eklenti akış sunmuyor, bu yüzden Play onu kullanamaz.</string>
+    <string name="addon_error_no_stream">Bu eklenti ne akış ne altyazı sunuyor, bu yüzden Play onu kullanamaz.</string>
     <string name="addon_error_unsupported_types">Bu eklenti film veya dizi sunmuyor, bu yüzden Play onu kullanamaz.</string>
     <string name="addon_error_no_plugins">Bu depoda kullanılabilir eklenti yok.</string>
     <string name="addon_error_plugin_file">“%1$s” indirilemedi ya da geçerli bir eklenti dosyası değil. Bağlantıyı kontrol edip tekrar dene.</string>
@@ -194,6 +193,15 @@
     <string name="subtitle_background_translucent">Yarı saydam</string>
     <string name="subtitle_background_black">Siyah</string>
     <string name="player_subtitle_appearance">Görünüm</string>
+    <string name="subtitle_language_other">Diğer</string>
+    <string name="subtitle_embedded">Videonun içinde</string>
+    <string name="subtitle_searching">Altyazı aranıyor…</string>
+    <string name="subtitle_loading">Altyazı yükleniyor…</string>
+    <string name="subtitle_load_failed">Bu altyazı yüklenemedi</string>
+    <string name="subtitle_sync">Senkron</string>
+    <string name="subtitle_sync_value">%1$s sn</string>
+    <string name="subtitle_sync_hint">Eksi altyazıyı öne alır, artı geciktirir.</string>
+    <string name="subtitle_sync_reset">Sıfırla</string>
     <string name="about_no_content">Play hiçbir içerik sağlamaz; kullanıcı kendi eklentilerini ekler.</string>
     <string name="about_tmdb_attribution">Bu ürün TMDB API\'sini kullanır ancak TMDB tarafından onaylanmamıştır veya sertifikalandırılmamıştır.</string>
 

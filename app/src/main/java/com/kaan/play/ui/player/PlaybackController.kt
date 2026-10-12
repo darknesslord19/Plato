@@ -1,7 +1,6 @@
 package com.kaan.play.ui.player
 
 import android.content.Context
-import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -14,7 +13,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.common.util.Util
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -36,30 +34,30 @@ data class PlayerUiState(
     val tracksVersion: Int = 0,
 )
 
-/** Altyazı seçeneği; [index] null ise "Kapalı". [ordinal]: aynı dildeki 1'den başlayan sıra. */
-data class SubtitleOption(val index: Int?, val language: String?, val ordinal: Int, val selected: Boolean)
+/** Videonun içindeki (Media3'ün okuduğu) altyazı parçası; [index] parça listesindeki sıradır. */
+data class EmbeddedSubtitle(val index: Int, val language: String?, val selected: Boolean)
 
 /**
- * Media3 ExoPlayer'ı sarar: kaynağı yükler (proxyHeaders + altyazılar), durumu Compose'a açar.
- * Başlıklar yalnızca akış isteklerine eklenir; altyazı adreslerine (üçüncü taraf sunucular) gönderilmez.
+ * Media3 ExoPlayer'ı sarar: kaynağı yükler (proxyHeaders), durumu Compose'a açar. Başlıklar yalnızca akış isteklerine eklenir.
+ * Harici altyazılar (addon / eklenti / akış adresleri) Media3'e verilmez: [SubtitleController] indirir, ayrıştırır ve satırları
+ * kendisi gösterir (kaydırma anında uygulansın diye). Burada yalnızca videonun kendi altyazı parçaları seçilir.
  */
 @OptIn(UnstableApi::class)
-class PlaybackController(context: Context, client: OkHttpClient) {
+class PlaybackController(context: Context, client: OkHttpClient) : SubtitleHost {
 
     @Volatile private var headers: Map<String, String> = emptyMap()
-    @Volatile private var subtitleUrls: Set<String> = emptySet()
 
     val player: ExoPlayer = ExoPlayer.Builder(context)
         .setMediaSourceFactory(
             DefaultMediaSourceFactory(
                 ResolvingDataSource.Factory(OkHttpDataSource.Factory(client)) { spec ->
-                    if (headers.isEmpty() || spec.uri.toString() in subtitleUrls) spec else spec.withAdditionalHeaders(headers)
+                    if (headers.isEmpty()) spec else spec.withAdditionalHeaders(headers)
                 },
             ),
         )
         .build()
         .also { exo ->
-            // Altyazı varsayılan olarak kapalıdır; kullanıcı seçince açılır.
+            // Altyazı varsayılan olarak kapalıdır; seçilince açılır (videonun içindekiler Media3'le, diğerleri kendi katmanımızla).
             exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                 .build()
@@ -91,20 +89,10 @@ class PlaybackController(context: Context, client: OkHttpClient) {
     /** [startMs] konumundan oynatmaya başlar. Önceki hata temizlenir. */
     fun load(stream: PlayableStream, startMs: Long) {
         headers = stream.headers
-        subtitleUrls = stream.subtitles.map { it.url }.toSet()
 
         val item = MediaItem.Builder()
             .setUri(stream.url)
             .apply { streamMimeType(stream.url)?.let(::setMimeType) }
-            .setSubtitleConfigurations(
-                stream.subtitles.mapIndexed { i, s ->
-                    MediaItem.SubtitleConfiguration.Builder(Uri.parse(s.url))
-                        .setId("addon-$i")
-                        .setMimeType(subtitleMimeType(s.url))
-                        .setLanguage(s.language?.let(Util::normalizeLanguageCode))
-                        .build()
-                },
-            )
             .build()
 
         ui = ui.copy(error = null, ended = false, buffering = true)
@@ -124,7 +112,7 @@ class PlaybackController(context: Context, client: OkHttpClient) {
 
     fun seekTo(positionMs: Long) = player.seekTo(positionMs.coerceAtLeast(0L))
 
-    fun positionMs(): Long = player.currentPosition
+    override fun positionMs(): Long = player.currentPosition
 
     /** Süre bilinmiyorsa 0. */
     fun durationMs(): Long = player.duration.takeIf { it != C.TIME_UNSET } ?: 0L
@@ -134,30 +122,28 @@ class PlaybackController(context: Context, client: OkHttpClient) {
     private fun textGroups(): List<Tracks.Group> =
         player.currentTracks.groups.filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
 
-    /** "Kapalı" + akıştaki/addon'daki tüm altyazılar. */
-    fun subtitleOptions(): List<SubtitleOption> {
+    /** Videonun kendi altyazı parçaları (dil etiketi parçanın söylediğidir, çoğu zaman `en`/`tr` gibi kısa kod). */
+    override fun embeddedSubtitles(): List<EmbeddedSubtitle> {
         val textOff = player.trackSelectionParameters.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT)
-        val seen = HashMap<String?, Int>()
-        val tracks = textGroups().mapIndexed { i, group ->
-            val language = group.mediaTrackGroup.getFormat(0).language
-            val ordinal = (seen[language] ?: 0) + 1
-            seen[language] = ordinal
-            SubtitleOption(index = i, language = language, ordinal = ordinal, selected = !textOff && group.isSelected)
+        return textGroups().mapIndexed { i, group ->
+            EmbeddedSubtitle(i, group.mediaTrackGroup.getFormat(0).language, selected = !textOff && group.isSelected)
         }
-        return listOf(SubtitleOption(null, null, 1, selected = textOff || tracks.none { it.selected })) + tracks
     }
 
-    fun selectSubtitle(option: SubtitleOption) {
-        val builder = player.trackSelectionParameters.buildUpon()
-        val group = option.index?.let { textGroups().getOrNull(it) }
-        if (group == null) {
-            builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
-        } else {
-            builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-                .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, 0))
-        }
-        player.trackSelectionParameters = builder.build()
-        ui = ui.copy(tracksVersion = ui.tracksVersion + 1)
+    /** Videonun içindeki parçayı açar (Media3 çizer). */
+    override fun selectEmbeddedSubtitle(index: Int) {
+        val group = textGroups().getOrNull(index) ?: return
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, 0))
+            .build()
+    }
+
+    /** Media3'ün altyazı çizimini kapatır (altyazı kapalıyken ya da harici altyazıyı biz çizerken). */
+    override fun disableEmbeddedSubtitles() {
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+            .build()
     }
 
     fun release() = player.release()
@@ -170,16 +156,6 @@ class PlaybackController(context: Context, client: OkHttpClient) {
                 ".m3u8" in lower -> MimeTypes.APPLICATION_M3U8
                 ".mpd" in lower -> MimeTypes.APPLICATION_MPD
                 else -> null
-            }
-        }
-
-        internal fun subtitleMimeType(url: String): String {
-            val path = url.substringBefore('?').lowercase(Locale.ROOT)
-            return when {
-                path.endsWith(".vtt") -> MimeTypes.TEXT_VTT
-                path.endsWith(".ass") || path.endsWith(".ssa") -> MimeTypes.TEXT_SSA
-                path.endsWith(".ttml") || path.endsWith(".xml") || path.endsWith(".dfxp") -> MimeTypes.APPLICATION_TTML
-                else -> MimeTypes.APPLICATION_SUBRIP // addon altyazıları çoğunlukla .srt
             }
         }
 

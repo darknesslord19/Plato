@@ -92,6 +92,7 @@ private const val SEEK_STEP_MS = 10_000L
 private const val HIDE_AFTER_MS = 4_000L
 private const val RESUME_NOTICE_MS = 5_000L
 private const val SEEK_HOLD_MS = 1_200L
+private const val NOTICE_MS = 4_000L
 
 /**
  * Tam ekran oynatıcı. Kontroller sade: geri/ileri 10 sn, oynat/duraklat, ilerleme çubuğu, altyazı, kaynak değiştir.
@@ -103,6 +104,7 @@ private const val SEEK_HOLD_MS = 1_200L
 @Composable
 fun PlayerScreen(
     controller: PlaybackController,
+    subtitles: SubtitleController,
     target: PlayTarget,
     showResumeNotice: Boolean,
     onBack: () -> Unit,
@@ -119,6 +121,7 @@ fun PlayerScreen(
     var showSubtitles by remember { mutableStateOf(false) }
     var showAppearance by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showSync by remember { mutableStateOf(false) }
     var lastSeekKeyAt by remember { mutableLongStateOf(0L) }
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
@@ -131,8 +134,9 @@ fun PlayerScreen(
     val barFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     var barFocused by remember { mutableStateOf(false) }
-    val dialogOpen = showSources || showSubtitles || showAppearance || showMenu
-    val showControls = controlsVisible || ui.error != null
+    val dialogOpen = showSources || showSubtitles || showAppearance || showMenu || showSync
+    // Senkron paneli açıkken kontroller gizlenir: altyazı (altta) ilerleme çubuğunun altında kalmasın.
+    val showControls = (controlsVisible && !showSync) || ui.error != null
 
     fun bump() { interaction++ }
     fun reveal() { controlsVisible = true; bump() }
@@ -161,6 +165,14 @@ fun PlayerScreen(
         }
     }
     LaunchedEffect(ui.error) { if (ui.error != null) resumeNotice = false }
+    LaunchedEffect(ui.tracksVersion) { subtitles.onTracksChanged() }
+    // "Altyazı yüklenemedi" kısa süre görünür.
+    LaunchedEffect(subtitles.status) {
+        if (subtitles.status == SubtitleStatus.Failed) {
+            delay(NOTICE_MS)
+            subtitles.clearStatus()
+        }
+    }
     // Odak: kontroller açıkken ilerleme çubuğunda (hata varsa hata düğmesinde), gizliyken kök yüzeyde
     // (yön tuşları orada yakalanır).
     LaunchedEffect(controlsVisible, ui.error) {
@@ -223,12 +235,22 @@ fun PlayerScreen(
                     // Odak ve tuşlar Compose katmanında; görünüm odak çalmasın.
                     isFocusable = false
                     descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                    // Harici altyazı satırlarını (kaydırmayla birlikte) kendimiz veririz; videonun içindekileri Media3 çizer.
+                    subtitles.attach { cues -> subtitleView?.setCues(SubtitleCues.toCues(cues)) }
                 }
             },
             // Ayar değişince anında uygulanır; oynatma kesilmez.
             update = { view -> view.subtitleView?.let { SubtitleStyling.apply(it, subtitleStyle) } },
+            onRelease = { subtitles.attach(null) },
             modifier = Modifier.fillMaxSize(),
         )
+
+        subtitles.status.takeIf { it != SubtitleStatus.Idle }?.let { status ->
+            SubtitleNotice(
+                text = stringResource(if (status == SubtitleStatus.Loading) R.string.subtitle_loading else R.string.subtitle_load_failed),
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 72.dp),
+            )
+        }
 
         if (ui.buffering && ui.error == null) {
             CircularProgressIndicator(Modifier.align(Alignment.Center).size(40.dp), color = Color.White)
@@ -293,29 +315,16 @@ fun PlayerScreen(
     }
 
     if (showSubtitles) {
-        // Seçenekler açılırken bir kez okunur; parça listesi o ana ait anlık görüntüdür.
-        val options = remember(ui.tracksVersion) { controller.subtitleOptions() }
-        ChoiceDialog(
-            title = stringResource(R.string.player_subtitles),
-            options = options,
-            selected = options.firstOrNull { it.selected } ?: options.first(),
-            label = { subtitleLabel(it) },
-            onSelect = { controller.selectSubtitle(it); showSubtitles = false },
+        SubtitleMenu(
+            subtitles = subtitles,
+            onAppearance = { showSubtitles = false; showAppearance = true },
+            onSync = { showSubtitles = false; showSync = true },
             onDismiss = { showSubtitles = false },
-            footer = {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(vertical = 4.dp))
-                Text(
-                    text = stringResource(R.string.player_subtitle_appearance),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showSubtitles = false; showAppearance = true }
-                        .padding(vertical = 12.dp),
-                )
-            },
         )
     }
+
+    // Senkron paneli videonun üstünde durur ve karartmaz: altyazı değişirken satırlar görünmeye devam eder.
+    if (showSync) SubtitleSyncPanel(subtitles = subtitles, onDismiss = { showSync = false })
 
     if (showAppearance) {
         AlertDialog(
@@ -344,6 +353,19 @@ fun PlayerScreen(
             onPicked = { showSources = false; resumeNotice = false; onSourcePicked(it) },
         )
     }
+}
+
+/** Altyazı yükleniyor / yüklenemedi: tek satırlık, sade bildirim. */
+@Composable
+private fun SubtitleNotice(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = Color.White,
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(24.dp))
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+    )
 }
 
 /** Sade, kısa ömürlü bildirim: konum korunur, tek düğme baştan başlatır. */
@@ -548,23 +570,6 @@ private fun titleOf(target: PlayTarget): String {
     } else {
         target.title
     }
-}
-
-@Composable
-private fun subtitleLabel(option: SubtitleOption): String {
-    if (option.index == null) return stringResource(R.string.player_subtitles_off)
-    val name = languageName(option.language)
-        ?: return stringResource(R.string.player_subtitle_number, option.index + 1)
-    return if (option.ordinal > 1) stringResource(R.string.dot_join, name, option.ordinal.toString()) else name
-}
-
-/** "tur"/"tr" -> "Türkçe" (arayüz dilinde); tanınmayan/boş etiket null döner. */
-private fun languageName(code: String?): String? {
-    if (code.isNullOrBlank() || code == "und") return null
-    val ui = Locale.forLanguageTag(AppLanguage.effective().iso)
-    val name = Locale.forLanguageTag(code).getDisplayLanguage(ui)
-    if (name.isBlank() || name.equals(code, ignoreCase = true)) return null
-    return name.replaceFirstChar { it.titlecase(ui) }
 }
 
 private fun PlaybackError.messageRes(): Int = when (this) {

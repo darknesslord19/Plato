@@ -200,4 +200,31 @@ class DaoTest {
         dao.delete(site)
         assertEquals(1, dao.countOfType(AddonType.WEB_SITE))
     }
+
+    // ---- altyazı hafızası (Faz 4/A) ----
+
+    @Test
+    fun subtitleLanguageAndOffsetsRoundTripOnRealSqlite() = runBlocking {
+        val dao = db.subtitleDao()
+        assertNull(dao.language("tv:1"))
+        dao.putLanguage(SubtitleLanguageEntity("tv:1", "tr", 10))
+        dao.putLanguage(SubtitleLanguageEntity("tv:1", "en", 20)) // REPLACE: tek satır
+        assertEquals("en", dao.language("tv:1"))
+
+        dao.putOffset(SubtitleOffsetEntity("tv:1:1:2", "abc", 400, 10))
+        dao.putOffset(SubtitleOffsetEntity("tv:1:1:2", "def", -100, 20))
+        dao.putOffset(SubtitleOffsetEntity("tv:1:1:3", "abc", 900, 30))
+        dao.putOffset(SubtitleOffsetEntity("tv:1:1:2", "abc", 500, 40)) // aynı (içerik, altyazı): üzerine yazar
+        assertEquals(500L, dao.offset("tv:1:1:2", "abc"))
+        assertEquals(-100L, dao.offset("tv:1:1:2", "def"))
+        assertEquals(900L, dao.offset("tv:1:1:3", "abc"))
+        assertNull(dao.offset("tv:1:1:9", "abc"))
+
+        dao.clearOffset("tv:1:1:2", "def")
+        assertNull(dao.offset("tv:1:1:2", "def"))
+
+        dao.pruneOffsets(keep = 1) // en yeni (updatedAt=40) kalır
+        assertEquals(500L, dao.offset("tv:1:1:2", "abc"))
+        assertNull(dao.offset("tv:1:1:3", "abc"))
+    }
 }

@@ -110,7 +110,7 @@ class PluginRepositoryTest {
     private var manifestText = manifest(scraper("a"), scraper("b"))
     private val code = HashMap<String, String>()
     private val failing = HashMap<String, AddonException>()
-    private val fetched = ArrayList<String>()
+    private val fetched: MutableList<String> = java.util.Collections.synchronizedList(ArrayList())
     private var clock = 1_000L
 
     private val manifestFetcher = ManifestFetcher { fetched += "M:$it"; manifestText }

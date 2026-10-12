@@ -76,7 +76,6 @@
     <string name="player_pause">Pause</string>
     <string name="player_subtitles">Subtitles</string>
     <string name="player_subtitles_off">Off</string>
-    <string name="player_subtitle_number">Subtitles %1$d</string>
     <string name="player_sources">Change source</string>
     <string name="player_seconds" translatable="false">10</string>
     <string name="player_time" translatable="false">%1$s / %2$s</string>
@@ -148,7 +147,7 @@
     <string name="addon_error_not_json">That address didn\'t return a valid addon (the response isn\'t JSON). Check that it ends in manifest.json.</string>
     <string name="addon_error_missing_field">The addon is missing the “%1$s” field.</string>
     <string name="addon_error_invalid_field">The addon\'s “%1$s” field is malformed.</string>
-    <string name="addon_error_no_stream">This addon doesn\'t provide streams, so Play can\'t use it.</string>
+    <string name="addon_error_no_stream">This addon provides neither streams nor subtitles, so Play can\'t use it.</string>
     <string name="addon_error_unsupported_types">This addon doesn\'t offer movies or series, so Play can\'t use it.</string>
     <string name="addon_error_no_plugins">This repository doesn\'t list any usable addons.</string>
     <string name="addon_error_plugin_file">“%1$s” couldn\'t be downloaded or isn\'t a valid addon file. Check the link and try again.</string>
@@ -211,6 +210,15 @@
     <string name="subtitle_background_translucent">Translucent</string>
     <string name="subtitle_background_black">Black</string>
     <string name="player_subtitle_appearance">Appearance</string>
+    <string name="subtitle_language_other">Other</string>
+    <string name="subtitle_embedded">In the video</string>
+    <string name="subtitle_searching">Looking for subtitles…</string>
+    <string name="subtitle_loading">Loading subtitles…</string>
+    <string name="subtitle_load_failed">Couldn\'t load these subtitles</string>
+    <string name="subtitle_sync">Sync</string>
+    <string name="subtitle_sync_value">%1$s s</string>
+    <string name="subtitle_sync_hint">Minus shows the subtitles earlier, plus later.</string>
+    <string name="subtitle_sync_reset">Reset</string>
     <string name="about_no_content">Play doesn\'t provide any content; you add your own addons.</string>
 
     <!-- Web siteleri (Eklentiler içinde) -->

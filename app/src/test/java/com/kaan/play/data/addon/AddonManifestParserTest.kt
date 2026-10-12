@@ -2,6 +2,7 @@ package com.kaan.play.data.addon
 
 import com.kaan.play.data.addon.AddonException.Kind
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -95,9 +96,30 @@ class AddonManifestParserTest {
     }
 
     @Test
-    fun rejectsAddonsWithoutStreamResource() {
+    fun rejectsAddonsWithoutStreamOrSubtitlesResource() {
         fails(Kind.NoStreamResource, json = """{"id":"a","name":"B","types":["movie"],"resources":["catalog","meta"]}""")
-        fails(Kind.NoStreamResource, json = """{"id":"a","name":"B","types":["movie"],"resources":[{"name":"subtitles"}]}""")
+    }
+
+    @Test
+    fun acceptsSubtitleOnlyAddonsButTheyProvideNoStreams() {
+        val m = AddonManifestParser.parse("""{"id":"a","name":"B","types":["movie","series"],"resources":["subtitles"],"idPrefixes":["tt"]}""")
+        assertTrue(m.supportsSubtitles("series", "tt1:1:1"))
+        assertFalse(m.supportsSubtitles("series", "kitsu:1"))
+        assertFalse(m.supportsStream("movie", "tt1")) // kaynak listesinde sorulmaz
+        assertFalse(m.providesStreams)
+
+        val both = AddonManifestParser.parse("""{"id":"a","name":"B","types":["movie"],"resources":["stream","subtitles"]}""")
+        assertTrue(both.providesStreams)
+        assertTrue(both.supportsSubtitles("movie", "tt1"))
+    }
+
+    @Test
+    fun subtitleOnlyAddonMustServeMoviesOrSeries() {
+        fails(Kind.UnsupportedTypes, json = """{"id":"a","name":"B","types":["tv"],"resources":["subtitles"]}""")
+        // Kaynak düzeyindeki types manifest düzeyindekini geçersiz kılar.
+        val m = AddonManifestParser.parse("""{"id":"a","name":"B","types":["tv"],"resources":[{"name":"subtitles","types":["movie"]}]}""")
+        assertTrue(m.supportsSubtitles("movie", "tt1"))
+        assertFalse(m.supportsSubtitles("series", "tt1:1:1"))
     }
 
     @Test

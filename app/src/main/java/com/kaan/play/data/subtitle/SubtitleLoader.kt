@@ -1,0 +1,134 @@
+package com.kaan.play.data.subtitle
+
+import com.kaan.play.data.net.await
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.io.IOException
+import java.io.InterruptedIOException
+import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+
+sealed interface SubtitleLoad {
+    /** [charset]: dosyanın bulunan özgün kodlaması (önbellekten gelirse "UTF-8"). */
+    data class Loaded(val cues: List<SubtitleCue>, val charset: String, val fromCache: Boolean) : SubtitleLoad
+
+    data class Failed(val reason: Reason) : SubtitleLoad
+
+    enum class Reason { Timeout, Network, Http, TooLarge, Invalid }
+}
+
+/** Bir altyazı parçasını satırlara çeviren şey ([SubtitleLoader]); oynatıcı denetleyicisinin testlerinde sahtesi kullanılır. */
+fun interface TrackLoader {
+    suspend fun load(track: SubtitleTrack): SubtitleLoad
+}
+
+/**
+ * Altyazıyı kendimiz indirir: boyut ve süre sınırı, kodlamayı bulma ([SubtitleCharset]), UTF-8'e çevirip önbelleğe yazma,
+ * SRT/VTT/ASS ayrıştırma. Oynatıcı satırları kendisi zamanlar (kaydırma anında uygulansın diye, bkz. [SubtitleParser]).
+ *
+ * Önbellek: adresin SHA-256'sı adlı UTF-8 metin dosyaları ([cacheDir], uygulamanın `cacheDir`'i; sistem boşaltabilir).
+ * Aynı altyazı tekrar açılınca ağa gidilmez. Yalnızca en az bir satır çıkaran dosya önbelleğe girer. Dizin [MAX_FILES]
+ * dosya / [MAX_TOTAL_BYTES] bayt ve [MAX_AGE_MS] yaş sınırıyla budanır.
+ *
+ * Altyazı adresine akışın `proxyHeaders`'ı gönderilmez (üçüncü taraf sunucu).
+ */
+class SubtitleLoader(
+    private val client: OkHttpClient,
+    private val cacheDir: File,
+    private val timeout: Duration = 15.seconds,
+    private val maxBytes: Long = MAX_BYTES,
+    private val clock: () -> Long = System::currentTimeMillis,
+): TrackLoader {
+
+    override suspend fun load(track: SubtitleTrack): SubtitleLoad = withContext(Dispatchers.IO) {
+        val file = File(cacheDir, cacheName(track.url))
+        readCached(file)?.let { cues -> return@withContext SubtitleLoad.Loaded(cues, "UTF-8", fromCache = true) }
+
+        val url = track.url.toHttpUrlOrNull()
+            ?: return@withContext SubtitleLoad.Failed(SubtitleLoad.Reason.Network)
+        val bytes = try {
+            download(url)
+        } catch (e: LoadFailure) {
+            return@withContext SubtitleLoad.Failed(e.reason)
+        }
+
+        val decoded = SubtitleCharset.decode(bytes, track.language)
+        val cues = SubtitleParser.parse(decoded.text)
+        if (cues.isEmpty()) return@withContext SubtitleLoad.Failed(SubtitleLoad.Reason.Invalid)
+
+        writeCache(file, decoded.text)
+        SubtitleLoad.Loaded(cues, decoded.charset.name(), fromCache = false)
+    }
+
+    private fun readCached(file: File): List<SubtitleCue>? {
+        if (!file.isFile) return null
+        return try {
+            SubtitleParser.parse(file.readText(Charsets.UTF_8)).takeIf { it.isNotEmpty() }
+                ?.also { file.setLastModified(clock()) }
+        } catch (_: IOException) {
+            null
+        }
+    }
+
+    private fun writeCache(file: File, utf8Text: String) {
+        try {
+            cacheDir.mkdirs()
+            val temp = File(cacheDir, file.name + ".tmp")
+            temp.writeText(utf8Text, Charsets.UTF_8)
+            if (!temp.renameTo(file)) temp.delete()
+            prune()
+        } catch (_: IOException) {
+            // Önbellek yazılamıyorsa altyazı yine çalışır; yalnızca bir sonraki açılışta yeniden indirilir.
+        }
+    }
+
+    private fun prune() {
+        val files = cacheDir.listFiles { f -> f.isFile && f.name.endsWith(".txt") }?.sortedByDescending { it.lastModified() } ?: return
+        var total = 0L
+        files.forEachIndexed { index, f ->
+            total += f.length()
+            val tooOld = clock() - f.lastModified() > MAX_AGE_MS
+            if (index >= MAX_FILES || total > MAX_TOTAL_BYTES || tooOld) f.delete()
+        }
+    }
+
+    private suspend fun download(url: okhttp3.HttpUrl): ByteArray {
+        if (url.scheme != "http" && url.scheme != "https") throw LoadFailure(SubtitleLoad.Reason.Network)
+        val http = client.newBuilder().callTimeout(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS).build()
+        val request = Request.Builder().url(url).get().build()
+        return try {
+            http.newCall(request).await().use { response ->
+                if (!response.isSuccessful) throw LoadFailure(SubtitleLoad.Reason.Http)
+                val body = response.body
+                if (body.contentLength() > maxBytes) throw LoadFailure(SubtitleLoad.Reason.TooLarge)
+                val source = body.source()
+                source.request(maxBytes + 1)
+                if (source.buffer.size > maxBytes) throw LoadFailure(SubtitleLoad.Reason.TooLarge)
+                source.readByteArray()
+            }
+        } catch (_: InterruptedIOException) { // SocketTimeoutException da bunun alt türü
+            throw LoadFailure(SubtitleLoad.Reason.Timeout)
+        } catch (_: IOException) {
+            throw LoadFailure(SubtitleLoad.Reason.Network)
+        }
+    }
+
+    private class LoadFailure(val reason: SubtitleLoad.Reason) : Exception()
+
+    companion object {
+        /** Bir altyazı dosyası genelde 50–200 KB'tır; 2 MB cömert bir üst sınırdır. */
+        const val MAX_BYTES = 2L * 1024 * 1024
+        const val MAX_FILES = 200
+        const val MAX_TOTAL_BYTES = 40L * 1024 * 1024
+        const val MAX_AGE_MS = 30L * 24 * 60 * 60 * 1000
+
+        internal fun cacheName(url: String): String =
+            MessageDigest.getInstance("SHA-256").digest(url.toByteArray()).joinToString("") { "%02x".format(it) } + ".txt"
+    }
+}

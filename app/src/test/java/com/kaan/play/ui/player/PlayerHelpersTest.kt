@@ -33,15 +33,6 @@ class PlayerHelpersTest {
     }
 
     @Test
-    fun subtitleMimeTypeFollowsExtensionAndDefaultsToSubRip() {
-        assertEquals(MimeTypes.TEXT_VTT, PlaybackController.subtitleMimeType("https://s/a.vtt?x=1"))
-        assertEquals(MimeTypes.TEXT_SSA, PlaybackController.subtitleMimeType("https://s/a.ASS"))
-        assertEquals(MimeTypes.APPLICATION_TTML, PlaybackController.subtitleMimeType("https://s/a.ttml"))
-        assertEquals(MimeTypes.APPLICATION_SUBRIP, PlaybackController.subtitleMimeType("https://s/a.srt"))
-        assertEquals(MimeTypes.APPLICATION_SUBRIP, PlaybackController.subtitleMimeType("https://s/get/12345"))
-    }
-
-    @Test
     fun playbackErrorsMapToThreeUserFacingKinds() {
         fun kind(code: Int) = PlaybackController.errorOf(PlaybackException("x", null, code))
         assertEquals(PlaybackError.Network, kind(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED))
