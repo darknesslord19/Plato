@@ -15,6 +15,11 @@ sdk.dir=C\:\\Users\\<kullanıcı>\\AppData\\Local\\Android\\Sdk
 TMDB_API_KEY=<tmdb v3 anahtarı>
 ```
 
+## Yol haritası
+- Faz 1: 1–5 tamam; 6 oynatıcı, 7 kütüphane + ayarlar.
+- Faz 2: Nuvio plugin'leri (JS scraper). Faz 3: CloudStream `.cs3`.
+- TV ve tablet desteği (Faz 1 sonrası): leanback girişi, banner, yatay düzen, odak vurgusu, imleç/air kumanda. Kurallar CLAUDE.md "TV ve tablet uyumluluğu" bölümünde; o zamana kadar kod bunlara göre yazılır, TV'ye özel hiçbir şey eklenmez.
+
 ## Tasarım notları (belirsiz kararlarda seçilen en sade yol)
 - **AGP 9 + yerleşik Kotlin:** `kotlin-android` eklentisi kullanılmaz; AGP 9 Kotlin'i kendisi derler.
 - **Düz metin HTTP:** manifest URL'lerini kullanıcı girer ve yerel ağdaki `http://` addon'lar yaygındır; bu yüzden `usesCleartextTraffic=true`. Bağlantı ile uygulamayı açma (deep link) yalnızca `https` için olacak.

@@ -53,5 +53,13 @@ Ayarlar en çok beş kalem: Eklentiler (ekle/sil/aç-kapat; kaynak zaman aşım�
 - Belirsiz tasarım kararında en sade seçenek seçilir ve README'ye not düşülür.
 - Küçük, anlamlı commit'ler.
 
+## TV ve tablet uyumluluğu
+- Şimdilik hedef telefon; ama kod TV/kumanda (normal kumanda + air kumanda/imleç) ve tablet için sonradan ayrı bir adımda genişletilebilir olmalı.
+- Tüm tıklanabilir öğeler D-pad/klavye ile odaklanabilir olmalı (Compose'da `clickable`/`focusable` kullan; yalnızca `pointerInput` ile dokunma yakalama yapma).
+- Yalnızca dokunmaya bağlı hareketlere (sürükle, çift dokun, uzun bas) dayanma; her işlemin düğmeyle bir karşılığı olsun.
+- Oynatıcı kontrolleri kumanda ile erişilebilir olsun.
+- Sabit piksel yerine esnek düzen kullan; ızgara sütun sayısı ekran genişliğinden hesaplansın.
+- Android TV desteği (leanback girişi, banner, yatay düzen, odak vurgusu) Faz 1 sonrasında ayrı bir adım olarak yapılacak; şimdi uygulama.
+
 ## Ortam
 Windows + VS Code (Android Studio yok). JDK 17, SDK `%LOCALAPPDATA%\Android\Sdk`. Derleme: `.\gradlew assembleDebug`. Test cihazı LDPlayer: `adb connect 127.0.0.1:5555`. Sürümler `gradle/libs.versions.toml` içinde sabit.
