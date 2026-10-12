@@ -18,6 +18,9 @@ interface AddonDao {
     @Query("SELECT COUNT(*) FROM addons WHERE sourceUrl = :url")
     suspend fun countBySourceUrl(url: String): Int
 
+    @Query("SELECT COUNT(*) FROM addons WHERE type = :type")
+    suspend fun countOfType(type: AddonType): Int
+
     /** Aynı [AddonEntity.sourceUrl] zaten varsa eklemez ve -1 döner. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entity: AddonEntity): Long

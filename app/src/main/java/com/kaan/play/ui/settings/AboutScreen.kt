@@ -38,6 +38,12 @@ fun AboutScreen(onBack: () -> Unit) {
                 modifier = Modifier.padding(top = 16.dp),
             )
             Text(
+                stringResource(R.string.about_web_blocking),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Text(
                 stringResource(R.string.about_tmdb_attribution),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -154,4 +154,23 @@
     <string name="player_subtitle_appearance">Görünüm</string>
     <string name="about_no_content">Play hiçbir içerik sağlamaz; kullanıcı kendi eklentilerini ekler.</string>
     <string name="about_tmdb_attribution">Bu ürün TMDB API\'sini kullanır ancak TMDB tarafından onaylanmamıştır veya sertifikalandırılmamıştır.</string>
+
+    <!-- Web siteleri (Eklentiler içinde) -->
+    <string name="web_add">Web sitesi ekle</string>
+    <string name="web_add_subtitle">Reklamlar engellenir</string>
+    <string name="web_sites">Web siteleri</string>
+    <string name="web_add_title">Web sitesi ekle</string>
+    <string name="web_add_name">Ad (isteğe bağlı)</string>
+    <string name="web_add_address">Web sitesi adresi</string>
+    <string name="web_add_hint" translatable="false">example.com</string>
+    <string name="web_error_invalid_url">Geçerli bir web adresi gir (http ya da https).</string>
+    <string name="web_error_already_added">Bu web sitesi zaten ekli.</string>
+    <string name="web_remove">Web sitesini kaldır</string>
+    <string name="web_remove_title">Web sitesi kaldırılsın mı?</string>
+    <string name="web_remove_message">“%1$s” Play\'den kaldırılacak; çerezleri ve kayıtlı verileri silinecek.</string>
+    <string name="web_close">Kapat</string>
+    <string name="web_forward">İleri</string>
+    <string name="web_refresh">Yenile</string>
+    <string name="web_load_failed">Sayfa açılamadı. Bağlantını kontrol edip yenile.</string>
+    <string name="about_web_blocking">Web görünümü bilinen reklamları ve açılır pencereleri engeller; her reklamı yakalamayabilir.</string>
 </resources>

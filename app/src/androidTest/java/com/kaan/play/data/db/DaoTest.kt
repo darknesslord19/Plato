@@ -184,4 +184,20 @@ class DaoTest {
         dao.delete(b)
         assertEquals(1, dao.observeOfType(AddonType.NUVIO_ADDON).first().size)
     }
+
+    @Test
+    fun webSiteRowsAreCountedAndListedSeparatelyFromAddons() = runBlocking {
+        val dao = db.addonDao()
+        dao.insert(addon("https://a/manifest.json"))
+        val site = dao.insert(addon("https://site.example/", type = AddonType.WEB_SITE))
+        dao.insert(addon("https://site2.example/", type = AddonType.WEB_SITE))
+
+        assertEquals(2, dao.countOfType(AddonType.WEB_SITE))
+        assertEquals(1, dao.countOfType(AddonType.NUVIO_ADDON))
+        assertEquals(1, dao.enabledOfType(AddonType.NUVIO_ADDON).size) // web siteleri kaynak toplamaya girmez
+        assertEquals(2, dao.observeOfType(AddonType.WEB_SITE).first().size)
+
+        dao.delete(site)
+        assertEquals(1, dao.countOfType(AddonType.WEB_SITE))
+    }
 }

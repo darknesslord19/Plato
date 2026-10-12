@@ -25,7 +25,7 @@ Sade, özgün bir Android film/dizi istemcisi. Kotlin + Jetpack Compose + Materi
 
 ## Kapsam
 - Ekosistemler: (1) Nuvio addon'ları (manifest.json URL'li HTTP addon), (2) Faz 2 Nuvio plugin'leri (JS scraper), (3) Faz 3 CloudStream .cs3.
-- **Şu an yalnızca Faz 1.** Faz 2 ve 3'e başlanmaz. Faz 1 bitince kullanıcıya "Faz 1 tamam" denir ve durulur.
+- **Şu an yalnızca Faz 1.** Faz 2 ve 3'e başlanmaz. Faz 1 bitince kullanıcıya "Faz 1 tamam" denir ve durulur. (8. adım "web sitesi ekle", kullanıcının isteğiyle Faz 1'e eklenen reklamsız web görünümüdür; kaynak toplama/oynatıcıyla ilgisi yoktur ve Faz 2 scraper'ı değildir.)
 - Faz 1 hedefi: kullanıcı addon manifest URL'si ekler → ana sayfa TMDB'den beslenir → içeriğe girince addon'lardan kaynaklar toplanır → Media3 ile oynatılır → geçmiş, kaldığı yerden devam ve favoriler yerelde tutulur.
 
 ## Kapsam dışı
@@ -39,15 +39,17 @@ Aniyomi, ayrı Stremio ekosistemi, manga, IPTV, Telegram, tracker, profil/kilit,
 - **Akış kaynağı arayüzü:** `StreamProvider.streams(request: StreamRequest(tmdbId, imdbId, type, season?, episode?)): Flow<StreamResult>`. Faz 1'de tek implementasyon `AddonStreamProvider`; Faz 2/3 kaynakları aynı arayüze takılacak şekilde tasarlanır.
 - **Addon protokolü:** `GET {base}/manifest.json`, `GET {base}/stream/{movie|series}/{imdbId}.json` (dizide `{imdbId}:{sezon}:{bölüm}`). Manifest'teki `resources/types/idPrefixes` dikkate alınır; addon'a yalnızca desteklediği istek gider. Sadece `url` tipli akışlar gösterilir, `infoHash` yok sayılır. `behaviorHints.proxyHeaders` Media3 OkHttp datasource'una aktarılır. Akıştaki altyazılar oynatıcıya eklenir.
 - **Kaynak toplama:** aktif tüm addon'lara paralel istek, addon başına ayrı zaman aşımı (varsayılan 15 sn, ayarlanabilir). Biri takılırsa diğerleri beklemez; sonuçlar Flow ile akar. Hatalar yutulmaz; addon bazında "yanıt vermedi" bilgisi tutulur.
-- **Veri:** Room (`PlayDatabase` v1, şema `app/schemas/`'e dışa aktarılır): `addons` (`type`: NUVIO_ADDON / NUVIO_PLUGIN_REPO / CLOUDSTREAM_REPO; Faz 1'de yalnızca NUVIO_ADDON eklenebilir ve okunur), `plugins` (depo → plugin, Faz 2/3 için hazır, Faz 1'de boş), `watch_history`, `favorites` (şema hazır, davranış 7. adımda). Ayarlar DataStore'da. Oynatma konumu ~10 sn'de bir kaydedilir.
+- **Veri:** Room (`PlayDatabase` v1, şema `app/schemas/`'e dışa aktarılır): `addons` (`type`: NUVIO_ADDON / NUVIO_PLUGIN_REPO / CLOUDSTREAM_REPO / WEB_SITE; Faz 1'de addon olarak yalnızca NUVIO_ADDON eklenebilir ve okunur, WEB_SITE yalnızca web sitesi listesi içindir), `plugins` (depo → plugin, Faz 2/3 için hazır, Faz 1'de boş), `watch_history`, `favorites` (şema hazır, davranış 7. adımda). Ayarlar DataStore'da. Oynatma konumu ~10 sn'de bir kaydedilir.
+- **Web siteleri (8. adım):** Ayarlar > Eklentiler içinde "Web sitesi ekle" + "Web siteleri" listesi (Ayarlar'a yeni kalem eklenmez). `addons` tablosunda `type = WEB_SITE` satırı (şema/göç yok); eklenti listeleri ve kaynak toplama bunları görmez. Site `WebActivity` içinde (WebView) açılır; kurallar `data/web/WebPolicy` (Android'den bağımsız, birim testli), reklam alan adı listesi ayrı dosyada `data/web/AdDomains.kt` (kendi derlediğimiz küçük liste; başkasının lisanslı filtre listesi kopyalanmaz). Engellenenler: listedeki alan adlarına istekler, hareketsiz/yabancı açılır pencereler, http/https dışı gezinme (`intent://`, `market://` …), hareketsiz başka siteye atlama, JS alert/confirm/prompt, üçüncü taraf çerezleri. **Her reklamın engelleneceği vaat edilmez** (Hakkında/README'de not var). Site kaldırılınca çerez/depolama/önbellek silinir. Varsayılan site gömülmez. Çubuk ve sayfa D-pad ile erişilebilir olmalı (TV kuralı).
 - **Gömülü içerik yok:** uygulamaya hiçbir varsayılan addon/içerik kaynağı gömülmez. Addon'lar yalnızca kullanıcının girdiği URL'lerden gelir. https manifest bağlantıları uygulamayı açıp "addon ekle" akışını başlatır.
 
 ## Ekranlar
 Ana sayfa (TMDB satırları + "devam et"), Ara, Detay, Kaynak seçimi (alttan liste; en uygun seçili, tek dokunuş; satırda yalnızca kalite ve boyut), Oynatıcı (tam ekran, oynat/durdur, ileri-geri, altyazı, hız), Kütüphane (geçmiş + favoriler), Ayarlar. Alt menü: Ana sayfa, Ara, Kütüphane, Ayarlar.
-Ayarlar en çok beş kalem: Eklentiler (ekle/sil/aç-kapat; kaynak zaman aşımı bu ekranın altında küçük bir ayar), Oynatıcı (altyazı görünümü, kaldığın yerden devam; 7. adım), Tema, Dil, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
+Web görünümü (Ayarlar > Eklentiler > Web siteleri'nden açılır): üstte sade çubuk (kapat, site adı, geri, ileri, yenile) + WebView.
+Ayarlar en çok beş kalem: Eklentiler (ekle/sil/aç-kapat; web sitesi ekle/sil; kaynak zaman aşımı bu ekranın altında küçük bir ayar), Oynatıcı (altyazı görünümü, kaldığın yerden devam; 7. adım), Tema, Dil, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
 
 ## Çalışma şekli
-- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay ✅ → (5) kaynak toplama ✅ → (6) oynatıcı ✅ → (7) kütüphane + ayarlar ✅.
+- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay ✅ → (5) kaynak toplama ✅ → (6) oynatıcı ✅ → (7) kütüphane + ayarlar ✅ → (8) web sitesi ekle (reklamsız web görünümü; kullanıcı isteğiyle eklendi) ✅. Sıradaki adım için kullanıcı onayı beklenir.
 - 1. adımdan sonra kullanıcı onayı beklenir. Her adımın sonunda derle, çalışan testleri çalıştır, iki cümleyle özetle.
 - Parser ve protokol kodu sahte JSON ile birim testlerle doğrulanır.
 - Belirsiz tasarım kararında en sade seçenek seçilir ve README'ye not düşülür.

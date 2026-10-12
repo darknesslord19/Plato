@@ -40,6 +40,12 @@
             android:exported="false"
             android:screenOrientation="sensorLandscape" />
 
+        <!-- Reklamsız web görünümü; Ayarlar > Eklentiler > Web siteleri'nden adres verilerek açılır. -->
+        <activity
+            android:name=".ui.web.WebActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode"
+            android:exported="false" />
+
         <!-- API 33 öncesinde uygulama başına dil seçimini AppCompat'in kalıcı tutması için. -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"

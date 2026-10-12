@@ -28,6 +28,8 @@ private class FakeAddonDao : AddonDao {
     override suspend fun enabledOfType(type: AddonType) =
         rows.value.filter { it.enabled && it.type == type }
 
+    override suspend fun countOfType(type: AddonType) = rows.value.count { it.type == type }
+
     override suspend fun countBySourceUrl(url: String) = rows.value.count { it.sourceUrl == url }
 
     override suspend fun insert(entity: AddonEntity): Long {

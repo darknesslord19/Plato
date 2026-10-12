@@ -183,6 +183,25 @@ object PlayIcons {
         }
     }
 
+    val Forward: ImageVector by lazy {
+        icon("Forward") {
+            line {
+                moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f)
+            }
+        }
+    }
+
+    /** Neredeyse tam daire biçiminde ok: sayfayı yenile. */
+    val Refresh: ImageVector by lazy {
+        icon("Refresh") {
+            line {
+                moveTo(17.4f, 7.5f)
+                arcTo(7f, 7f, 0f, true, true, 13.8f, 5.2f)
+                moveTo(12.05f, 2.15f); lineTo(13.8f, 5.2f); lineTo(10.75f, 6.95f)
+            }
+        }
+    }
+
     val Plus: ImageVector by lazy {
         icon("Plus") {
             line {

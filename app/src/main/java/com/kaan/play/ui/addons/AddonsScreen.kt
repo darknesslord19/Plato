@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -44,6 +45,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.R
 import com.kaan.play.data.addon.Addon
 import com.kaan.play.data.settings.SettingsRepository
+import com.kaan.play.data.web.WebSite
+import com.kaan.play.ui.web.WebActivity
 import com.kaan.play.ui.components.ChoiceDialog
 import com.kaan.play.ui.components.ScreenHeader
 import com.kaan.play.ui.components.SettingsRow
@@ -76,30 +79,89 @@ fun AddonsScreen(
     // Ana sayfadaki "eklenti ekle" düğmesinden geldiyse pencere hemen açılır.
     LaunchedEffect(startAdding) { if (startAdding) vm.startAddingOnce() }
 
+    val webVm = containerViewModel { WebSitesViewModel(it.webSites) }
+    val sites by webVm.sites.collectAsStateWithLifecycle()
+    val webDialog by webVm.dialog.collectAsStateWithLifecycle()
+    var siteToRemove by remember { mutableStateOf<WebSite?>(null) }
+    val context = LocalContext.current
+
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenHeader(title = stringResource(R.string.addons_title), onBack = onBack)
 
-        SettingsRow(title = stringResource(R.string.addons_add), onClick = { vm.openAdd() })
-        SettingsRow(title = stringResource(R.string.addons_repos), onClick = onOpenRepos)
-        SettingsRow(
-            title = stringResource(R.string.addons_installed),
-            value = addons?.let { pluralStringResource(R.plurals.addons_count, it.size, it.size) }.orEmpty(),
-            divider = false,
-            onClick = onOpenInstalled,
-        )
-
-        Column(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.Bottom) {
-            // İkincil ayar: altta, küçük ve soluk.
-            TextButton(
-                onClick = { showTimeout = true },
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
-            ) {
-                Text(
-                    stringResource(R.string.addons_timeout, timeout),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        // Satırlar ve web siteleri listesi birlikte kayar (büyük yazı boyutunda ya da çok siteyle taşmasın).
+        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            item { SettingsRow(title = stringResource(R.string.addons_add), onClick = { vm.openAdd() }) }
+            item { SettingsRow(title = stringResource(R.string.addons_repos), onClick = onOpenRepos) }
+            item {
+                SettingsRow(
+                    title = stringResource(R.string.addons_installed),
+                    value = addons?.let { pluralStringResource(R.plurals.addons_count, it.size, it.size) }.orEmpty(),
+                    onClick = onOpenInstalled,
                 )
             }
+            item {
+                SettingsRow(
+                    title = stringResource(R.string.web_add),
+                    subtitle = stringResource(R.string.web_add_subtitle),
+                    divider = false,
+                    onClick = { webVm.openAdd() },
+                )
+            }
+            sites?.takeIf { it.isNotEmpty() }?.let { list ->
+                item {
+                    Text(
+                        text = stringResource(R.string.web_sites),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 4.dp),
+                    )
+                }
+                items(list, key = { "site-${it.id}" }) { site ->
+                    WebSiteRow(
+                        site = site,
+                        onOpen = { context.startActivity(WebActivity.intent(context, site.name, site.url)) },
+                        onRemove = { siteToRemove = site },
+                    )
+                }
+            }
         }
+
+        // İkincil ayar: altta, küçük ve soluk.
+        TextButton(
+            onClick = { showTimeout = true },
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+        ) {
+            Text(
+                stringResource(R.string.addons_timeout, timeout),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+
+    webDialog?.let { state ->
+        AddWebSiteDialog(
+            state = state,
+            onNameChange = webVm::onNameChange,
+            onAddressChange = webVm::onAddressChange,
+            onConfirm = webVm::submit,
+            onDismiss = webVm::dismissAdd,
+        )
+    }
+
+    siteToRemove?.let { site ->
+        AlertDialog(
+            onDismissRequest = { siteToRemove = null },
+            title = { Text(stringResource(R.string.web_remove_title)) },
+            text = { Text(stringResource(R.string.web_remove_message, site.name)) },
+            confirmButton = {
+                TextButton(onClick = { webVm.remove(site); siteToRemove = null }) {
+                    Text(stringResource(R.string.addons_remove), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { siteToRemove = null }) { Text(stringResource(R.string.common_cancel)) }
+            },
+        )
     }
 
     if (showTimeout) {

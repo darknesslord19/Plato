@@ -169,4 +169,23 @@
     <string name="subtitle_background_black">Black</string>
     <string name="player_subtitle_appearance">Appearance</string>
     <string name="about_no_content">Play doesn\'t provide any content; you add your own addons.</string>
+
+    <!-- Web siteleri (Eklentiler içinde) -->
+    <string name="web_add">Add website</string>
+    <string name="web_add_subtitle">Ads are blocked</string>
+    <string name="web_sites">Websites</string>
+    <string name="web_add_title">Add a website</string>
+    <string name="web_add_name">Name (optional)</string>
+    <string name="web_add_address">Website address</string>
+    <string name="web_add_hint" translatable="false">example.com</string>
+    <string name="web_error_invalid_url">Enter a valid web address (http or https).</string>
+    <string name="web_error_already_added">This website is already added.</string>
+    <string name="web_remove">Remove website</string>
+    <string name="web_remove_title">Remove website?</string>
+    <string name="web_remove_message">“%1$s” will be removed from Play and its cookies and stored data will be cleared.</string>
+    <string name="web_close">Close</string>
+    <string name="web_forward">Forward</string>
+    <string name="web_refresh">Refresh</string>
+    <string name="web_load_failed">The page couldn\'t be opened. Check your connection and refresh.</string>
+    <string name="about_web_blocking">Website view blocks known ads and pop-ups; it may not catch every ad.</string>
 </resources>

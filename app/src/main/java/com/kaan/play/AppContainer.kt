@@ -15,6 +15,8 @@ import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.stream.AddonStreamProvider
 import com.kaan.play.data.stream.StreamProvider
 import com.kaan.play.data.tmdb.TmdbRepository
+import com.kaan.play.data.web.WebSiteRepository
+import com.kaan.play.ui.web.AndroidWebDataCleaner
 import com.kaan.play.i18n.AppLanguage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +77,11 @@ class AppContainer(context: Context) {
 
     val addons: AddonRepository by lazy {
         AddonRepository(database.addonDao(), OkHttpManifestFetcher(httpClient))
+    }
+
+    /** Kullanıcının eklediği web siteleri (reklamsız web görünümü). */
+    val webSites: WebSiteRepository by lazy {
+        WebSiteRepository(database.addonDao(), AndroidWebDataCleaner(appContext))
     }
 
     /** Faz 1'de kaynaklar yalnızca aktif addon'lardan gelir; zaman aşımı her istekte Ayarlar'dan okunur. */

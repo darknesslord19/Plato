@@ -16,13 +16,24 @@ import androidx.compose.ui.unit.dp
 
 /** Ayarlar ve Eklentiler ekranlarının ortak tek satırı: başlık solda, (varsa) değer sağda. */
 @Composable
-fun SettingsRow(title: String, value: String = "", divider: Boolean = true, onClick: () -> Unit) {
+fun SettingsRow(title: String, value: String = "", subtitle: String = "", divider: Boolean = true, onClick: () -> Unit) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (subtitle.isNotEmpty()) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
             if (value.isNotEmpty()) {
                 Text(
                     value,
