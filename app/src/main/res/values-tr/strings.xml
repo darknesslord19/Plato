@@ -24,6 +24,7 @@
     <string name="home_row_popular_series">Popüler diziler</string>
     <string name="continue_left_movie">%1$d dk kaldı</string>
     <string name="continue_left_episode">S%1$d B%2$d · %3$d dk kaldı</string>
+    <string name="continue_next_episode">Sıradaki: S%1$d B%2$d</string>
 
     <!-- Ara -->
     <string name="search_hint">Film ve dizi ara</string>
@@ -46,7 +47,26 @@
     <string name="sources_empty">Kaynak bulunamadı.</string>
     <string name="sources_failed">%1$s yanıt vermedi</string>
     <string name="sources_quality_unknown">Bilinmiyor</string>
-    <string name="sources_picked">Seçildi: %1$s</string>
+
+    <!-- Oynatıcı -->
+    <string name="player_title_episode">%1$s · S%2$d B%3$d</string>
+    <string name="player_rewind">10 saniye geri</string>
+    <string name="player_forward">10 saniye ileri</string>
+    <string name="player_play">Oynat</string>
+    <string name="player_pause">Duraklat</string>
+    <string name="player_subtitles">Altyazı</string>
+    <string name="player_subtitles_off">Kapalı</string>
+    <string name="player_subtitle_number">Altyazı %1$d</string>
+    <string name="player_sources">Kaynağı değiştir</string>
+    <string name="player_error_network">Bu kaynağa ulaşılamadı. Bağlantını kontrol et.</string>
+    <string name="player_error_unavailable">Bu kaynak şu an kullanılamıyor.</string>
+    <string name="player_error_format">Bu kaynak bu cihazda oynatılamıyor.</string>
+    <string name="player_error_pick">Başka kaynak seç</string>
+
+    <!-- Kaldığın yerden devam -->
+    <string name="resume_title">İzlemeye devam edilsin mi?</string>
+    <string name="resume_continue">Devam et · %1$s</string>
+    <string name="resume_restart">Baştan başla</string>
 
     <!-- TMDB hataları -->
     <string name="tmdb_error_missing_key">Bu derlemede TMDB anahtarı yok.</string>

@@ -1,12 +1,11 @@
 package com.kaan.play.ui.nav
 
-import android.util.Log
-import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -14,6 +13,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,9 +37,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kaan.play.R
+import com.kaan.play.data.library.ContinueItem
+import com.kaan.play.data.library.WatchRules
 import com.kaan.play.data.model.MediaType
+import com.kaan.play.data.stream.PlayTarget
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamRequest
+import com.kaan.play.data.tmdb.TmdbException
+import com.kaan.play.ui.player.PlaySession
+import com.kaan.play.ui.player.formatTime
 import com.kaan.play.ui.addons.AddonsScreen
 import com.kaan.play.ui.addons.InstalledAddonsScreen
 import com.kaan.play.ui.addons.RepositoriesScreen
@@ -99,20 +105,52 @@ fun PlayRoot() {
         if (pendingAddonUrl != null) openAddons(startAdding = false)
     }
 
-    // Oynat: aktif eklenti yoksa tek yol eklenti eklemektir; varsa kaynak seçimi açılır.
-    var sourcesFor by remember { mutableStateOf<StreamRequest?>(null) }
-    fun play(request: StreamRequest) {
+    // Oynat: aktif eklenti yoksa tek yol eklenti eklemektir. Aynı içerik yarım izlenmişse önce
+    // "devam / baştan" sorulur ([startAtMs] verilmişse sorulmaz); sonra kaynak seçimi, sonra oynatıcı.
+    var sourcesFor by remember { mutableStateOf<Pair<PlayTarget, Long>?>(null) }
+    var resumePrompt by remember { mutableStateOf<Pair<PlayTarget, Long>?>(null) }
+    fun play(target: PlayTarget, startAtMs: Long? = null) {
         scope.launch {
-            if (container.addons.enabledAddons().isEmpty()) openAddons(startAdding = true) else sourcesFor = request
+            if (container.addons.enabledAddons().isEmpty()) {
+                openAddons(startAdding = true)
+                return@launch
+            }
+            if (startAtMs == null) {
+                val saved = container.library.progress(target)
+                if (saved != null && WatchRules.isResumable(saved.positionMs, saved.durationMs)) {
+                    resumePrompt = target to saved.positionMs
+                    return@launch
+                }
+            }
+            sourcesFor = target to (startAtMs ?: 0L)
         }
     }
 
-    // Oynatıcı 6. adımda gelir; şimdilik seçilen kaynak kaydedilir (yalnızca adres yolu, sorgu dizesi yok).
+    // "İzlemeye devam et" kartı: filmde/bölümde kayıtlı konumdan, önerilen sıradaki bölümde baştan oynatır.
+    // IMDb kimliği için TMDB'ye bir kez sorulur; olmazsa detay sayfası açılır.
+    fun continueWatching(item: ContinueItem) {
+        scope.launch {
+            val entry = item.entry
+            val imdbId = try {
+                container.tmdb.detail(entry.type, entry.tmdbId).imdbId
+            } catch (_: TmdbException) {
+                openDetail(entry.type, entry.tmdbId)
+                return@launch
+            }
+            val isSeries = entry.type == MediaType.Tv
+            val (season, episode, startAt) = when (item) {
+                is ContinueItem.Resume -> Triple(entry.season.takeIf { isSeries }, entry.episode.takeIf { isSeries }, entry.positionMs)
+                is ContinueItem.Next -> Triple(item.season, item.episode, 0L)
+            }
+            play(PlayTarget(StreamRequest(entry.tmdbId, imdbId, entry.type, season, episode), entry.title, entry.posterPath), startAt)
+        }
+    }
+
     val context = LocalContext.current
     fun onSourcePicked(stream: PlayableStream) {
+        val (target, startAt) = sourcesFor ?: return
         sourcesFor = null
-        Log.d("Play", "Seçilen kaynak: ${stream.url.substringBefore('?')} (${stream.source.addonName})")
-        Toast.makeText(context, context.getString(R.string.sources_picked, stream.source.addonName), Toast.LENGTH_SHORT).show()
+        context.startActivity(PlaySession(target, stream, startAt).toIntent(context))
     }
 
     Scaffold(
@@ -149,6 +187,7 @@ fun PlayRoot() {
             composable(Tab.Home.route) {
                 HomeScreen(
                     onOpenDetail = ::openDetail,
+                    onContinue = ::continueWatching,
                     onAddAddon = { openAddons(startAdding = true) },
                 )
             }
@@ -187,14 +226,31 @@ fun PlayRoot() {
                     type = type,
                     id = id,
                     onBack = { navController.popBackStack() },
-                    onPlay = ::play,
+                    onPlay = { target -> play(target) },
                 )
             }
         }
     }
 
-    sourcesFor?.let { request ->
-        SourcesSheet(request = request, onDismiss = { sourcesFor = null }, onPicked = ::onSourcePicked)
+    sourcesFor?.let { (target, _) ->
+        SourcesSheet(request = target.request, onDismiss = { sourcesFor = null }, onPicked = ::onSourcePicked)
+    }
+
+    resumePrompt?.let { (target, positionMs) ->
+        AlertDialog(
+            onDismissRequest = { resumePrompt = null },
+            title = { Text(stringResource(R.string.resume_title)) },
+            confirmButton = {
+                TextButton(onClick = { resumePrompt = null; play(target, positionMs) }) {
+                    Text(stringResource(R.string.resume_continue, formatTime(positionMs)))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { resumePrompt = null; play(target, 0L) }) {
+                    Text(stringResource(R.string.resume_restart))
+                }
+            },
+        )
     }
 }
 

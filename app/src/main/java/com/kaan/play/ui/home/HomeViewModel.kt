@@ -2,8 +2,8 @@ package com.kaan.play.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kaan.play.data.db.WatchHistoryEntity
-import com.kaan.play.data.library.LibraryRepository
+import com.kaan.play.data.library.ContinueItem
+import com.kaan.play.data.library.ContinueWatching
 import com.kaan.play.data.model.MediaSummary
 import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.tmdb.TmdbRepository
@@ -24,14 +24,14 @@ typealias RowState = Loadable<List<MediaSummary>>
 /** Her satır bağımsız yüklenir ve bağımsız hata verir; biri başarısız olunca diğerleri etkilenmez. */
 class HomeViewModel(
     private val tmdb: TmdbRepository,
-    library: LibraryRepository,
+    continueWatching: ContinueWatching,
 ) : ViewModel() {
 
     private val _rows = MutableStateFlow<Map<HomeRow, RowState>>(HomeRow.entries.associateWith { Loadable.Loading })
     val rows: StateFlow<Map<HomeRow, RowState>> = _rows.asStateFlow()
 
-    val continueWatching: StateFlow<List<WatchHistoryEntity>> =
-        library.continueWatching.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val continueWatching: StateFlow<List<ContinueItem>> =
+        continueWatching.items.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
         HomeRow.entries.forEach(::load)

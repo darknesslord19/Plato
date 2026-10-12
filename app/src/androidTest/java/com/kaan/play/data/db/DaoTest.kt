@@ -1,4 +1,4 @@
-package com.kaan.play.data.db
+﻿package com.kaan.play.data.db
 
 import android.content.Context
 import androidx.room.Room
@@ -16,7 +16,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Gerçek Room/SQLite üzerinde DAO sorguları (bellek içi veritabanı). */
+/** GerÃ§ek Room/SQLite Ã¼zerinde DAO sorgularÄ± (bellek iÃ§i veritabanÄ±). */
 @RunWith(AndroidJUnit4::class)
 class DaoTest {
 
@@ -44,38 +44,36 @@ class DaoTest {
     // ---- devam et ----
 
     @Test
-    fun continueWatchingKeepsOnlyPartiallyWatchedItemsNewestFirst() = runBlocking {
+    fun latestPerContentIsNewestFirstAndSkipsUnknownDuration() = runBlocking {
         val dao = db.watchHistoryDao()
-        dao.upsert(history(1, position = 10_000, at = 100)) // %10 -> girer
-        dao.upsert(history(2, position = 2_000, at = 200)) // %2 -> çok az, girmez
-        dao.upsert(history(3, position = 96_000, at = 300)) // %96 -> bitmiş sayılır, girmez
-        dao.upsert(history(4, position = 50_000, at = 400)) // %50 -> girer
-        dao.upsert(history(5, position = 5_000, duration = 0, at = 500)) // süre bilinmiyor, girmez
-        dao.upsert(history(6, position = 3_000, at = 600)) // tam %3 -> girer
-        dao.upsert(history(7, position = 95_000, at = 700)) // tam %95 -> girer
+        dao.upsert(history(1, position = 10_000, at = 100))
+        dao.upsert(history(2, position = 96_000, at = 200)) // bitmiÅŸ de olsa listelenir: izlendi sÃ¼zmesi WatchRules'ta
+        dao.upsert(history(3, position = 50_000, at = 300))
+        dao.upsert(history(4, position = 5_000, duration = 0, at = 400)) // sÃ¼re bilinmiyor, girmez
 
-        val ids = dao.observeContinueWatching().first().map { it.tmdbId }
-        assertEquals(listOf(7, 6, 4, 1), ids)
+        assertEquals(listOf(3, 2, 1), dao.observeLatestPerContent().first().map { it.tmdbId })
     }
 
     @Test
-    fun continueWatchingShowsOnlyTheLatestEpisodeOfEachSeries() = runBlocking {
+    fun latestPerContentKeepsOnlyTheLatestEpisodeOfEachSeries() = runBlocking {
         val dao = db.watchHistoryDao()
         dao.upsert(history(10, MediaType.Tv, 1, 1, position = 40_000, at = 100))
-        dao.upsert(history(10, MediaType.Tv, 1, 2, position = 30_000, at = 200)) // en yeni bölüm
+        dao.upsert(history(10, MediaType.Tv, 1, 2, position = 30_000, at = 200)) // en yeni bÃ¶lÃ¼m
         dao.upsert(history(11, MediaType.Tv, 1, 1, position = 20_000, at = 150))
 
-        val list = dao.observeContinueWatching().first()
+        val list = dao.observeLatestPerContent().first()
         assertEquals(listOf(10 to 2, 11 to 1), list.map { it.tmdbId to it.episode })
     }
 
     @Test
-    fun finishedLatestEpisodeHidesTheSeries() = runBlocking {
+    fun finishedLatestEpisodeIsStillReturnedSoTheNextOneCanBeSuggested() = runBlocking {
         val dao = db.watchHistoryDao()
         dao.upsert(history(10, MediaType.Tv, 1, 1, position = 40_000, at = 100))
-        dao.upsert(history(10, MediaType.Tv, 1, 2, position = 99_000, at = 200)) // en yeni bölüm bitti
+        dao.upsert(history(10, MediaType.Tv, 1, 2, position = 99_000, at = 200)) // en yeni bÃ¶lÃ¼m bitti
 
-        assertTrue(dao.observeContinueWatching().first().isEmpty())
+        val latest = dao.observeLatestPerContent().first().single()
+        assertEquals(2, latest.episode)
+        assertTrue(com.kaan.play.data.library.WatchRules.isWatched(latest.positionMs, latest.durationMs))
     }
 
     @Test
@@ -84,7 +82,7 @@ class DaoTest {
         dao.upsert(history(5, MediaType.Movie, position = 10_000, at = 100))
         dao.upsert(history(5, MediaType.Tv, 1, 1, position = 10_000, at = 200))
 
-        assertEquals(2, dao.observeContinueWatching().first().size)
+        assertEquals(2, dao.observeLatestPerContent().first().size)
     }
 
     @Test
@@ -93,7 +91,7 @@ class DaoTest {
         dao.upsert(history(10, MediaType.Tv, 2, 3, position = 10_000, at = 100))
         dao.upsert(history(10, MediaType.Tv, 2, 3, position = 60_000, at = 300))
 
-        val list = dao.observeContinueWatching().first()
+        val list = dao.observeLatestPerContent().first()
         assertEquals(1, list.size)
         assertEquals(60_000L, list.single().positionMs)
         assertEquals(60_000L, dao.find(10, MediaType.Tv, 2, 3)!!.positionMs)
@@ -108,7 +106,7 @@ class DaoTest {
         assertFalse(dao.observeIsFavorite(1, MediaType.Movie).first())
 
         dao.add(FavoriteEntity(1, MediaType.Movie, "Bir", null, addedAt = 100))
-        dao.add(FavoriteEntity(1, MediaType.Tv, "Aynı kimlik, dizi", null, addedAt = 200))
+        dao.add(FavoriteEntity(1, MediaType.Tv, "AynÄ± kimlik, dizi", null, addedAt = 200))
         assertTrue(dao.observeIsFavorite(1, MediaType.Movie).first())
         assertTrue(dao.observeIsFavorite(1, MediaType.Tv).first())
         assertEquals(listOf(MediaType.Tv, MediaType.Movie), dao.observeAll().first().map { it.type })
@@ -122,7 +120,7 @@ class DaoTest {
     fun addingTheSameFavoriteTwiceKeepsOneRow() = runBlocking {
         val dao = db.favoriteDao()
         dao.add(FavoriteEntity(1, MediaType.Movie, "A", null, addedAt = 100))
-        dao.add(FavoriteEntity(1, MediaType.Movie, "A (güncel)", null, addedAt = 200))
+        dao.add(FavoriteEntity(1, MediaType.Movie, "A (gÃ¼ncel)", null, addedAt = 200))
         assertEquals(1, dao.observeAll().first().size)
     }
 

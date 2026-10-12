@@ -29,6 +29,7 @@
     <string name="home_row_popular_series">Popular series</string>
     <string name="continue_left_movie">%1$d min left</string>
     <string name="continue_left_episode">S%1$d E%2$d · %3$d min left</string>
+    <string name="continue_next_episode">Next: S%1$d E%2$d</string>
 
     <!-- Ara -->
     <string name="search_hint">Search movies and series</string>
@@ -52,7 +53,28 @@
     <string name="sources_empty">No sources found.</string>
     <string name="sources_failed">%1$s didn\'t respond</string>
     <string name="sources_quality_unknown">Unknown</string>
-    <string name="sources_picked">Selected: %1$s</string>
+
+    <!-- Oynatıcı -->
+    <string name="player_title_episode">%1$s · S%2$d E%3$d</string>
+    <string name="player_rewind">Back 10 seconds</string>
+    <string name="player_forward">Forward 10 seconds</string>
+    <string name="player_play">Play</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_subtitles">Subtitles</string>
+    <string name="player_subtitles_off">Off</string>
+    <string name="player_subtitle_number">Subtitles %1$d</string>
+    <string name="player_sources">Change source</string>
+    <string name="player_seconds" translatable="false">10</string>
+    <string name="player_time" translatable="false">%1$s / %2$s</string>
+    <string name="player_error_network">Couldn\'t reach this source. Check your connection.</string>
+    <string name="player_error_unavailable">This source isn\'t available right now.</string>
+    <string name="player_error_format">This source can\'t be played on this device.</string>
+    <string name="player_error_pick">Choose another source</string>
+
+    <!-- Kaldığın yerden devam -->
+    <string name="resume_title">Continue watching?</string>
+    <string name="resume_continue">Resume · %1$s</string>
+    <string name="resume_restart">Start over</string>
     <string name="quality_p" translatable="false">%1$dp</string>
     <string name="quality_4k" translatable="false">4K</string>
 

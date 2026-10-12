@@ -11,8 +11,8 @@ import kotlinx.coroutines.flow.Flow
 interface WatchHistoryDao {
 
     /**
-     * "Devam et": her içeriğin (film ya da dizi) en son izlenen kaydı; %3'ten fazla ve %95'ten az
-     * izlenmişse. Yeni izleme üstte, en çok 20 kayıt.
+     * Her içeriğin (film ya da dizi) en son izlenen kaydı, yeni izleme üstte, en çok 30 kayıt.
+     * İzlendi/izleniyor ayrımı burada değil, [com.kaan.play.data.library.WatchRules]'ta yapılır.
      */
     @Query(
         """
@@ -21,13 +21,11 @@ interface WatchHistoryDao {
             SELECT MAX(lastWatchedAt) FROM watch_history WHERE tmdbId = h.tmdbId AND type = h.type
         )
         AND h.durationMs > 0
-        AND h.positionMs * 100 >= h.durationMs * 3
-        AND h.positionMs * 100 <= h.durationMs * 95
         ORDER BY h.lastWatchedAt DESC
-        LIMIT 20
+        LIMIT 30
         """,
     )
-    fun observeContinueWatching(): Flow<List<WatchHistoryEntity>>
+    fun observeLatestPerContent(): Flow<List<WatchHistoryEntity>>
 
     /** (tmdbId, type, season, episode) benzersizdir: aynı bölüm yeniden kaydedilince satır yenilenir. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)

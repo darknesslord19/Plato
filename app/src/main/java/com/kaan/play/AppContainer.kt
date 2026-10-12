@@ -7,17 +7,25 @@ import androidx.room.Room
 import com.kaan.play.data.addon.AddonRepository
 import com.kaan.play.data.addon.OkHttpManifestFetcher
 import com.kaan.play.data.db.PlayDatabase
+import com.kaan.play.data.library.ContinueWatching
 import com.kaan.play.data.library.LibraryRepository
+import com.kaan.play.data.library.NextEpisodeResolver
 import com.kaan.play.data.net.PlayJson
 import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.stream.AddonStreamProvider
 import com.kaan.play.data.stream.StreamProvider
 import com.kaan.play.data.tmdb.TmdbRepository
 import com.kaan.play.i18n.AppLanguage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
@@ -52,6 +60,17 @@ class AppContainer(context: Context) {
 
     val library: LibraryRepository by lazy {
         LibraryRepository(database.watchHistoryDao(), database.favoriteDao())
+    }
+
+    /** Etkinliklerden bağımsız işler için (ör. oynatıcı kapanırken konum kaydı tamamlansın). */
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    val continueWatching: ContinueWatching by lazy {
+        val resolver = NextEpisodeResolver(
+            loadSeason = { tvId, season -> tmdb.season(tvId, season) },
+            today = { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) },
+        )
+        ContinueWatching(library) { row -> resolver.next(row.tmdbId, row.season, row.episode) }
     }
 
     val addons: AddonRepository by lazy {

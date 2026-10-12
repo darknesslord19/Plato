@@ -1,0 +1,287 @@
+package com.kaan.play.data.library
+
+import com.kaan.play.data.db.FavoriteDao
+import com.kaan.play.data.db.FavoriteEntity
+import com.kaan.play.data.db.WatchHistoryDao
+import com.kaan.play.data.db.WatchHistoryEntity
+import com.kaan.play.data.model.Episode
+import com.kaan.play.data.model.MediaType
+import com.kaan.play.data.model.SeasonDetail
+import com.kaan.play.data.stream.PlayTarget
+import com.kaan.play.data.stream.StreamRequest
+import com.kaan.play.data.tmdb.TmdbException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/** Room'un REPLACE + "içerik başına son kayıt" davranışını taklit eden bellek içi DAO. */
+private class FakeHistoryDao : WatchHistoryDao {
+    val rows = MutableStateFlow<List<WatchHistoryEntity>>(emptyList())
+    private var nextId = 1L
+
+    override fun observeLatestPerContent(): Flow<List<WatchHistoryEntity>> = rows.map { list ->
+        list.filter { h -> h.lastWatchedAt == list.filter { it.tmdbId == h.tmdbId && it.type == h.type }.maxOf { it.lastWatchedAt } }
+            .filter { it.durationMs > 0 }
+            .sortedByDescending { it.lastWatchedAt }
+            .take(30)
+    }
+
+    override suspend fun upsert(entity: WatchHistoryEntity) {
+        val kept = rows.value.filterNot {
+            it.id == entity.id && entity.id != 0L ||
+                (it.tmdbId == entity.tmdbId && it.type == entity.type && it.season == entity.season && it.episode == entity.episode)
+        }
+        rows.value = kept + entity.copy(id = if (entity.id != 0L) entity.id else nextId++)
+    }
+
+    override suspend fun find(tmdbId: Int, type: MediaType, season: Int, episode: Int) =
+        rows.value.firstOrNull { it.tmdbId == tmdbId && it.type == type && it.season == season && it.episode == episode }
+}
+
+private class NoFavorites : FavoriteDao {
+    override fun observeAll(): Flow<List<FavoriteEntity>> = MutableStateFlow(emptyList())
+    override fun observeIsFavorite(tmdbId: Int, type: MediaType): Flow<Boolean> = MutableStateFlow(false)
+    override suspend fun add(entity: FavoriteEntity) = Unit
+    override suspend fun remove(tmdbId: Int, type: MediaType) = Unit
+}
+
+class WatchRulesTest {
+
+    @Test
+    fun recordsOnlyFromThirtySeconds() {
+        assertFalse(WatchRules.shouldRecord(29_999, 600_000))
+        assertTrue(WatchRules.shouldRecord(30_000, 600_000))
+        assertFalse(WatchRules.shouldRecord(0, 600_000))
+    }
+
+    @Test
+    fun unknownDurationRecordsNothing() {
+        assertFalse(WatchRules.shouldRecord(120_000, 0))
+        assertFalse(WatchRules.isWatched(120_000, 0))
+    }
+
+    @Test
+    fun watchedMeansStrictlyOverNinetyPercent() {
+        assertFalse(WatchRules.isWatched(90_000, 100_000)) // tam %90 henüz değil
+        assertTrue(WatchRules.isWatched(90_001, 100_000))
+        assertTrue(WatchRules.isWatched(100_000, 100_000))
+    }
+
+    @Test
+    fun resumableIsBetweenThirtySecondsAndNinetyPercent() {
+        assertFalse(WatchRules.isResumable(10_000, 600_000)) // çok az
+        assertTrue(WatchRules.isResumable(30_000, 600_000))
+        assertTrue(WatchRules.isResumable(540_000, 600_000)) // tam %90
+        assertFalse(WatchRules.isResumable(540_001, 600_000)) // izlendi
+    }
+
+    @Test
+    fun shortVideosStillFollowTheThirtySecondFloor() {
+        // 40 sn'lik bir klibin 35. saniyesi %87: devam edilebilir; 25. saniyesi kaydedilmez.
+        assertTrue(WatchRules.isResumable(35_000, 40_000))
+        assertFalse(WatchRules.shouldRecord(25_000, 40_000))
+    }
+}
+
+class LibraryRepositoryTest {
+
+    private val dao = FakeHistoryDao()
+    private var now = 1_000L
+    private val repo = LibraryRepository(dao, NoFavorites(), clock = { now })
+
+    private fun movie(id: Int = 1) = PlayTarget(StreamRequest(id, "tt$id", MediaType.Movie), "Film $id", "/p$id.jpg")
+    private fun episode(id: Int = 2, s: Int = 1, e: Int = 1) =
+        PlayTarget(StreamRequest(id, "tt$id", MediaType.Tv, s, e), "Dizi $id", "/p$id.jpg")
+
+    @Test
+    fun lessThanThirtySecondsIsNotAddedToHistory() = runTest {
+        assertFalse(repo.saveProgress(movie(), 29_999, 600_000))
+        assertTrue(dao.rows.value.isEmpty())
+        assertNull(repo.progress(movie()))
+    }
+
+    @Test
+    fun unknownDurationIsNotAdded() = runTest {
+        assertFalse(repo.saveProgress(movie(), 90_000, 0))
+        assertTrue(dao.rows.value.isEmpty())
+    }
+
+    @Test
+    fun savesAndUpdatesTheSameRowKeepingItsId() = runTest {
+        assertTrue(repo.saveProgress(movie(), 60_000, 600_000))
+        val first = repo.progress(movie())!!
+        now = 2_000
+        assertTrue(repo.saveProgress(movie(), 120_000, 600_000))
+
+        assertEquals(1, dao.rows.value.size)
+        val second = repo.progress(movie())!!
+        assertEquals(first.id, second.id)
+        assertEquals(120_000L, second.positionMs)
+        assertEquals(2_000L, second.lastWatchedAt)
+        assertEquals("Film 1", second.title)
+        assertEquals("/p1.jpg", second.posterPath)
+    }
+
+    @Test
+    fun positionNeverExceedsDuration() = runTest {
+        repo.saveProgress(movie(), 700_000, 600_000)
+        assertEquals(600_000L, repo.progress(movie())!!.positionMs)
+    }
+
+    @Test
+    fun moviesStoreZeroSeasonAndEpisodeSeriesStoreTheirOwn() = runTest {
+        repo.saveProgress(movie(), 60_000, 600_000)
+        repo.saveProgress(episode(2, 3, 4), 60_000, 600_000)
+
+        val m = dao.rows.value.single { it.type == MediaType.Movie }
+        val e = dao.rows.value.single { it.type == MediaType.Tv }
+        assertEquals(0 to 0, m.season to m.episode)
+        assertEquals(3 to 4, e.season to e.episode)
+        assertNull(repo.progress(episode(2, 3, 5))) // başka bölümün kaydı yok
+    }
+}
+
+class ContinueWatchingTest {
+
+    private val dao = FakeHistoryDao()
+    private var clock = 0L
+    private val repo = LibraryRepository(dao, NoFavorites(), clock = { ++clock })
+
+    private fun movie(id: Int) = PlayTarget(StreamRequest(id, "tt$id", MediaType.Movie), "Film $id", null)
+    private fun episode(id: Int, s: Int, e: Int) = PlayTarget(StreamRequest(id, "tt$id", MediaType.Tv, s, e), "Dizi $id", null)
+
+    private fun continueWatching(next: suspend (WatchHistoryEntity) -> Pair<Int, Int>? = { null }) =
+        ContinueWatching(repo, next)
+
+    @Test
+    fun listsPartiallyWatchedNewestFirstAndDropsFinishedMovies() = runTest {
+        repo.saveProgress(movie(1), 60_000, 600_000) // %10
+        repo.saveProgress(movie(2), 590_000, 600_000) // %98 -> izlendi, listeden kalkar
+        repo.saveProgress(movie(3), 300_000, 600_000) // %50
+        repo.saveProgress(movie(4), 10_000, 600_000) // 30 sn'den az -> hiç yok
+
+        val items = continueWatching().items.first()
+
+        assertEquals(listOf(3, 1), items.map { it.entry.tmdbId })
+        assertTrue(items.all { it is ContinueItem.Resume })
+    }
+
+    @Test
+    fun finishedEpisodeSuggestsTheNextOneAfterItIsResolved() = runTest {
+        repo.saveProgress(episode(10, 1, 2), 1_380_000, 1_400_000) // %98 -> bitti
+
+        val emissions = continueWatching { row -> row.season to row.episode + 1 }.items.take(2).toList()
+
+        assertTrue(emissions[0].isEmpty()) // ağ yanıtı gelmeden öneri yok
+        val next = emissions[1].single() as ContinueItem.Next
+        assertEquals(10, next.entry.tmdbId)
+        assertEquals(1 to 3, next.season to next.episode)
+    }
+
+    @Test
+    fun finishedSeriesWithoutANextEpisodeIsHiddenAndNetworkErrorsDoNotBreakTheList() = runTest {
+        repo.saveProgress(episode(10, 1, 2), 1_380_000, 1_400_000) // bitti, sonraki yok
+        repo.saveProgress(episode(11, 1, 1), 600_000, 1_400_000) // yarım
+        repo.saveProgress(episode(12, 1, 1), 1_390_000, 1_400_000) // bitti, ağ hatası
+
+        val list = continueWatching { row ->
+            if (row.tmdbId == 12) throw TmdbException(TmdbException.Kind.Network, path = "tv/12/season/1") else null
+        }.items.first()
+
+        assertEquals(listOf(11), list.map { it.entry.tmdbId })
+        assertTrue(list.single() is ContinueItem.Resume)
+    }
+
+    @Test
+    fun latestEpisodeDecidesTheSeriesState() = runTest {
+        repo.saveProgress(episode(10, 1, 1), 1_390_000, 1_400_000) // bölüm 1 bitti
+        repo.saveProgress(episode(10, 1, 2), 300_000, 1_400_000) // bölüm 2 başlandı (daha yeni)
+
+        val item = continueWatching { error("sonraki bölüm sorulmamalı") }.items.first().single()
+
+        assertTrue(item is ContinueItem.Resume)
+        assertEquals(2, item.entry.episode)
+    }
+}
+
+class NextEpisodeResolverTest {
+
+    private fun ep(n: Int, air: String? = "2020-01-01") = Episode(n, "B$n", "", null, null, air)
+
+    private val seasons = mutableMapOf<Int, List<Episode>>()
+    private var calls = 0
+
+    private fun resolver(today: String = "2026-06-01") = NextEpisodeResolver(
+        loadSeason = { tv, s ->
+            calls++
+            val eps = seasons[s] ?: throw TmdbException(TmdbException.Kind.NotFound, 404, "tv/$tv/season/$s")
+            SeasonDetail(s, eps)
+        },
+        today = { today },
+    )
+
+    @Test
+    fun nextEpisodeInTheSameSeason() = runTest {
+        seasons[1] = listOf(ep(1), ep(2), ep(3))
+        assertEquals(1 to 2, resolver().next(7, 1, 1))
+    }
+
+    @Test
+    fun lastEpisodeOfASeasonMovesToTheNextSeasonsFirstEpisode() = runTest {
+        seasons[1] = listOf(ep(1), ep(2))
+        seasons[2] = listOf(ep(1), ep(2))
+        assertEquals(2 to 1, resolver().next(7, 1, 2))
+    }
+
+    @Test
+    fun lastEpisodeOfTheLastSeasonHasNoNext() = runTest {
+        seasons[1] = listOf(ep(1), ep(2))
+        assertNull(resolver().next(7, 1, 2)) // 2. sezon 404
+    }
+
+    @Test
+    fun unairedOrUndatedEpisodesAreNotSuggestedAndDoNotSkipAhead() = runTest {
+        seasons[1] = listOf(ep(1), ep(2, air = "2026-12-01"), ep(3, air = "2020-01-01"))
+        seasons[2] = listOf(ep(1))
+        assertNull(resolver().next(7, 1, 1)) // bölüm 2 henüz yayınlanmadı: 3'e ya da 2. sezona atlanmaz
+
+        seasons[1] = listOf(ep(1), ep(2, air = null))
+        assertNull(resolver().next(7, 1, 1)) // tarihi bilinmeyen bölüm
+    }
+
+    @Test
+    fun airDateOfTodayCounts() = runTest {
+        seasons[1] = listOf(ep(1), ep(2, air = "2026-06-01"))
+        assertEquals(1 to 2, resolver("2026-06-01").next(7, 1, 1))
+    }
+
+    @Test
+    fun otherTmdbErrorsPropagateAndAreNotCached() = runTest {
+        seasons[1] = listOf(ep(1))
+        val broken = NextEpisodeResolver({ _, _ -> throw TmdbException(TmdbException.Kind.Network, path = "x") }, { "2026-06-01" })
+        try {
+            broken.next(7, 1, 1)
+            org.junit.Assert.fail()
+        } catch (e: TmdbException) {
+            assertEquals(TmdbException.Kind.Network, e.kind)
+        }
+    }
+
+    @Test
+    fun successfulLookupsAreCached() = runTest {
+        seasons[1] = listOf(ep(1), ep(2))
+        val r = resolver()
+        r.next(7, 1, 1)
+        r.next(7, 1, 1)
+        assertEquals(1, calls)
+    }
+}

@@ -110,6 +110,67 @@ object PlayIcons {
         }
     }
 
+    val Pause: ImageVector by lazy {
+        icon("Pause") {
+            solid {
+                moveTo(7f, 5.5f); horizontalLineTo(10.5f); verticalLineTo(18.5f); horizontalLineTo(7f); close()
+                moveTo(13.5f, 5.5f); horizontalLineTo(17f); verticalLineTo(18.5f); horizontalLineTo(13.5f); close()
+            }
+        }
+    }
+
+    /** Çift ok sola / sağa: 10 sn geri / ileri (yanına "10" yazılır). */
+    val SeekBack: ImageVector by lazy {
+        icon("SeekBack") {
+            line {
+                moveTo(12f, 6f); lineTo(6f, 12f); lineTo(12f, 18f)
+                moveTo(18f, 6f); lineTo(12f, 12f); lineTo(18f, 18f)
+            }
+        }
+    }
+
+    val SeekForward: ImageVector by lazy {
+        icon("SeekForward") {
+            line {
+                moveTo(6f, 6f); lineTo(12f, 12f); lineTo(6f, 18f)
+                moveTo(12f, 6f); lineTo(18f, 12f); lineTo(12f, 18f)
+            }
+        }
+    }
+
+    /** Altyazı: konuşma kutusu içinde iki satır. */
+    val Subtitles: ImageVector by lazy {
+        icon("Subtitles") {
+            line {
+                moveTo(5.5f, 5.5f); horizontalLineTo(18.5f)
+                arcToRelative(1.5f, 1.5f, 0f, false, true, 1.5f, 1.5f)
+                verticalLineTo(17f)
+                arcToRelative(1.5f, 1.5f, 0f, false, true, -1.5f, 1.5f)
+                horizontalLineTo(5.5f)
+                arcToRelative(1.5f, 1.5f, 0f, false, true, -1.5f, -1.5f)
+                verticalLineTo(7f)
+                arcToRelative(1.5f, 1.5f, 0f, false, true, 1.5f, -1.5f)
+                close()
+                moveTo(7.5f, 11f); horizontalLineTo(10.5f)
+                moveTo(13f, 11f); horizontalLineTo(16.5f)
+                moveTo(7.5f, 14.5f); horizontalLineTo(11f)
+                moveTo(13.5f, 14.5f); horizontalLineTo(16.5f)
+            }
+        }
+    }
+
+    /** Karşılıklı iki ok: kaynağı değiştir. */
+    val SwitchSource: ImageVector by lazy {
+        icon("SwitchSource") {
+            line {
+                moveTo(5f, 8f); horizontalLineTo(19f)
+                moveTo(15f, 4.5f); lineTo(19f, 8f); lineTo(15f, 11.5f)
+                moveTo(19f, 16f); horizontalLineTo(5f)
+                moveTo(9f, 12.5f); lineTo(5f, 16f); lineTo(9f, 19.5f)
+            }
+        }
+    }
+
     val Check: ImageVector by lazy {
         icon("Check") { line { moveTo(5f, 12.5f); lineTo(10f, 17.5f); lineTo(19f, 7f) } }
     }

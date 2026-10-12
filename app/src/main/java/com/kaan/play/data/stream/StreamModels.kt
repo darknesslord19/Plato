@@ -2,11 +2,13 @@ package com.kaan.play.data.stream
 
 import com.kaan.play.data.model.MediaType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 /**
  * Bir içerik için kaynak isteği. Birincil kimlik TMDB id; addon'lar IMDb [imdbId] ister.
  * Dizide [season] ve [episode] zorunludur.
  */
+@Serializable
 data class StreamRequest(
     val tmdbId: Int,
     val imdbId: String?,
@@ -28,7 +30,15 @@ data class StreamRequest(
         }
 }
 
+/**
+ * Oynatılacak şey: kaynak isteği + geçmişe yazılacak kopya bilgiler. [title] filmde film adı,
+ * dizide dizi adıdır; [posterPath] dizinin/filmin afişidir.
+ */
+@Serializable
+data class PlayTarget(val request: StreamRequest, val title: String, val posterPath: String?)
+
 /** Sonucu veren addon. */
+@Serializable
 data class StreamSource(val addonId: Long, val addonName: String)
 
 /**
@@ -36,6 +46,7 @@ data class StreamSource(val addonId: Long, val addonName: String)
  * [resolution]: dikey çözünürlük (1080, 2160 ...), bilinmiyorsa null. [headers]: addon'un
  * `behaviorHints.proxyHeaders.request` değeri; oynatıcı (Media3 OkHttp datasource) bunları istekle gönderir.
  */
+@Serializable
 data class PlayableStream(
     val source: StreamSource,
     val url: String,
@@ -46,6 +57,7 @@ data class PlayableStream(
 )
 
 /** Akışla gelen altyazı; [language] addon'un verdiği ham etiket (`eng`, `tur` ...). */
+@Serializable
 data class StreamSubtitle(val url: String, val language: String?)
 
 enum class FailureReason { Timeout, Network, Http, InvalidResponse }

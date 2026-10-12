@@ -33,6 +33,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Tam ekran yatay oynatıcı; kaynak seçiminden PlaySession ile açılır. -->
+        <activity
+            android:name=".ui.player.PlayerActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape" />
+
         <!-- API 33 öncesinde uygulama başına dil seçimini AppCompat'in kalıcı tutması için. -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"

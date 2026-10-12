@@ -30,7 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.R
-import com.kaan.play.data.db.WatchHistoryEntity
+import com.kaan.play.data.library.ContinueItem
 import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.tmdb.TmdbImages
 import com.kaan.play.i18n.AppLanguage
@@ -49,13 +49,17 @@ private val ScreenPadding = 20.dp
  * Ana sayfa. Hiç eklenti yokken tek cümle + tek buton; eklenti varken "devam et" ve TMDB satırları.
  */
 @Composable
-fun HomeScreen(onOpenDetail: (MediaType, Int) -> Unit, onAddAddon: () -> Unit) {
+fun HomeScreen(
+    onOpenDetail: (MediaType, Int) -> Unit,
+    onContinue: (ContinueItem) -> Unit,
+    onAddAddon: () -> Unit,
+) {
     val container = rememberContainer()
     val addons by container.addons.addons.collectAsStateWithLifecycle(initialValue = null)
 
     when (val list = addons) {
         null -> Box(Modifier.fillMaxSize()) // eklenti listesi yükleniyor: boş durum yanıp sönmesin
-        else -> if (list.isEmpty()) HomeEmptyState(onAddAddon) else HomeContent(onOpenDetail)
+        else -> if (list.isEmpty()) HomeEmptyState(onAddAddon) else HomeContent(onOpenDetail, onContinue)
     }
 }
 
@@ -77,9 +81,9 @@ private fun HomeEmptyState(onAddAddon: () -> Unit) {
 }
 
 @Composable
-private fun HomeContent(onOpenDetail: (MediaType, Int) -> Unit) {
+private fun HomeContent(onOpenDetail: (MediaType, Int) -> Unit, onContinue: (ContinueItem) -> Unit) {
     // Dil değişince (etkinlik yeniden kurulur) yeni dille taze bir ViewModel: satırlar yeni dilde yüklenir.
-    val vm = containerViewModel(key = "home-${AppLanguage.effective().iso}") { HomeViewModel(it.tmdb, it.library) }
+    val vm = containerViewModel(key = "home-${AppLanguage.effective().iso}") { HomeViewModel(it.tmdb, it.continueWatching) }
     val rows by vm.rows.collectAsStateWithLifecycle()
     // Durum kompozisyon kapsamında okunur (LazyColumn DSL bloğunda değil): değişince bu ekran yeniden çizilir.
     val continueWatching = vm.continueWatching.collectAsStateWithLifecycle().value
@@ -102,8 +106,8 @@ private fun HomeContent(onOpenDetail: (MediaType, Int) -> Unit) {
                         contentPadding = PaddingValues(horizontal = ScreenPadding),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        items(continueWatching, key = { it.id }) { entry ->
-                            ContinueCard(entry) { onOpenDetail(entry.type, entry.tmdbId) }
+                        items(continueWatching, key = { "${it.entry.type}-${it.entry.tmdbId}" }) { item ->
+                            ContinueCard(item) { onContinue(item) }
                         }
                     }
                 }
@@ -149,12 +153,25 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun ContinueCard(entry: WatchHistoryEntity, onClick: () -> Unit) {
-    val minutesLeft = (((entry.durationMs - entry.positionMs) + 59_999L) / 60_000L).toInt().coerceAtLeast(1)
-    val subtitle = if (entry.type == MediaType.Tv) {
-        stringResource(R.string.continue_left_episode, entry.season, entry.episode, minutesLeft)
-    } else {
-        stringResource(R.string.continue_left_movie, minutesLeft)
+private fun ContinueCard(item: ContinueItem, onClick: () -> Unit) {
+    val entry = item.entry
+    val subtitle: String
+    val progress: Float?
+    when (item) {
+        is ContinueItem.Resume -> {
+            val minutesLeft = (((entry.durationMs - entry.positionMs) + 59_999L) / 60_000L).toInt().coerceAtLeast(1)
+            subtitle = if (entry.type == MediaType.Tv) {
+                stringResource(R.string.continue_left_episode, entry.season, entry.episode, minutesLeft)
+            } else {
+                stringResource(R.string.continue_left_movie, minutesLeft)
+            }
+            progress = entry.positionMs.toFloat() / entry.durationMs.toFloat()
+        }
+        // Sıradaki bölüm önerisi: henüz izlenmedi, ilerleme çubuğu yok.
+        is ContinueItem.Next -> {
+            subtitle = stringResource(R.string.continue_next_episode, item.season, item.episode)
+            progress = null
+        }
     }
     PosterCard(
         title = entry.title,
@@ -162,7 +179,7 @@ private fun ContinueCard(entry: WatchHistoryEntity, onClick: () -> Unit) {
         imageUrl = TmdbImages.url(entry.posterPath, TmdbImages.Size.Poster),
         onClick = onClick,
         modifier = Modifier.width(CardWidth),
-        progress = entry.positionMs.toFloat() / entry.durationMs.toFloat(),
+        progress = progress,
     )
 }
 
