@@ -124,6 +124,42 @@ data class SubtitleOffsetEntity(
     val updatedAt: Long,
 )
 
+/** Faz 4/B: indirmenin durumu. Media3'ün durumlarından [com.kaan.play.data.download.DownloadRules.statusOf] ile türetilir. */
+enum class DownloadStatus { Queued, Downloading, Paused, Completed, Failed }
+
+/**
+ * Faz 4/B: çevrimdışı izleme için indirilen (ya da inen) film/bölüm. Media3 `DownloadManager` kendi dizininde asıl veriyi ve
+ * durumu tutar (kimliği bu satırın [id]'sidir); bu tablo arayüz için üst bilgiyi (başlık, afiş, kaynak adı, altyazılar) ve
+ * son bilinen durumu/baytları saklar. Aynı film/bölüm için tek satır olur (benzersiz indeks). Filmde [season] ve [episode] 0'dır.
+ * [headersJson]: akışın `proxyHeaders`'ı (`{"ad":"değer"}`). [subtitlesJson]: indirme sırasında saklanan altyazılar
+ * ([com.kaan.play.data.download.DownloadSubtitle] listesi). [totalBytes]: bilinmiyorsa 0; bölünmüş akışlarda (HLS/DASH) tahmindir.
+ */
+@Entity(
+    tableName = "downloads",
+    indices = [
+        Index(value = ["tmdbId", "type", "season", "episode"], unique = true),
+        Index("createdAt"),
+    ],
+)
+data class DownloadEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val tmdbId: Int,
+    val imdbId: String?,
+    val type: MediaType,
+    val season: Int = 0,
+    val episode: Int = 0,
+    val title: String,
+    val posterPath: String?,
+    val sourceName: String,
+    val sourceUrl: String,
+    val headersJson: String = "{}",
+    val status: DownloadStatus = DownloadStatus.Queued,
+    val downloadedBytes: Long = 0,
+    val totalBytes: Long = 0,
+    val createdAt: Long,
+    val subtitlesJson: String = "[]",
+)
+
 @Entity(tableName = "favorites", primaryKeys = ["tmdbId", "type"])
 data class FavoriteEntity(
     val tmdbId: Int,

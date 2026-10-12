@@ -8,6 +8,10 @@ import androidx.room.Room
 import com.kaan.play.data.addon.AddonRepository
 import com.kaan.play.data.addon.OkHttpManifestFetcher
 import com.kaan.play.data.db.PlayDatabase
+import com.kaan.play.data.download.DownloadCenter
+import com.kaan.play.data.download.DownloadFiles
+import com.kaan.play.data.download.DownloadSubtitleFetcher
+import com.kaan.play.data.download.PlayDownloadService
 import com.kaan.play.data.library.ContinueWatching
 import com.kaan.play.data.library.LibraryRepository
 import com.kaan.play.data.library.NextEpisodeResolver
@@ -70,7 +74,7 @@ class AppContainer(context: Context) {
 
     val database: PlayDatabase by lazy {
         Room.databaseBuilder(appContext, PlayDatabase::class.java, "play.db")
-            .addMigrations(PlayDatabase.MIGRATION_1_2, PlayDatabase.MIGRATION_2_3)
+            .addMigrations(PlayDatabase.MIGRATION_1_2, PlayDatabase.MIGRATION_2_3, PlayDatabase.MIGRATION_3_4)
             .build()
     }
 
@@ -167,6 +171,31 @@ class AppContainer(context: Context) {
 
     /** Seçilen altyazı dili (film/dizi başına) ve elle senkron kaydırması (içerik + altyazı başına). */
     val subtitleMemory: SubtitleMemory by lazy { SubtitleMemory(database.subtitleDao()) }
+
+    /**
+     * Çevrimdışı izleme (Faz 4/B): Media3 indirme yöneticisi + tek `SimpleCache`, Room `downloads` ile eşli. Uygulama açılırken
+     * ([PlayApp]) oluşturulur ki yarım kalan indirmeler kendiliğinden devam etsin. Altyazılar kaynak listesindeki kurallarla
+     * (uygulama dili + İngilizce + kullanıcının seçtiği) indirme sırasında saklanır.
+     */
+    val downloads: DownloadCenter by lazy {
+        val files = DownloadFiles.forContext(appContext)
+        DownloadCenter(
+            context = appContext,
+            dao = database.downloadDao(),
+            files = files,
+            client = httpClient,
+            settings = settings,
+            subtitleFetcher = DownloadSubtitleFetcher(
+                loader = subtitleLoader,
+                provider = subtitleProvider,
+                memory = subtitleMemory,
+                appLanguage = { AppLanguage.effective().iso },
+                files = files,
+            ),
+            scope = appScope,
+            serviceClass = PlayDownloadService::class.java,
+        ).also { it.begin() }
+    }
 
     /**
      * Oynatılabilecek en az bir açık kaynak (akış veren addon ya da eklenti) var mı? Yoksa Oynat "eklenti ekle"ye götürür.

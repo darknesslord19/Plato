@@ -1,5 +1,6 @@
 package com.kaan.play.ui.library
 
+import android.text.format.Formatter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,13 +39,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.kaan.play.R
+import com.kaan.play.data.db.DownloadEntity
+import com.kaan.play.data.db.DownloadStatus
 import com.kaan.play.data.db.WatchHistoryEntity
+import com.kaan.play.data.download.DownloadRules
 import com.kaan.play.data.library.WatchRules
 import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.tmdb.TmdbImages
@@ -62,11 +67,20 @@ private val Gutter = 20.dp
  * ve Geçmiş (son izlenen üstte, ilerleme çubuğuyla). Her silme işlemi bir düğmedir; dokunma dışı hareket gerekmez.
  */
 @Composable
-fun LibraryScreen(onOpenDetail: (MediaType, Int) -> Unit, onPlayEntry: (WatchHistoryEntity) -> Unit) {
-    val vm = containerViewModel { LibraryViewModel(it.library) }
+fun LibraryScreen(
+    onOpenDetail: (MediaType, Int) -> Unit,
+    onPlayEntry: (WatchHistoryEntity) -> Unit,
+    onPlayDownload: (DownloadEntity) -> Unit,
+) {
+    val vm = containerViewModel { LibraryViewModel(it.library, it.downloads, it.settings) }
     val favorites by vm.favorites.collectAsStateWithLifecycle()
     val history by vm.history.collectAsStateWithLifecycle()
     var confirmClear by remember { mutableStateOf(false) }
+    val downloads by vm.downloads.collectAsStateWithLifecycle()
+    val waitingForNetwork by vm.waitingForNetwork.collectAsStateWithLifecycle()
+    val wifiOnly by vm.wifiOnly.collectAsStateWithLifecycle()
+    var deleteTarget by remember { mutableStateOf<DownloadEntity?>(null) }
+    var confirmDeleteAll by remember { mutableStateOf(false) }
     // Kumanda: ilk favori (yoksa ilk geçmiş satırı) başlangıç odağı; geri dönünce son odaklanan öğe.
     val focus = rememberFocusMemory(enabled = favorites != null && history != null)
     val firstIsFavorite = !favorites.isNullOrEmpty()
@@ -140,6 +154,79 @@ fun LibraryScreen(onOpenDetail: (MediaType, Int) -> Unit, onPlayEntry: (WatchHis
                 )
             }
         }
+
+        // Üçüncü bölüm: İndirilenler (çevrimdışı izleme).
+        val dls = downloads
+        fullWidth {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SectionTitle(stringResource(R.string.library_downloads), Modifier.weight(1f))
+                if (!dls.isNullOrEmpty()) {
+                    TextButton(onClick = { confirmDeleteAll = true }) { Text(stringResource(R.string.library_downloads_delete_all)) }
+                }
+            }
+        }
+        if (dls != null && dls.isEmpty()) {
+            fullWidth { EmptyText(stringResource(R.string.library_downloads_empty)) }
+        } else if (dls != null) {
+            items(dls, key = { "dl-${it.id}" }, span = { GridItemSpan(maxLineSpan) }) { entry ->
+                DownloadRow(
+                    entry = entry,
+                    waitingForNetwork = waitingForNetwork,
+                    wifiOnly = wifiOnly,
+                    onClick = {
+                        when (DownloadRules.rowAction(entry.status)) {
+                            DownloadRules.RowAction.Play -> onPlayDownload(entry)
+                            DownloadRules.RowAction.Pause -> vm.pauseDownload(entry)
+                            DownloadRules.RowAction.Resume -> vm.resumeDownload(entry)
+                        }
+                    },
+                    onPauseResume = {
+                        if (DownloadRules.rowAction(entry.status) == DownloadRules.RowAction.Pause) {
+                            vm.pauseDownload(entry)
+                        } else {
+                            vm.resumeDownload(entry)
+                        }
+                    },
+                    onRemove = { deleteTarget = entry },
+                    modifier = Modifier.focusMemory(
+                        focus,
+                        "dl-${entry.id}",
+                        isDefault = !firstIsFavorite && hist.isNullOrEmpty() && entry == dls.first(),
+                    ),
+                )
+            }
+        }
+    }
+
+    deleteTarget?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text(stringResource(R.string.download_delete_title)) },
+            text = { Text(stringResource(R.string.download_delete_message, entry.title)) },
+            confirmButton = {
+                TextButton(onClick = { vm.removeDownload(entry); deleteTarget = null }) {
+                    Text(stringResource(R.string.download_delete_confirm), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.common_cancel)) } },
+        )
+    }
+
+    if (confirmDeleteAll) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteAll = false },
+            title = { Text(stringResource(R.string.download_delete_all_title)) },
+            text = { Text(stringResource(R.string.download_delete_all_message)) },
+            confirmButton = {
+                TextButton(onClick = { vm.removeAllDownloads(); confirmDeleteAll = false }) {
+                    Text(stringResource(R.string.download_delete_confirm), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmDeleteAll = false }) { Text(stringResource(R.string.common_cancel)) } },
+        )
     }
 
     if (confirmClear) {
@@ -223,6 +310,114 @@ private fun HistoryRow(entry: WatchHistoryEntity, onClick: () -> Unit, onRemove:
             Icon(
                 PlayIcons.Close,
                 contentDescription = stringResource(R.string.library_remove_history),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * Bir indirme satırı: afiş + ad + "S1 B3 · 412 MB / 1,2 GB" + ilerleme çubuğu (tamamlanmamışken). Satıra dokunmak ana işi yapar
+ * (tamam: oynat, iniyor: duraklat, duraklatılmış/başarısız: sürdür); yanındaki iki düğme aynı işleri açıkça verir:
+ * duraklat/sürdür ve iptal/sil (iptal ile silme aynı işlemdir, simgesi duruma göre değişir).
+ */
+@Composable
+private fun DownloadRow(
+    entry: DownloadEntity,
+    waitingForNetwork: Boolean,
+    wifiOnly: Boolean,
+    onClick: () -> Unit,
+    onPauseResume: () -> Unit,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val done = entry.status == DownloadStatus.Completed
+    val fraction = DownloadRules.fraction(entry.downloadedBytes, entry.totalBytes)
+
+    val episode = if (entry.type == MediaType.Tv) stringResource(R.string.download_episode, entry.season, entry.episode) else null
+    val downloaded = entry.downloadedBytes.takeIf { it > 0 }?.let { Formatter.formatShortFileSize(context, it) }
+    val total = entry.totalBytes.takeIf { it > 0 }?.let { Formatter.formatShortFileSize(context, it) }
+    val size = when {
+        done -> total
+        downloaded != null && total != null -> stringResource(R.string.download_progress_of, downloaded, total)
+        else -> downloaded
+    }
+    val state = when (entry.status) {
+        DownloadStatus.Completed, DownloadStatus.Downloading -> null
+        DownloadStatus.Queued -> stringResource(
+            when {
+                !waitingForNetwork -> R.string.download_state_queued
+                wifiOnly -> R.string.download_state_wifi
+                else -> R.string.download_state_network
+            },
+        )
+        DownloadStatus.Paused -> stringResource(R.string.download_state_paused)
+        DownloadStatus.Failed -> stringResource(R.string.download_state_failed)
+    }
+    val subtitle = listOfNotNull(episode, size, state).reduceOrNull { acc, part -> stringResource(R.string.dot_join, acc, part) }
+
+    Row(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .width(56.dp)
+                .aspectRatio(2f / 3f)
+                .clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            TmdbImages.url(entry.posterPath, TmdbImages.Size.Poster)?.let {
+                AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            }
+        }
+        Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(entry.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (entry.status == DownloadStatus.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (!done) {
+                val barModifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(3.dp)
+                if (fraction != null) {
+                    LinearProgressIndicator(progress = { fraction }, modifier = barModifier, trackColor = MaterialTheme.colorScheme.outline)
+                } else if (entry.status == DownloadStatus.Downloading) {
+                    LinearProgressIndicator(modifier = barModifier, trackColor = MaterialTheme.colorScheme.outline)
+                } else {
+                    LinearProgressIndicator(progress = { 0f }, modifier = barModifier, trackColor = MaterialTheme.colorScheme.outline)
+                }
+            }
+        }
+        if (!done) {
+            val active = DownloadRules.isActive(entry.status)
+            IconButton(onClick = onPauseResume) {
+                Icon(
+                    imageVector = when {
+                        entry.status == DownloadStatus.Failed -> PlayIcons.Refresh
+                        active -> PlayIcons.Pause
+                        else -> PlayIcons.PlayTriangle
+                    },
+                    contentDescription = stringResource(
+                        when {
+                            entry.status == DownloadStatus.Failed -> R.string.common_retry
+                            active -> R.string.download_pause
+                            else -> R.string.download_resume
+                        },
+                    ),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        IconButton(onClick = onRemove) {
+            Icon(
+                imageVector = if (done) PlayIcons.Trash else PlayIcons.Close,
+                contentDescription = stringResource(if (done) R.string.download_remove else R.string.download_cancel),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

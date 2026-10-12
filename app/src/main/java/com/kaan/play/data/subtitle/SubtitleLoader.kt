@@ -23,6 +23,13 @@ sealed interface SubtitleLoad {
     enum class Reason { Timeout, Network, Http, TooLarge, Invalid }
 }
 
+/** [SubtitleLoader.loadText] sonucu. */
+sealed interface SubtitleTextResult {
+    data class Text(val utf8: String) : SubtitleTextResult
+
+    data class Failed(val reason: SubtitleLoad.Reason) : SubtitleTextResult
+}
+
 /** Bir altyazı parçasını satırlara çeviren şey ([SubtitleLoader]); oynatıcı denetleyicisinin testlerinde sahtesi kullanılır. */
 fun interface TrackLoader {
     suspend fun load(track: SubtitleTrack): SubtitleLoad
@@ -46,31 +53,55 @@ class SubtitleLoader(
     private val clock: () -> Long = System::currentTimeMillis,
 ): TrackLoader {
 
-    override suspend fun load(track: SubtitleTrack): SubtitleLoad = withContext(Dispatchers.IO) {
+    override suspend fun load(track: SubtitleTrack): SubtitleLoad =
+        when (val fetched = fetch(track)) {
+            is Fetched.Ok -> SubtitleLoad.Loaded(fetched.cues, fetched.charset, fetched.fromCache)
+            is Fetched.Err -> SubtitleLoad.Failed(fetched.reason)
+        }
+
+    /**
+     * İndirmeler (Faz 4/B) için: altyazının UTF-8'e çevrilmiş **metni** (önbellekten ya da indirilerek). Çevrimdışı oynatmada
+     * bu metin [load] ile aynı ayrıştırıcıdan geçer. Çözülemeyen/boş içerik [SubtitleTextResult.Failed] olarak döner.
+     */
+    suspend fun loadText(track: SubtitleTrack): SubtitleTextResult =
+        when (val fetched = fetch(track)) {
+            is Fetched.Ok -> SubtitleTextResult.Text(fetched.text)
+            is Fetched.Err -> SubtitleTextResult.Failed(fetched.reason)
+        }
+
+    private sealed interface Fetched {
+        class Ok(val text: String, val cues: List<SubtitleCue>, val charset: String, val fromCache: Boolean) : Fetched
+
+        class Err(val reason: SubtitleLoad.Reason) : Fetched
+    }
+
+    private suspend fun fetch(track: SubtitleTrack): Fetched = withContext(Dispatchers.IO) {
         val file = File(cacheDir, cacheName(track.url))
-        readCached(file)?.let { cues -> return@withContext SubtitleLoad.Loaded(cues, "UTF-8", fromCache = true) }
+        readCached(file)?.let { (text, cues) -> return@withContext Fetched.Ok(text, cues, "UTF-8", fromCache = true) }
 
         val url = track.url.toHttpUrlOrNull()
-            ?: return@withContext SubtitleLoad.Failed(SubtitleLoad.Reason.Network)
+            ?: return@withContext Fetched.Err(SubtitleLoad.Reason.Network)
         val bytes = try {
             download(url)
         } catch (e: LoadFailure) {
-            return@withContext SubtitleLoad.Failed(e.reason)
+            return@withContext Fetched.Err(e.reason)
         }
 
         val decoded = SubtitleCharset.decode(bytes, track.language)
         val cues = SubtitleParser.parse(decoded.text)
-        if (cues.isEmpty()) return@withContext SubtitleLoad.Failed(SubtitleLoad.Reason.Invalid)
+        if (cues.isEmpty()) return@withContext Fetched.Err(SubtitleLoad.Reason.Invalid)
 
         writeCache(file, decoded.text)
-        SubtitleLoad.Loaded(cues, decoded.charset.name(), fromCache = false)
+        Fetched.Ok(decoded.text, cues, decoded.charset.name(), fromCache = false)
     }
 
-    private fun readCached(file: File): List<SubtitleCue>? {
+    private fun readCached(file: File): Pair<String, List<SubtitleCue>>? {
         if (!file.isFile) return null
         return try {
-            SubtitleParser.parse(file.readText(Charsets.UTF_8)).takeIf { it.isNotEmpty() }
+            val text = file.readText(Charsets.UTF_8)
+            SubtitleParser.parse(text).takeIf { it.isNotEmpty() }
                 ?.also { file.setLastModified(clock()) }
+                ?.let { text to it }
         } catch (_: IOException) {
             null
         }

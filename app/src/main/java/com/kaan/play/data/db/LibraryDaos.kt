@@ -72,6 +72,39 @@ interface SubtitleDao {
 }
 
 @Dao
+interface DownloadDao {
+
+    /** Kütüphane > İndirilenler: yeni eklenen üstte. */
+    @Query("SELECT * FROM downloads ORDER BY createdAt DESC, id DESC")
+    fun observeAll(): Flow<List<DownloadEntity>>
+
+    @Query("SELECT * FROM downloads ORDER BY createdAt DESC, id DESC")
+    suspend fun all(): List<DownloadEntity>
+
+    @Query("SELECT * FROM downloads WHERE id = :id")
+    suspend fun find(id: Long): DownloadEntity?
+
+    @Query("SELECT * FROM downloads WHERE tmdbId = :tmdbId AND type = :type AND season = :season AND episode = :episode")
+    suspend fun findContent(tmdbId: Int, type: MediaType, season: Int, episode: Int): DownloadEntity?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insert(entity: DownloadEntity): Long
+
+    /** Satır silinmişse (iptal) hiçbir şey yapmaz. */
+    @Query("UPDATE downloads SET status = :status, downloadedBytes = :downloadedBytes, totalBytes = :totalBytes WHERE id = :id")
+    suspend fun updateProgress(id: Long, status: DownloadStatus, downloadedBytes: Long, totalBytes: Long)
+
+    @Query("UPDATE downloads SET subtitlesJson = :json WHERE id = :id")
+    suspend fun setSubtitles(id: Long, json: String)
+
+    @Query("DELETE FROM downloads WHERE id = :id")
+    suspend fun delete(id: Long)
+
+    @Query("DELETE FROM downloads")
+    suspend fun clear()
+}
+
+@Dao
 interface FavoriteDao {
 
     @Query("SELECT * FROM favorites ORDER BY addedAt DESC")

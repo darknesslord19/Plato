@@ -42,6 +42,9 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
     val alwaysResume by container.settings.alwaysResume
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_ALWAYS_RESUME)
 
+    val downloadWifiOnly by container.settings.downloadWifiOnly
+        .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_DOWNLOAD_WIFI_ONLY)
+
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenHeader(title = stringResource(R.string.settings_player), onBack = onBack)
         Column(
@@ -51,21 +54,29 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
             SubtitlePreview(style)
             SubtitleStyleControls(style) { transform -> scope.launch { container.settings.updateSubtitleStyle(transform) } }
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-            Row(
-                modifier = Modifier.fillMaxWidth().toggleable(
-                    value = alwaysResume,
-                    role = Role.Switch,
-                    onValueChange = { scope.launch { container.settings.setAlwaysResume(it) } },
-                ),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(R.string.settings_always_resume),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f).padding(vertical = 8.dp, horizontal = 0.dp),
-                )
-                Switch(checked = alwaysResume, onCheckedChange = null, modifier = Modifier.padding(start = 16.dp))
+            SwitchRow(stringResource(R.string.settings_always_resume), alwaysResume) {
+                scope.launch { container.settings.setAlwaysResume(it) }
+            }
+            // İndirmeler (Faz 4/B): Ayarlar'a yeni ana kalem eklenmez, bu ayar Oynatıcı'nın içindedir.
+            SwitchRow(stringResource(R.string.settings_download_wifi_only), downloadWifiOnly) {
+                scope.launch { container.settings.setDownloadWifiOnly(it) }
             }
         }
+    }
+}
+
+/** Tek satırlık açma/kapama: satırın tamamı dokunulur ve kumandayla odaklanır (anahtar yalnızca gösterir). */
+@Composable
+private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f).padding(vertical = 8.dp, horizontal = 0.dp),
+        )
+        Switch(checked = checked, onCheckedChange = null, modifier = Modifier.padding(start = 16.dp))
     }
 }

@@ -31,6 +31,13 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     /** Açıkken yarım kalan içerik soru sorulmadan kaldığı yerden başlar. Varsayılan açık. */
     val alwaysResume: Flow<Boolean> = store.data.map { it[ALWAYS_RESUME] ?: DEFAULT_ALWAYS_RESUME }
 
+    /** Açıkken indirmeler yalnızca ölçümsüz (Wi-Fi/ethernet) ağda sürer. Varsayılan açık (mobil veri sessizce harcanmasın). */
+    val downloadWifiOnly: Flow<Boolean> = store.data.map { it[DOWNLOAD_WIFI_ONLY] ?: DEFAULT_DOWNLOAD_WIFI_ONLY }.distinctUntilChanged()
+
+    suspend fun setDownloadWifiOnly(enabled: Boolean) {
+        store.edit { it[DOWNLOAD_WIFI_ONLY] = enabled }
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         store.edit { it[THEME] = mode.name }
     }
@@ -71,11 +78,13 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val DEFAULT_THEME = ThemeMode.Dark
         const val DEFAULT_TIMEOUT_SECONDS = 15
         const val DEFAULT_ALWAYS_RESUME = true
+        const val DEFAULT_DOWNLOAD_WIFI_ONLY = true
         val TIMEOUT_OPTIONS = listOf(10, 15, 30, 60)
 
         private val THEME = stringPreferencesKey("theme_mode")
         private val TIMEOUT = intPreferencesKey("source_timeout_seconds")
         private val ALWAYS_RESUME = booleanPreferencesKey("always_resume")
+        private val DOWNLOAD_WIFI_ONLY = booleanPreferencesKey("download_wifi_only")
         private val SUB_SIZE = stringPreferencesKey("subtitle_size")
         private val SUB_BOLD = booleanPreferencesKey("subtitle_bold")
         private val SUB_ITALIC = booleanPreferencesKey("subtitle_italic")

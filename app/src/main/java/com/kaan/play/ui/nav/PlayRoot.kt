@@ -55,6 +55,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kaan.play.R
+import com.kaan.play.data.db.DownloadEntity
+import com.kaan.play.data.download.toTarget
 import com.kaan.play.data.library.ContinueItem
 import com.kaan.play.data.library.WatchRules
 import com.kaan.play.data.model.MediaType
@@ -94,6 +96,9 @@ private const val CATEGORY_ROUTE = "home/category/{row}"
 
 /** Kaynak seçimine giden iş: hedef, başlangıç konumu ve konumun sormadan (otomatik) seçilip seçilmediği. */
 private data class PlayStart(val target: PlayTarget, val startMs: Long, val autoResumed: Boolean)
+
+/** "Devam / baştan" sorusu; [download] doluysa seçim indirilmiş kopya için. */
+private data class ResumeAsk(val target: PlayTarget, val positionMs: Long, val download: DownloadEntity?)
 
 private fun addonsRoute(startAdding: Boolean) = "settings/addons?add=$startAdding"
 private fun detailRoute(type: MediaType, id: Int) = "detail/${type.tmdbPath}/$id"
@@ -153,32 +158,53 @@ fun PlayRoot() {
     // Oynat: aktif eklenti yoksa tek yol eklenti eklemektir. Aynı içerik yarım izlenmişse önce
     // "devam / baştan" sorulur ([startAtMs] verilmişse sorulmaz); sonra kaynak seçimi, sonra oynatıcı.
     var sourcesFor by remember { mutableStateOf<PlayStart?>(null) }
-    var resumePrompt by remember { mutableStateOf<Pair<PlayTarget, Long>?>(null) }
-    fun play(target: PlayTarget, startAtMs: Long? = null, autoResumed: Boolean = false) {
+    var resumePrompt by remember { mutableStateOf<ResumeAsk?>(null) }
+    val context = LocalContext.current
+
+    // Kaynak seçimi yerine indirilmiş kopyadan (çevrimdışı) oynatır: aynı hedef, aynı geçmiş satırı.
+    fun playOffline(download: DownloadEntity, startMs: Long, autoResumed: Boolean) {
+        context.startActivity(PlaySession.offline(download, startMs, autoResumed).toIntent(context))
+    }
+
+    // Oynat: aktif eklenti yoksa tek yol eklenti eklemektir. [download] verilirse (indirilen) eklenti gerekmez ve kaynak seçimi
+    // atlanır. Aynı içerik yarım izlenmişse önce "devam / baştan" sorulur ([startAtMs] verilmişse sorulmaz).
+    fun play(target: PlayTarget, startAtMs: Long? = null, autoResumed: Boolean = false, download: DownloadEntity? = null) {
         scope.launch {
-            if (!container.hasEnabledSources()) {
+            if (download == null && !container.hasEnabledSources()) {
                 openAddons(startAdding = true)
                 return@launch
+            }
+            fun begin(startMs: Long, auto: Boolean) {
+                if (download != null) playOffline(download, startMs, auto) else sourcesFor = PlayStart(target, startMs, auto)
             }
             if (startAtMs == null) {
                 val saved = container.library.progress(target)
                 if (saved != null && WatchRules.isResumable(saved.positionMs, saved.durationMs)) {
                     // "Her zaman kaldığım yerden devam et" açıksa (varsayılan) soru sorulmadan devam edilir.
                     if (container.settings.alwaysResume.first()) {
-                        sourcesFor = PlayStart(target, saved.positionMs, autoResumed = true)
+                        begin(saved.positionMs, auto = true)
                     } else {
-                        resumePrompt = target to saved.positionMs
+                        resumePrompt = ResumeAsk(target, saved.positionMs, download)
                     }
                     return@launch
                 }
             }
-            sourcesFor = PlayStart(target, startAtMs ?: 0L, autoResumed = autoResumed && (startAtMs ?: 0L) > 0)
+            begin(startAtMs ?: 0L, autoResumed && (startAtMs ?: 0L) > 0)
         }
     }
+
+    // Kütüphane > İndirilenler: internetsiz oynar; kaldığı yerden devam ve geçmiş çevrimiçi oynatmayla ortaktır.
+    fun playDownload(download: DownloadEntity) = play(download.toTarget(), download = download)
 
     // Geçmiş/"devam et" kaydından oynatma. IMDb kimliği için TMDB'ye bir kez sorulur; olmazsa detay açılır.
     fun playEntry(entry: WatchHistoryEntity, season: Int?, episode: Int?, startAt: Long) {
         scope.launch {
+            // İçerik indirilmişse internete ve TMDB'ye hiç gerek yok: indirilmiş kopyadan oynar (çevrimdışı "devam et").
+            val request = StreamRequest(entry.tmdbId, null, entry.type, season, episode)
+            container.downloads.completedFor(request)?.let { download ->
+                play(download.toTarget(), startAt, autoResumed = true, download = download)
+                return@launch
+            }
             val imdbId = try {
                 container.tmdb.detail(entry.type, entry.tmdbId).imdbId
             } catch (_: TmdbException) {
@@ -209,7 +235,6 @@ fun PlayRoot() {
         playEntry(entry, entry.season.takeIf { isSeries }, entry.episode.takeIf { isSeries }, startAt)
     }
 
-    val context = LocalContext.current
     fun onSourcePicked(stream: PlayableStream) {
         val start = sourcesFor ?: return
         sourcesFor = null
@@ -306,7 +331,7 @@ fun PlayRoot() {
             }
             composable(Tab.Search.route) { ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { SearchScreen(onOpenDetail = ::openDetail) } }
             composable(Tab.Library.route) {
-                ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { LibraryScreen(onOpenDetail = ::openDetail, onPlayEntry = ::playHistory) }
+                ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { LibraryScreen(onOpenDetail = ::openDetail, onPlayEntry = ::playHistory, onPlayDownload = ::playDownload) }
             }
             composable(Tab.Settings.route) {
                 ReadableWidth {
@@ -367,20 +392,20 @@ fun PlayRoot() {
     }
 
     sourcesFor?.let { start ->
-        SourcesSheet(request = start.target.request, onDismiss = { sourcesFor = null }, onPicked = ::onSourcePicked)
+        SourcesSheet(target = start.target, onDismiss = { sourcesFor = null }, onPicked = ::onSourcePicked)
     }
 
-    resumePrompt?.let { (target, positionMs) ->
+    resumePrompt?.let { (target, positionMs, download) ->
         AlertDialog(
             onDismissRequest = { resumePrompt = null },
             title = { Text(stringResource(R.string.resume_title)) },
             confirmButton = {
-                TextButton(onClick = { resumePrompt = null; play(target, positionMs) }) {
+                TextButton(onClick = { resumePrompt = null; play(target, positionMs, download = download) }) {
                     Text(stringResource(R.string.resume_continue, formatTime(positionMs)))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { resumePrompt = null; play(target, 0L) }) {
+                TextButton(onClick = { resumePrompt = null; play(target, 0L, download = download) }) {
                     Text(stringResource(R.string.resume_restart))
                 }
             },

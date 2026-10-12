@@ -223,4 +223,36 @@
     <string name="web_refresh">Yenile</string>
     <string name="web_load_failed">Sayfa açılamadı. Bağlantını kontrol edip yenile.</string>
     <string name="about_web_blocking">Web görünümü bilinen reklamları ve açılır pencereleri engeller; her reklamı yakalamayabilir.</string>
+
+    <!-- Faz 4/B: indirme -->
+    <string name="download_channel_name">İndirmeler</string>
+    <string name="library_downloads">İndirilenler</string>
+    <string name="library_downloads_empty">Henüz indirilen bir şey yok. Çevrimdışı izlemek için kaynağın yanındaki indir simgesine dokun.</string>
+    <string name="library_downloads_delete_all">Hepsini sil</string>
+    <string name="download_delete_all_title">Tüm indirilenler silinsin mi?</string>
+    <string name="download_delete_all_message">İndirilen videolar ve altyazıları bu cihazdan silinir. Geçmişin etkilenmez.</string>
+    <string name="download_delete_title">Bu indirme silinsin mi?</string>
+    <string name="download_delete_message">%1$s bu cihazdan silinir.</string>
+    <string name="download_delete_confirm">Sil</string>
+    <string name="download_episode">S%1$d B%2$d</string>
+    <string name="download_state_queued">Sırada</string>
+    <string name="download_state_wifi">Wi-Fi bekleniyor</string>
+    <string name="download_state_network">Bağlantı bekleniyor</string>
+    <string name="download_state_paused">Duraklatıldı</string>
+    <string name="download_state_failed">İndirilemedi. Kaynağın süresi dolmuş olabilir.</string>
+    <string name="download_action">İndir</string>
+    <string name="download_in_progress">İndiriliyor</string>
+    <string name="download_done">İndirildi</string>
+    <string name="download_pause">İndirmeyi duraklat</string>
+    <string name="download_resume">İndirmeyi sürdür</string>
+    <string name="download_cancel">İndirmeyi iptal et</string>
+    <string name="download_remove">İndirmeyi sil</string>
+    <string name="download_started">İndirme başladı. Kütüphane\'den takip edebilirsin.</string>
+    <string name="download_unavailable">Bu kaynak indirilemiyor, başka kaynak dene.</string>
+    <string name="download_unreachable">Bu kaynağa ulaşılamadı. Bağlantını kontrol et.</string>
+    <string name="download_no_space">Yeterli alan yok: yaklaşık %1$s gerekli, %2$s boş.</string>
+    <string name="download_already">Bu zaten indirilenlerde.</string>
+    <string name="download_notifications_off">Bildirimler kapalı; ilerlemeyi durum çubuğunda görmezsin. İndirme yine de sürer.</string>
+    <string name="settings_download_wifi_only">Sadece Wi-Fi\'de indir</string>
+    <string name="player_error_download">Bu indirme oynatılamıyor. Silip yeniden indir.</string>
 </resources>

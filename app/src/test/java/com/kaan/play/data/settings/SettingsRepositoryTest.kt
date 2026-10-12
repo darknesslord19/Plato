@@ -76,4 +76,17 @@ class SettingsRepositoryTest {
         assertEquals(ThemeMode.Dark, repo.themeMode.first())
         assertEquals(15, repo.sourceTimeoutSeconds.first())
     }
+
+    @Test
+    fun downloadWifiOnlyDefaultsToOn() = runBlocking {
+        assertEquals(true, repo.downloadWifiOnly.first())
+        assertEquals(true, SettingsRepository.DEFAULT_DOWNLOAD_WIFI_ONLY)
+    }
+
+    @Test
+    fun downloadWifiOnlyCanBeSwitchedOff() = runBlocking {
+        repo.setDownloadWifiOnly(false)
+        assertEquals(false, repo.downloadWifiOnly.first())
+        assertEquals(ThemeMode.Dark, repo.themeMode.first()) // diğer ayar etkilenmez
+    }
 }

@@ -107,6 +107,8 @@ fun PlayerScreen(
     subtitles: SubtitleController,
     target: PlayTarget,
     showResumeNotice: Boolean,
+    /** false: indirilmiş kopya oynuyor, internetten başka kaynak seçilemez (düğme ve menü satırı yok). */
+    canSwitchSource: Boolean = true,
     onBack: () -> Unit,
     onSourcePicked: (PlayableStream) -> Unit,
 ) {
@@ -272,7 +274,7 @@ fun PlayerScreen(
                 onSeek = ::seek,
                 onSeekTo = { controller.seekTo(it); position = it; bump() },
                 onSubtitles = { showSubtitles = true },
-                onSources = { showSources = true },
+                onSources = if (canSwitchSource) ({ showSources = true }) else null,
                 onInteract = ::bump,
             )
         }
@@ -294,13 +296,15 @@ fun PlayerScreen(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 Text(
-                    text = stringResource(error.messageRes()),
+                    text = stringResource(if (canSwitchSource) error.messageRes() else R.string.player_error_download),
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White,
                     textAlign = TextAlign.Center,
                 )
-                Button(onClick = { showSources = true }, modifier = Modifier.focusRequester(playFocus)) {
-                    Text(stringResource(R.string.player_error_pick))
+                if (canSwitchSource) {
+                    Button(onClick = { showSources = true }, modifier = Modifier.focusRequester(playFocus)) {
+                        Text(stringResource(R.string.player_error_pick))
+                    }
                 }
             }
         }
@@ -309,7 +313,7 @@ fun PlayerScreen(
     if (showMenu) {
         PlayerMenu(
             onSubtitles = { showMenu = false; showSubtitles = true },
-            onSources = { showMenu = false; showSources = true },
+            onSources = if (canSwitchSource) ({ showMenu = false; showSources = true }) else null,
             onDismiss = { showMenu = false },
         )
     }
@@ -348,7 +352,7 @@ fun PlayerScreen(
 
     if (showSources) {
         SourcesSheet(
-            request = target.request,
+            target = target,
             onDismiss = { showSources = false },
             onPicked = { showSources = false; resumeNotice = false; onSourcePicked(it) },
         )
@@ -418,7 +422,7 @@ private fun Controls(
     onSeek: (Long) -> Unit,
     onSeekTo: (Long) -> Unit,
     onSubtitles: () -> Unit,
-    onSources: () -> Unit,
+    onSources: (() -> Unit)?,
     onInteract: () -> Unit,
 ) {
     val tint = Color.White
@@ -451,8 +455,10 @@ private fun Controls(
                     Icon(PlayIcons.Subtitles, contentDescription = stringResource(R.string.player_subtitles), tint = tint)
                 }
             }
-            IconButton(onClick = onSources) {
-                Icon(PlayIcons.SwitchSource, contentDescription = stringResource(R.string.player_sources), tint = tint)
+            if (onSources != null) {
+                IconButton(onClick = onSources) {
+                    Icon(PlayIcons.SwitchSource, contentDescription = stringResource(R.string.player_sources), tint = tint)
+                }
             }
         }
 
@@ -589,14 +595,14 @@ internal fun formatTime(ms: Long): String {
 
 /** Kumandada Aşağı ile açılan küçük menü: altyazı ya da kaynak değiştir. İlk satır başlangıç odağındadır. */
 @Composable
-private fun PlayerMenu(onSubtitles: () -> Unit, onSources: () -> Unit, onDismiss: () -> Unit) {
+private fun PlayerMenu(onSubtitles: () -> Unit, onSources: (() -> Unit)?, onDismiss: () -> Unit) {
     val focus = rememberInitialFocus()
     AlertDialog(
         onDismissRequest = onDismiss,
         text = {
             Column {
                 MenuRow(PlayIcons.Subtitles, stringResource(R.string.player_subtitles), onSubtitles, Modifier.focusRequester(focus))
-                MenuRow(PlayIcons.SwitchSource, stringResource(R.string.player_sources), onSources)
+                if (onSources != null) MenuRow(PlayIcons.SwitchSource, stringResource(R.string.player_sources), onSources)
             }
         },
         confirmButton = {},

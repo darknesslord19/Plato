@@ -4,6 +4,7 @@
     <string name="app_name" translatable="false">Play</string>
     <!-- Ara noktayla ayrılmış iki parça (yıl · tür, S1 · 23 dk vb.). -->
     <string name="dot_join" translatable="false">%1$s · %2$s</string>
+    <string name="download_progress_of" translatable="false">%1$s / %2$s</string>
 
     <string name="tab_home">Home</string>
     <string name="tab_search">Search</string>
@@ -239,4 +240,36 @@
     <string name="web_refresh">Refresh</string>
     <string name="web_load_failed">The page couldn\'t be opened. Check your connection and refresh.</string>
     <string name="about_web_blocking">Website view blocks known ads and pop-ups; it may not catch every ad.</string>
+
+    <!-- Faz 4/B: indirme -->
+    <string name="download_channel_name">Downloads</string>
+    <string name="library_downloads">Downloads</string>
+    <string name="library_downloads_empty">No downloads yet. Tap the download icon next to a source to watch offline.</string>
+    <string name="library_downloads_delete_all">Delete all</string>
+    <string name="download_delete_all_title">Delete all downloads?</string>
+    <string name="download_delete_all_message">Downloaded videos and their subtitles will be removed from this device. Your history isn\'t affected.</string>
+    <string name="download_delete_title">Delete this download?</string>
+    <string name="download_delete_message">%1$s will be removed from this device.</string>
+    <string name="download_delete_confirm">Delete</string>
+    <string name="download_episode">S%1$d E%2$d</string>
+    <string name="download_state_queued">Waiting</string>
+    <string name="download_state_wifi">Waiting for Wi-Fi</string>
+    <string name="download_state_network">Waiting for a connection</string>
+    <string name="download_state_paused">Paused</string>
+    <string name="download_state_failed">Failed. The source may have expired.</string>
+    <string name="download_action">Download</string>
+    <string name="download_in_progress">Downloading</string>
+    <string name="download_done">Downloaded</string>
+    <string name="download_pause">Pause download</string>
+    <string name="download_resume">Resume download</string>
+    <string name="download_cancel">Cancel download</string>
+    <string name="download_remove">Delete download</string>
+    <string name="download_started">Download started. You can follow it in Library.</string>
+    <string name="download_unavailable">This source can\'t be downloaded. Try another source.</string>
+    <string name="download_unreachable">Couldn\'t reach this source. Check your connection.</string>
+    <string name="download_no_space">Not enough space: about %1$s needed, %2$s free.</string>
+    <string name="download_already">This is already in your downloads.</string>
+    <string name="download_notifications_off">Notifications are off, so you won\'t see progress in the status bar. The download still continues.</string>
+    <string name="settings_download_wifi_only">Download on Wi-Fi only</string>
+    <string name="player_error_download">This download can\'t be played. Delete it and download it again.</string>
 </resources>

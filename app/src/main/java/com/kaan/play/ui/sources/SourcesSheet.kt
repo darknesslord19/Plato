@@ -1,6 +1,28 @@
 package com.kaan.play.ui.sources
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.text.format.Formatter
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kaan.play.data.download.DownloadBadge
+import com.kaan.play.data.download.DownloadRules
+import com.kaan.play.data.download.Probe
+import com.kaan.play.data.download.StartResult
+import com.kaan.play.data.stream.PlayTarget
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,7 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kaan.play.R
 import com.kaan.play.data.stream.PlayableStream
-import com.kaan.play.data.stream.StreamRequest
+
 import com.kaan.play.ui.components.FilterPill
 import com.kaan.play.ui.components.IconButton
 import com.kaan.play.ui.nav.PlayIcons
@@ -57,10 +79,65 @@ import kotlinx.coroutines.flow.onCompletion
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SourcesSheet(request: StreamRequest, onDismiss: () -> Unit, onPicked: (PlayableStream) -> Unit) {
+fun SourcesSheet(target: PlayTarget, onDismiss: () -> Unit, onPicked: (PlayableStream) -> Unit) {
+    val request = target.request
     val container = rememberContainer()
     var refresh by remember { mutableIntStateOf(0) }
     var filter by remember { mutableStateOf<Long?>(null) }
+
+    // ---- indirme ----
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val downloads by container.downloads.rows.collectAsStateWithLifecycle(initialValue = emptyList())
+    val downloadOfContent = downloads.firstOrNull {
+        it.tmdbId == request.tmdbId && it.type == request.type && it.season == (request.season ?: 0) && it.episode == (request.episode ?: 0)
+    }
+    val starting = remember { mutableStateListOf<String>() }
+    var notice by remember { mutableStateOf<Notice?>(null) }
+    var pendingDownload by remember { mutableStateOf<PlayableStream?>(null) }
+
+    fun beginDownload(stream: PlayableStream, notificationsOff: Boolean) {
+        if (stream.url in starting) return
+        starting += stream.url
+        scope.launch {
+            val result = container.downloads.start(target, stream)
+            starting -= stream.url
+            notice = when (result) {
+                is StartResult.Started ->
+                    Notice(if (notificationsOff) R.string.download_notifications_off else R.string.download_started)
+                is StartResult.AlreadyDownloaded -> Notice(R.string.download_already)
+                is StartResult.NotDownloadable ->
+                    Notice(if (result.reason == Probe.Reason.Network) R.string.download_unreachable else R.string.download_unavailable)
+                is StartResult.NoSpace -> Notice(
+                    R.string.download_no_space,
+                    Formatter.formatShortFileSize(context, result.neededBytes),
+                    Formatter.formatShortFileSize(context, result.freeBytes),
+                )
+            }
+        }
+    }
+
+    // Android 13+: bildirim izni ilk indirmede istenir. Reddedilse de indirme başlar (yalnızca bildirimde ilerleme görünmez).
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        pendingDownload?.let { beginDownload(it, notificationsOff = !granted) }
+        pendingDownload = null
+    }
+    fun onDownloadClicked(stream: PlayableStream) {
+        val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            pendingDownload = stream
+            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            beginDownload(stream, notificationsOff = false)
+        }
+    }
+    LaunchedEffect(notice) {
+        if (notice != null) {
+            delay(NOTICE_MS)
+            notice = null
+        }
+    }
     val state by produceState(SourcesState(), request, refresh) {
         value = SourcesState()
         // Yenile (refresh > 0) eklenti önbelleğini yok sayar: sonuçlar yeniden çalıştırılarak alınır.
@@ -106,6 +183,7 @@ fun SourcesSheet(request: StreamRequest, onDismiss: () -> Unit, onPicked: (Playa
                     Icon(PlayIcons.Refresh, contentDescription = stringResource(R.string.sources_refresh))
                 }
             }
+            notice?.let { SoftLine(stringResource(it.res, *it.args.toTypedArray())) }
             if (addons.size >= 2) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
@@ -131,7 +209,11 @@ fun SourcesSheet(request: StreamRequest, onDismiss: () -> Unit, onPicked: (Playa
                         SourceRow(
                             stream,
                             isRecommended = stream == state.recommended,
+                            badge = DownloadRules.badge(downloadOfContent, stream.url, starting = stream.url in starting),
+                            downloadFraction = downloadOfContent?.takeIf { it.sourceUrl == stream.url }
+                                ?.let { DownloadRules.fraction(it.downloadedBytes, it.totalBytes) },
                             onClick = { onPicked(stream) },
+                            onDownload = { onDownloadClicked(stream) },
                             modifier = if (stream == focusStream) Modifier.focusRequester(focus) else Modifier,
                         )
                     }
@@ -190,10 +272,25 @@ private fun SoftLine(text: String) {
     )
 }
 
+/** Kısa süreli, biçim argümanlı bildirim satırı (indirme sonuçları). */
+private class Notice(@androidx.annotation.StringRes val res: Int, vararg args: Any) {
+    val args: List<Any> = args.toList()
+}
+
+private const val NOTICE_MS = 5_000L
+
 @Composable
-private fun SourceRow(stream: PlayableStream, isRecommended: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun SourceRow(
+    stream: PlayableStream,
+    isRecommended: Boolean,
+    badge: DownloadBadge,
+    downloadFraction: Float?,
+    onClick: () -> Unit,
+    onDownload: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -213,6 +310,41 @@ private fun SourceRow(stream: PlayableStream, isRecommended: Boolean, onClick: (
         }
         if (isRecommended) {
             Icon(PlayIcons.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+        DownloadButton(badge, downloadFraction, onDownload)
+    }
+}
+
+/**
+ * Satır sonundaki küçük indirme simgesi. İndirilmemiş: aşağı ok (dokununca indirir). İniyor/sırada/duraklatılmış: ilerleme
+ * halkası (yönetim Kütüphane'de). İndirildi: onay işaretli tepsi. Başarısız: hata renginde ok, dokununca yeniden dener.
+ * Satıra dokunmak yine OYNATIR; bu düğme ayrı odaklanır (kumandada Sağ).
+ */
+@Composable
+private fun DownloadButton(badge: DownloadBadge, fraction: Float?, onClick: () -> Unit) {
+    when (badge) {
+        DownloadBadge.None, DownloadBadge.Failed -> IconButton(onClick = onClick) {
+            Icon(
+                PlayIcons.Download,
+                contentDescription = stringResource(R.string.download_action),
+                tint = if (badge == DownloadBadge.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DownloadBadge.Active -> {
+            val label = stringResource(R.string.download_in_progress)
+            Box(Modifier.size(48.dp).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
+                if (fraction != null && fraction > 0f) {
+                    CircularProgressIndicator(progress = { fraction }, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                } else {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                }
+            }
+        }
+        DownloadBadge.Done -> {
+            val label = stringResource(R.string.download_done)
+            Box(Modifier.size(48.dp).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
+                Icon(PlayIcons.DownloadDone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }

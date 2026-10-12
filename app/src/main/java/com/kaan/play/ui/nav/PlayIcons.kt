@@ -175,6 +175,27 @@ object PlayIcons {
         icon("Check") { line { moveTo(5f, 12.5f); lineTo(10f, 17.5f); lineTo(19f, 7f) } }
     }
 
+    /** Aşağı ok + tepsi çizgisi: indir. */
+    val Download: ImageVector by lazy {
+        icon("Download") {
+            line {
+                moveTo(12f, 4.5f); verticalLineTo(14.5f)
+                moveTo(7.5f, 10.5f); lineTo(12f, 15f); lineTo(16.5f, 10.5f)
+                moveTo(5f, 19.5f); horizontalLineTo(19f)
+            }
+        }
+    }
+
+    /** Tepsi çizgisinin üstünde onay işareti: indirildi. */
+    val DownloadDone: ImageVector by lazy {
+        icon("DownloadDone") {
+            line {
+                moveTo(7f, 10.5f); lineTo(11f, 14.5f); lineTo(17.5f, 6.5f)
+                moveTo(5f, 19.5f); horizontalLineTo(19f)
+            }
+        }
+    }
+
     val Back: ImageVector by lazy {
         icon("Back") {
             line {

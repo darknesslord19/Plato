@@ -8,9 +8,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [
         AddonEntity::class, PluginEntity::class, WatchHistoryEntity::class, FavoriteEntity::class,
-        SubtitleLanguageEntity::class, SubtitleOffsetEntity::class,
+        SubtitleLanguageEntity::class, SubtitleOffsetEntity::class, DownloadEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class PlayDatabase : RoomDatabase() {
@@ -19,8 +19,31 @@ abstract class PlayDatabase : RoomDatabase() {
     abstract fun watchHistoryDao(): WatchHistoryDao
     abstract fun favoriteDao(): FavoriteDao
     abstract fun subtitleDao(): SubtitleDao
+    abstract fun downloadDao(): DownloadDao
 
     companion object {
+        /**
+         * 3 -> 4 (Faz 4/B): indirilenler tablosu. Mevcut tablolara dokunulmaz. SQL, Room'un dışa aktardığı `schemas/4.json`
+         * ile birebir aynıdır.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `downloads` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`tmdbId` INTEGER NOT NULL, `imdbId` TEXT, `type` TEXT NOT NULL, `season` INTEGER NOT NULL, " +
+                        "`episode` INTEGER NOT NULL, `title` TEXT NOT NULL, `posterPath` TEXT, `sourceName` TEXT NOT NULL, " +
+                        "`sourceUrl` TEXT NOT NULL, `headersJson` TEXT NOT NULL, `status` TEXT NOT NULL, " +
+                        "`downloadedBytes` INTEGER NOT NULL, `totalBytes` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, " +
+                        "`subtitlesJson` TEXT NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_downloads_tmdbId_type_season_episode` " +
+                        "ON `downloads` (`tmdbId`, `type`, `season`, `episode`)",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_downloads_createdAt` ON `downloads` (`createdAt`)")
+            }
+        }
+
         /**
          * 2 -> 3 (Faz 4/A): altyazı dili ve senkron kaydırması için iki yeni tablo. Mevcut tablolara dokunulmaz.
          * SQL, Room'un dışa aktardığı `schemas/3.json` ile birebir aynıdır.

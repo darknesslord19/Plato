@@ -14,6 +14,8 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.datasource.cache.Cache
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -43,15 +45,20 @@ data class EmbeddedSubtitle(val index: Int, val language: String?, val selected:
  * kendisi gösterir (kaydırma anında uygulansın diye). Burada yalnızca videonun kendi altyazı parçaları seçilir.
  */
 @OptIn(UnstableApi::class)
-class PlaybackController(context: Context, client: OkHttpClient) : SubtitleHost {
+class PlaybackController(context: Context, client: OkHttpClient, offlineCache: Cache? = null) : SubtitleHost {
 
     @Volatile private var headers: Map<String, String> = emptyMap()
 
     val player: ExoPlayer = ExoPlayer.Builder(context)
         .setMediaSourceFactory(
             DefaultMediaSourceFactory(
-                ResolvingDataSource.Factory(OkHttpDataSource.Factory(client)) { spec ->
-                    if (headers.isEmpty()) spec else spec.withAdditionalHeaders(headers)
+                if (offlineCache != null) {
+                    // İndirilmiş kopya: yalnızca önbellekten okunur (üst akış yok); internet hiç kullanılmaz.
+                    CacheDataSource.Factory().setCache(offlineCache).setCacheWriteDataSinkFactory(null)
+                } else {
+                    ResolvingDataSource.Factory(OkHttpDataSource.Factory(client)) { spec ->
+                        if (headers.isEmpty()) spec else spec.withAdditionalHeaders(headers)
+                    }
                 },
             ),
         )
@@ -99,6 +106,19 @@ class PlaybackController(context: Context, client: OkHttpClient) : SubtitleHost 
         player.setMediaItem(item, startMs)
         player.prepare()
         player.playWhenReady = true
+    }
+
+    /** İndirilmiş kopyayı oynatır ([item] indirme isteğinden gelir; HLS/DASH'te indirilen kaliteyle sınırlıdır). */
+    fun loadDownloaded(item: MediaItem, startMs: Long) {
+        ui = ui.copy(error = null, ended = false, buffering = true)
+        player.setMediaItem(item, startMs)
+        player.prepare()
+        player.playWhenReady = true
+    }
+
+    /** İndirilen kopya bulunamadı (silinmiş/bozuk): oynatıcı hata ekranını gösterir. */
+    fun markUnavailable() {
+        ui = ui.copy(error = PlaybackError.Unavailable, buffering = false)
     }
 
     fun togglePlay() {

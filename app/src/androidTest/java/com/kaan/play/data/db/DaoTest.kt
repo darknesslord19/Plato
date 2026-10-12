@@ -227,4 +227,71 @@ class DaoTest {
         assertEquals(500L, dao.offset("tv:1:1:2", "abc"))
         assertNull(dao.offset("tv:1:1:3", "abc"))
     }
+
+    // ---- indirilenler (Faz 4/B) ----
+
+    private fun download(
+        tmdbId: Int, type: MediaType = MediaType.Movie, season: Int = 0, episode: Int = 0, at: Long = tmdbId.toLong(),
+        status: DownloadStatus = DownloadStatus.Queued,
+    ) = DownloadEntity(
+        tmdbId = tmdbId, imdbId = "tt$tmdbId", type = type, season = season, episode = episode, title = "T$tmdbId",
+        posterPath = null, sourceName = "Eklenti", sourceUrl = "https://x/$tmdbId.mp4", status = status, createdAt = at,
+    )
+
+    @Test
+    fun downloadsAreListedNewestFirstAndFoundByContent() = runBlocking {
+        val dao = db.downloadDao()
+        val a = dao.insert(download(1, at = 100))
+        val b = dao.insert(download(2, MediaType.Tv, 1, 3, at = 300))
+        val c = dao.insert(download(3, at = 200))
+
+        assertEquals(listOf(b, c, a), dao.observeAll().first().map { it.id })
+        assertEquals(b, dao.findContent(2, MediaType.Tv, 1, 3)?.id)
+        assertEquals(a, dao.findContent(1, MediaType.Movie, 0, 0)?.id)
+        assertNull(dao.findContent(2, MediaType.Tv, 1, 4)) // başka bölüm
+        assertNull(dao.findContent(1, MediaType.Tv, 0, 0)) // aynı kimlik, başka tür
+        assertEquals("T3", dao.find(c)?.title)
+    }
+
+    @Test
+    fun sameContentCannotBeInsertedTwice() = runBlocking {
+        val dao = db.downloadDao()
+        dao.insert(download(1))
+        try {
+            dao.insert(download(1).copy(sourceUrl = "https://x/baska.mp4"))
+            org.junit.Assert.fail("Benzersiz indeks ikinci satırı reddetmeli")
+        } catch (_: android.database.sqlite.SQLiteConstraintException) {
+        }
+        assertEquals(1, dao.all().size)
+    }
+
+    @Test
+    fun progressAndSubtitleUpdatesTouchOnlyTheirColumnsAndMissingRowsAreIgnored() = runBlocking {
+        val dao = db.downloadDao()
+        val id = dao.insert(download(1))
+
+        dao.updateProgress(id, DownloadStatus.Downloading, 500, 2_000)
+        dao.setSubtitles(id, "[{\"url\":\"u\",\"language\":\"tr\",\"origin\":\"o\",\"file\":\"f\"}]")
+        val row = dao.find(id)!!
+        assertEquals(DownloadStatus.Downloading, row.status)
+        assertEquals(500L, row.downloadedBytes)
+        assertEquals(2_000L, row.totalBytes)
+        assertTrue(row.subtitlesJson.contains("\"tr\""))
+        assertEquals("T1", row.title) // diğer sütunlar değişmedi
+
+        dao.delete(id)
+        dao.updateProgress(id, DownloadStatus.Completed, 1, 1) // silinmiş satır: hiçbir şey yapmaz, hata vermez
+        assertNull(dao.find(id))
+    }
+
+    @Test
+    fun clearRemovesEveryDownloadButNotHistory() = runBlocking {
+        db.watchHistoryDao().upsert(history(1, position = 10_000, at = 1))
+        val dao = db.downloadDao()
+        dao.insert(download(1))
+        dao.insert(download(2))
+        dao.clear()
+        assertTrue(dao.all().isEmpty())
+        assertEquals(1, db.watchHistoryDao().observeHistory().first().size)
+    }
 }

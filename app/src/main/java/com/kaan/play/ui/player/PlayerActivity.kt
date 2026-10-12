@@ -13,8 +13,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
 import com.kaan.play.PlayApp
+import com.kaan.play.data.download.DownloadedSubtitleLoader
 import com.kaan.play.data.library.WatchRules
 import com.kaan.play.data.stream.PlayableStream
+import com.kaan.play.data.subtitle.SubtitleProvider
+import kotlinx.coroutines.flow.emptyFlow
 import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.ui.theme.PlayTheme
 import kotlinx.coroutines.delay
@@ -43,7 +46,8 @@ class PlayerActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enterImmersive()
 
-        controller = PlaybackController(this, container.httpClient)
+        val offline = session.offline
+        controller = PlaybackController(this, container.httpClient, offlineCache = offline?.let { container.downloads.cache })
         controller.player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (!isPlaying) saveProgress() // duraklatma
@@ -60,15 +64,23 @@ class PlayerActivity : AppCompatActivity() {
             scope = lifecycleScope,
             playback = controller,
             request = session.target.request,
-            loader = container.subtitleLoader,
+            // İndirilmiş kopya: altyazılar yalnızca indirilenler (yerel dosya), altyazı addon'larına sorulmaz.
+            loader = if (offline != null) DownloadedSubtitleLoader(offline.subtitleFiles) else container.subtitleLoader,
             memory = container.subtitleMemory,
-            provider = container.subtitleProvider,
+            provider = if (offline != null) SubtitleProvider { emptyFlow() } else container.subtitleProvider,
             appLanguage = { AppLanguage.effective().iso },
             persist = container.appScope,
         )
         subtitles.setStream(session.stream)
         subtitles.start()
-        controller.load(session.stream, session.startPositionMs)
+        if (offline == null) {
+            controller.load(session.stream, session.startPositionMs)
+        } else {
+            lifecycleScope.launch {
+                val item = container.downloads.mediaItem(offline.downloadId)
+                if (item == null) controller.markUnavailable() else controller.loadDownloaded(item, session.startPositionMs)
+            }
+        }
 
         setContent {
             PlayTheme(darkTheme = true) {
@@ -77,6 +89,7 @@ class PlayerActivity : AppCompatActivity() {
                     subtitles = subtitles,
                     target = session.target,
                     showResumeNotice = session.autoResumed && session.startPositionMs > 0,
+                    canSwitchSource = offline == null,
                     onBack = ::finish,
                     onSourcePicked = ::switchSource,
                 )
