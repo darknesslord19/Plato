@@ -63,8 +63,10 @@ fun SourcesSheet(request: StreamRequest, onDismiss: () -> Unit, onPicked: (Playa
     var filter by remember { mutableStateOf<Long?>(null) }
     val state by produceState(SourcesState(), request, refresh) {
         value = SourcesState()
-        value = value.copy(asked = container.streams.sources(request))
-        container.streams.streams(request)
+        // Yenile (refresh > 0) eklenti önbelleğini yok sayar: sonuçlar yeniden çalıştırılarak alınır.
+        val asked = request.copy(refresh = refresh > 0)
+        value = value.copy(asked = container.streams.sources(asked))
+        container.streams.streams(asked)
             .onCompletion { cause -> if (cause == null) value = value.finished() }
             .collect { value += it }
     }

@@ -66,6 +66,7 @@ import com.kaan.play.ui.player.PlaySession
 import com.kaan.play.ui.player.formatTime
 import com.kaan.play.ui.addons.AddonsScreen
 import com.kaan.play.ui.addons.InstalledAddonsScreen
+import com.kaan.play.ui.addons.PluginSettingsScreen
 import com.kaan.play.ui.addons.RepositoriesScreen
 import com.kaan.play.ui.detail.DetailScreen
 import com.kaan.play.ui.home.CategoryScreen
@@ -85,6 +86,7 @@ import kotlinx.coroutines.launch
 private const val ADDONS_ROUTE = "settings/addons?add={add}"
 private const val ADDONS_REPOS_ROUTE = "settings/addons/repos"
 private const val ADDONS_INSTALLED_ROUTE = "settings/addons/installed"
+private const val PLUGIN_ROUTE = "settings/addons/plugin/{id}"
 private const val PLAYER_SETTINGS_ROUTE = "settings/player"
 private const val ABOUT_ROUTE = "settings/about"
 private const val DETAIL_ROUTE = "detail/{type}/{id}"
@@ -154,7 +156,7 @@ fun PlayRoot() {
     var resumePrompt by remember { mutableStateOf<Pair<PlayTarget, Long>?>(null) }
     fun play(target: PlayTarget, startAtMs: Long? = null, autoResumed: Boolean = false) {
         scope.launch {
-            if (container.addons.enabledAddons().isEmpty()) {
+            if (!container.hasEnabledSources()) {
                 openAddons(startAdding = true)
                 return@launch
             }
@@ -330,7 +332,19 @@ fun PlayRoot() {
                 }
             }
             composable(ADDONS_REPOS_ROUTE) { ReadableWidth { RepositoriesScreen(onBack = { navController.popBackStack() }) } }
-            composable(ADDONS_INSTALLED_ROUTE) { ReadableWidth { InstalledAddonsScreen(onBack = { navController.popBackStack() }) } }
+            composable(ADDONS_INSTALLED_ROUTE) {
+                ReadableWidth {
+                    InstalledAddonsScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenPlugin = { navController.navigate("settings/addons/plugin/$it") },
+                    )
+                }
+            }
+            composable(PLUGIN_ROUTE, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
+                ReadableWidth {
+                    PluginSettingsScreen(pluginId = entry.arguments?.getLong("id") ?: 0L, onBack = { navController.popBackStack() })
+                }
+            }
             composable(ABOUT_ROUTE) { ReadableWidth { AboutScreen(onBack = { navController.popBackStack() }) } }
             composable(
                 route = DETAIL_ROUTE,

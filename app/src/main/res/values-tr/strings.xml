@@ -155,6 +155,8 @@
     </plurals>
     <string name="repos_update">Güncelle</string>
     <string name="repos_updated">Güncellendi</string>
+    <string name="plugin_enabled">Açık</string>
+    <string name="plugin_settings_failed">Ayarlar yüklenemedi.</string>
     <string name="repos_remove">Depoyu kaldır</string>
     <string name="repos_remove_title">Depo kaldırılsın mı?</string>
     <string name="repos_remove_message">“%1$s” ve eklentileri Play\'den kaldırılacak.</string>

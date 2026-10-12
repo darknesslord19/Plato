@@ -15,6 +15,8 @@ data class StreamRequest(
     val type: MediaType,
     val season: Int? = null,
     val episode: Int? = null,
+    /** true: önbellekteki (eklenti) sonuçları yok say, yeniden çalıştır (kaynak listesindeki Yenile). */
+    val refresh: Boolean = false,
 ) {
     /**
      * Addon'a giden kimlik: film `tt123`, dizi `tt123:sezon:bölüm`.

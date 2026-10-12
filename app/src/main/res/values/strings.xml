@@ -172,6 +172,8 @@
     </plurals>
     <string name="repos_update">Update</string>
     <string name="repos_updated">Updated</string>
+    <string name="plugin_enabled">Enabled</string>
+    <string name="plugin_settings_failed">Settings could not be loaded.</string>
     <string name="repos_remove">Remove repository</string>
     <string name="repos_remove_title">Remove repository?</string>
     <string name="repos_remove_message">“%1$s” and its addons will be removed from Play.</string>

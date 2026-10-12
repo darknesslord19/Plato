@@ -33,7 +33,7 @@ data class PluginLimits(
     val requestTimeoutMs: Long = 20_000,
     val maxHtmlChars: Int = 2 * 1024 * 1024,
     val maxDomNodes: Int = 200_000,
-    val memoryLimitBytes: Long = 64L * 1024 * 1024,
+    val memoryLimitBytes: Long = 32L * 1024 * 1024,
     val maxStackBytes: Long = 1L * 1024 * 1024,
     val maxStreams: Int = 200,
 )
@@ -55,6 +55,7 @@ internal class PluginHttp(
     private val limits: PluginLimits,
     private val tmdbHost: String = TMDB_HOST,
     private val tmdbHttpsOnly: Boolean = true,
+    private val notes: PluginHttpNotes = PluginHttpNotes(),
 ) {
     private val client: OkHttpClient = policy.apply(base.newBuilder())
         .cookieJar(MemoryCookieJar())
@@ -77,6 +78,7 @@ internal class PluginHttp(
         val rawUrl = opts.str("url") ?: return failure("bad url")
         val parsed = rawUrl.toHttpUrlOrNull() ?: return failure("bad url")
         val (url, usesTmdbKey) = substituteTmdbKey(parsed)
+        val host = parsed.host // tanı notlarında yalnızca ana makine adı (yol/sorgu ve dolayısıyla anahtar asla)
 
         val request = try {
             buildRequest(url, opts)
@@ -87,6 +89,7 @@ internal class PluginHttp(
         val follow = !usesTmdbKey && opts.str("redirect") != "manual"
         return try {
             policy.execute(client, request, follow).use { response ->
+                if (!response.isSuccessful) notes.add(host, response.code.toString())
                 val source = response.body.source()
                 val cap = limits.maxResponseBytes.toLong()
                 source.request(cap + 1)
@@ -112,8 +115,10 @@ internal class PluginHttp(
                 }.toString()
             }
         } catch (e: BlockedAddressException) {
+            notes.add(host, "blocked")
             failure("blocked")
         } catch (e: IOException) {
+            notes.add(host, "network error")
             failure("network error")
         } catch (e: IllegalArgumentException) {
             failure("bad request")
@@ -219,4 +224,16 @@ internal class MemoryCookieJar : CookieJar {
         store.removeAll { it.expiresAt <= now }
         return store.filter { it.matches(url) }
     }
+}
+
+/** Ağ köprüsünün kısa tanı kayıtları (ana makine + durum). Adres yolu/sorgusu içermez; arayüzde gösterilmez. */
+internal class PluginHttpNotes {
+    private val list = java.util.concurrent.CopyOnWriteArrayList<String>()
+
+    fun add(host: String, what: String) {
+        val entry = "$host $what"
+        if (list.size < 8 && entry !in list) list += entry
+    }
+
+    fun snapshot(): List<String> = list.toList()
 }

@@ -15,10 +15,13 @@ import com.kaan.play.data.net.PlayJson
 import com.kaan.play.data.plugin.FilePluginCodeStore
 import com.kaan.play.data.plugin.OkHttpPluginCodeFetcher
 import com.kaan.play.data.plugin.PluginRepository
+import com.kaan.play.data.plugin.PluginSettingsRepository
+import com.kaan.play.data.plugin.PluginStreamProvider
 import com.kaan.play.data.plugin.SourceInstaller
 import com.kaan.play.data.plugin.runtime.PluginRuntime
 import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.stream.AddonStreamProvider
+import com.kaan.play.data.stream.CompositeStreamProvider
 import com.kaan.play.data.stream.StreamProvider
 import com.kaan.play.data.tmdb.TmdbRepository
 import com.kaan.play.data.web.WebSiteRepository
@@ -27,7 +30,9 @@ import com.kaan.play.i18n.AppLanguage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -88,6 +93,11 @@ class AppContainer(context: Context) {
         AddonRepository(database.addonDao(), OkHttpManifestFetcher(httpClient))
     }
 
+    /** Eklenti ayarları (`onSettings` ile bildirilen değerler), eklenti başına; ayrı bir DataStore dosyasında. */
+    val pluginSettings: PluginSettingsRepository by lazy {
+        PluginSettingsRepository(PreferenceDataStoreFactory.create { appContext.preferencesDataStoreFile("plugin_settings") })
+    }
+
     /** Nuvio eklenti depoları (JS kazıyıcılar; Faz 2). Kodlar uygulamaya özel `filesDir/plugins` içinde durur. */
     val plugins: PluginRepository by lazy {
         PluginRepository(
@@ -96,6 +106,7 @@ class AppContainer(context: Context) {
             fetcher = OkHttpManifestFetcher(httpClient),
             codeFetcher = OkHttpPluginCodeFetcher(httpClient),
             store = FilePluginCodeStore(File(appContext.filesDir, "plugins")),
+            onPluginRemoved = { pluginSettings.clear(it) },
         )
     }
 
@@ -104,10 +115,14 @@ class AppContainer(context: Context) {
 
     /**
      * JS kazıyıcı çalıştırıcısı (QuickJS). Gerçek TMDB anahtarı yalnızca ağ köprüsüne verilir, eklentilere yer tutucu görünür.
-     * Kaynak listesine bağlama sonraki turdadır; şimdilik kullanılmıyor.
+     * Aynı anda en çok [PluginStreamProvider.MAX_PARALLEL] eklenti çalışır (her biri ayrı bir QuickJS örneği).
      */
     val pluginRuntime: PluginRuntime by lazy {
-        PluginRuntime(httpClient, BuildConfig.TMDB_API_KEY, log = { level, message -> Log.d("PlayPlugin", "[$level] $message") })
+        PluginRuntime(
+            httpClient, BuildConfig.TMDB_API_KEY,
+            maxConcurrent = PluginStreamProvider.MAX_PARALLEL,
+            log = { level, message -> Log.d("PlayPlugin", "[$level] $message") },
+        )
     }
 
     /** Kullanıcının eklediği web siteleri (reklamsız web görünümü). */
@@ -115,13 +130,31 @@ class AppContainer(context: Context) {
         WebSiteRepository(database.addonDao(), AndroidWebDataCleaner(appContext))
     }
 
-    /** Faz 1'de kaynaklar yalnızca aktif addon'lardan gelir; zaman aşımı her istekte Ayarlar'dan okunur. */
+    /**
+     * Kaynaklar tek birleşik sağlayıcıdan gelir: aktif addon'lar ([AddonStreamProvider]) ve açık eklentiler
+     * ([PluginStreamProvider]) aynı akışta, aynı listede. Zaman aşımı her ikisi için de Ayarlar'daki ortak kaynak zaman aşımıdır
+     * ve her istekte yeniden okunur.
+     */
     val streams: StreamProvider by lazy {
-        AddonStreamProvider(
-            addons = addons::enabledAddons,
-            client = httpClient,
-            timeout = { settings.sourceTimeoutSeconds.first().seconds },
+        val timeout: suspend () -> kotlin.time.Duration = { settings.sourceTimeoutSeconds.first().seconds }
+        CompositeStreamProvider(
+            AddonStreamProvider(addons = addons::enabledAddons, client = httpClient, timeout = timeout),
+            PluginStreamProvider(
+                plugins = plugins::enabledPlugins,
+                code = plugins::loadCode,
+                runner = { code, request, scraperId, timeoutMs, saved -> pluginRuntime.run(code, request, scraperId, timeoutMs, saved) },
+                settings = pluginSettings::get,
+                timeout = timeout,
+            ),
         )
+    }
+
+    /** Oynatılabilecek en az bir açık kaynak (addon ya da eklenti) var mı? Yoksa Oynat "eklenti ekle"ye götürür. */
+    suspend fun hasEnabledSources(): Boolean = addons.enabledAddons().isNotEmpty() || plugins.enabledPlugins().isNotEmpty()
+
+    /** Ana sayfa boş durumu için: hiç addon ve hiç eklenti deposu yok mu? (null: henüz yüklenmedi). */
+    val hasAnySource: Flow<Boolean> by lazy {
+        combine(addons.addons, plugins.repos) { a, r -> a.isNotEmpty() || r.isNotEmpty() }
     }
 
     /**

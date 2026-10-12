@@ -66,11 +66,13 @@ fun HomeScreen(
     onAddAddon: () -> Unit,
 ) {
     val container = rememberContainer()
-    val addons by container.addons.addons.collectAsStateWithLifecycle(initialValue = null)
+    val hasSource by container.hasAnySource.collectAsStateWithLifecycle(initialValue = null)
 
-    when (val list = addons) {
-        null -> Box(Modifier.fillMaxSize()) // eklenti listesi yükleniyor: boş durum yanıp sönmesin
-        else -> if (list.isEmpty()) HomeEmptyState(onAddAddon) else HomeContent(onOpenDetail, onOpenCategory, onContinue)
+    // Hiç addon ve hiç eklenti deposu yokken boş durum; biri varsa içerik (null: yükleniyor, boş durum yanıp sönmesin).
+    when (hasSource) {
+        null -> Box(Modifier.fillMaxSize())
+        false -> HomeEmptyState(onAddAddon)
+        true -> HomeContent(onOpenDetail, onOpenCategory, onContinue)
     }
 }
 

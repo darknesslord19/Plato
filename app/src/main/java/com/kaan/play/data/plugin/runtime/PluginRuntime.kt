@@ -19,6 +19,8 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -38,9 +40,12 @@ data class PluginRequest(
 sealed interface PluginOutcome {
     val streams: List<PluginStream>
 
-    data class Success(override val streams: List<PluginStream>) : PluginOutcome
+    /** Tanı notları (adres/anahtar içermez): "ana-makine 403", "ana-makine blocked", konsol hataları... Arayüzde gösterilmez. */
+    val notes: List<String>
 
-    data class Failure(val reason: Reason, val message: String? = null) : PluginOutcome {
+    data class Success(override val streams: List<PluginStream>, override val notes: List<String> = emptyList()) : PluginOutcome
+
+    data class Failure(val reason: Reason, val message: String? = null, override val notes: List<String> = emptyList()) : PluginOutcome {
         override val streams: List<PluginStream> get() = emptyList()
     }
 
@@ -51,6 +56,11 @@ sealed interface PluginOutcome {
         /** Betik hatası: söz dizimi, `getStreams` yok, atılan istisna, bellek sınırı. */
         Script,
     }
+}
+
+internal fun PluginOutcome.withNotes(notes: List<String>): PluginOutcome = when (this) {
+    is PluginOutcome.Success -> copy(notes = notes)
+    is PluginOutcome.Failure -> copy(notes = notes)
 }
 
 /**
@@ -82,51 +92,110 @@ class PluginRuntime(
 ) {
     private val gate = Semaphore(maxConcurrent)
 
+    /** Bir çağrının ham sonucu: ya JS'in döndürdüğü JSON ya da hazır bir hata. */
+    private class Raw(val json: String?, val failure: PluginOutcome.Failure?)
+
     /** Boş/hatalı durumda boş liste. */
     suspend fun getStreams(code: String, request: PluginRequest, scraperId: String = "", timeoutMs: Long = DEFAULT_TIMEOUT_MS): List<PluginStream> =
         run(code, request, scraperId, timeoutMs).streams
 
+    /**
+     * @param settings eklentinin kayıtlı kullanıcı ayarları: `SCRAPER_SETTINGS` olarak verilir (yalnızca kaydedilenler;
+     * varsayılanları eklenti kendisi bilir).
+     */
     suspend fun run(
         code: String,
         request: PluginRequest,
         scraperId: String = "",
         timeoutMs: Long = DEFAULT_TIMEOUT_MS,
-    ): PluginOutcome = gate.withPermit {
+        settings: Map<String, JsonElement> = emptyMap(),
+    ): PluginOutcome {
+        val args = buildJsonObject {
+            put("tmdbId", request.tmdbId)
+            put("mediaType", request.mediaType)
+            put("season", request.season?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("episode", request.episode?.let { JsonPrimitive(it) } ?: JsonNull)
+        }.toString()
+        val notes = Notes()
+        val raw = call(code, scraperId, timeoutMs, JsonObject(settings).toString(), args, PluginPrelude.CALL, notes)
+        val outcome = raw.failure ?: PluginResultParser.parse(raw.json.orEmpty(), limits.maxStreams)
+        return outcome.withNotes(notes.all())
+    }
+
+    /**
+     * Eklentinin `onSettings()` düzenini alır (docs §2.4). Dışa aktarmıyorsa boş liste; çalışmazsa/zaman aşımında null.
+     */
+    suspend fun settingsLayout(code: String, scraperId: String = "", timeoutMs: Long = SETTINGS_TIMEOUT_MS): List<PluginSettingField>? {
+        val raw = call(code, scraperId, timeoutMs, "{}", "{}", PluginPrelude.CALL_SETTINGS, Notes())
+        if (raw.failure != null) return null
+        val ok = try {
+            ((PlayJson.parseToJsonElement(raw.json.orEmpty()) as? JsonObject)?.get("ok") as? JsonPrimitive)?.content == "true"
+        } catch (_: Exception) {
+            false
+        }
+        return if (ok) PluginSettingField.parseLayout(raw.json.orEmpty()) else null
+    }
+
+    /** Çağrının tanı notları: ağ köprüsünün kayıtları ve eklentinin `console.error` çıktısı. */
+    private class Notes {
+        val http = PluginHttpNotes()
+        val console = java.util.concurrent.CopyOnWriteArrayList<String>()
+        fun all(): List<String> = (http.snapshot() + console).take(12)
+    }
+
+    private suspend fun call(
+        code: String,
+        scraperId: String,
+        timeoutMs: Long,
+        settingsJson: String,
+        argsJson: String,
+        callScript: String,
+        notes: Notes,
+    ): Raw = gate.withPermit {
         withContext(dispatcher) {
             try {
-                withTimeout(timeoutMs) { execute(code, request, scraperId, timeoutMs) }
+                withTimeout(timeoutMs) { execute(code, scraperId, timeoutMs, settingsJson, argsJson, callScript, notes) }
             } catch (e: TimeoutCancellationException) {
-                PluginOutcome.Failure(PluginOutcome.Reason.Timeout)
+                Raw(null, PluginOutcome.Failure(PluginOutcome.Reason.Timeout))
             }
         }
     }
 
-    private suspend fun execute(code: String, request: PluginRequest, scraperId: String, timeoutMs: Long): PluginOutcome {
-        val http = PluginHttp(client, policy, tmdbApiKey, limits, tmdbHost, tmdbHttpsOnly)
+    private suspend fun execute(
+        code: String,
+        scraperId: String,
+        timeoutMs: Long,
+        settingsJson: String,
+        argsJson: String,
+        callScript: String,
+        notes: Notes,
+    ): Raw {
+        val http = PluginHttp(client, policy, tmdbApiKey, limits, tmdbHost, tmdbHttpsOnly, notes.http)
         val dom = DomBridge(limits)
         val captured = CompletableDeferred<String>()
+        // Her çağrı kendi QuickJS örneğini kurar ve işi bitince (hata/zaman aşımı dahil) kapatır.
         val qjs = QuickJs.create(jobDispatcher = dispatcher)
         try {
             qjs.memoryLimit = limits.memoryLimitBytes
             qjs.maxStackSize = limits.maxStackBytes
-            // Asıl süre sınırı [run] içindeki withTimeout'tur; bu, o iptal edilemeyen bir yerde takılırsa son güvencedir.
+            // Asıl süre sınırı [call] içindeki withTimeout'tur; bu, o iptal edilemeyen bir yerde takılırsa son güvencedir.
             qjs.evaluationTimeoutMillis = timeoutMs + 3_000
-            bind(qjs, http, dom, request, captured)
+            bind(qjs, http, dom, argsJson, captured, notes)
 
             // Başlangıç ve eklenti kodu: bir hata (söz dizimi...) burada çıkarsa betik hatasıdır.
             try {
-                qjs.evaluate<Any?>(PluginPrelude.source(scraperId, "{}"), "prelude.js")
+                qjs.evaluate<Any?>(PluginPrelude.source(scraperId, settingsJson), "prelude.js")
                 qjs.evaluate<Any?>(PluginPrelude.wrap(code), "plugin.js")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                return PluginOutcome.Failure(PluginOutcome.Reason.Script, shorten(e.message))
+                return Raw(null, PluginOutcome.Failure(PluginOutcome.Reason.Script, shorten(e.message)))
             }
 
             val json = coroutineScope {
                 val job = launch {
                     try {
-                        qjs.evaluate<Any?>(PluginPrelude.CALL, "call.js")
+                        qjs.evaluate<Any?>(callScript, "call.js")
                         // Normal biterse ama sonuç bildirmediyse (söz hiç çözülmediyse) boş say.
                         captured.complete(NO_RESULT)
                     } catch (e: CancellationException) {
@@ -139,7 +208,7 @@ class PluginRuntime(
                 job.cancel() // sarkan zamanlayıcıları/istekleri bırak
                 first
             }
-            return PluginResultParser.parse(json, limits.maxStreams)
+            return Raw(json, null)
         } finally {
             try {
                 qjs.close()
@@ -148,15 +217,13 @@ class PluginRuntime(
         }
     }
 
-    private fun bind(qjs: QuickJs, http: PluginHttp, dom: DomBridge, request: PluginRequest, captured: CompletableDeferred<String>) {
-        val args = buildJsonObject {
-            put("tmdbId", request.tmdbId)
-            put("mediaType", request.mediaType)
-            put("season", request.season?.let { JsonPrimitive(it) } ?: kotlinx.serialization.json.JsonNull)
-            put("episode", request.episode?.let { JsonPrimitive(it) } ?: kotlinx.serialization.json.JsonNull)
-        }.toString()
-
-        qjs.function("__host_log") { a -> log(a.s(0), LogMasker.mask(a.s(1), tmdbApiKey)); null }
+    private fun bind(qjs: QuickJs, http: PluginHttp, dom: DomBridge, args: String, captured: CompletableDeferred<String>, notes: Notes) {
+        qjs.function("__host_log") { a ->
+            val message = LogMasker.mask(a.s(1), tmdbApiKey)
+            log(a.s(0), message)
+            if (a.s(0) == "error" && notes.console.size < 4) notes.console += "console: " + message.take(120)
+            null
+        }
         qjs.function("__host_args") { args }
         qjs.function("__host_capture") { a -> captured.complete(a.s(0)); null }
         qjs.asyncFunction("__host_fetch") { a -> http.fetch(a.s(0)) }
@@ -190,6 +257,7 @@ class PluginRuntime(
 
     companion object {
         const val DEFAULT_TIMEOUT_MS = 20_000L
+        const val SETTINGS_TIMEOUT_MS = 10_000L
         private const val MAX_SLEEP_MS = 60_000L
         private const val NO_RESULT = """{"ok":false,"error":"no result"}"""
     }

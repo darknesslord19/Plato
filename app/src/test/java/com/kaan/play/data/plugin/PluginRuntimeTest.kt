@@ -9,6 +9,7 @@ import com.kaan.play.data.stream.FailureReason
 import com.kaan.play.data.stream.StreamResult
 import com.kaan.play.data.stream.StreamSource
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonPrimitive
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -610,5 +611,112 @@ class PluginRuntimeTest {
         val script = PluginOutcome.Failure(PluginOutcome.Reason.Script, "x").toStreamResult(source) as StreamResult.Failed
         assertEquals(FailureReason.InvalidResponse, script.reason)
         assertTrue((PluginOutcome.Success(emptyList()).toStreamResult(source) as StreamResult.Found).streams.isEmpty())
+    }
+
+    // ---- 2. tur: ayarlar, rastgele, tanı notları, temizlik ----
+
+    @Test
+    fun savedSettingsArriveAsScraperSettingsAndDefaultIsAnEmptyObject() {
+        val code = "module.exports = { getStreams: async () => [{ url: 'https://t.example/v', title: JSON.stringify(SCRAPER_SETTINGS) }] };"
+        val empty = run(code) as PluginOutcome.Success
+        assertEquals("{}", empty.streams.single().title)
+
+        val withSettings = runBlocking {
+            runtime().run(
+                code, movie, "test", 10_000,
+                mapOf("enable4K" to JsonPrimitive(false), "max" to JsonPrimitive("2"), "token" to JsonPrimitive("a\"b")),
+            )
+        } as PluginOutcome.Success
+        assertEquals("""{"enable4K":false,"max":"2","token":"a\"b"}""", withSettings.streams.single().title)
+    }
+
+    @Test
+    fun onSettingsLayoutIsReadFromThePlugin() {
+        val code = """
+            const COUNT = [{ value: '1', label: '1' }, { value: 'unlimited', label: 'Unlimited' }];
+            async function onSettings() {
+              return [{ type: 'header', label: 'Resolution' }, { type: 'toggle', key: 'k', label: 'K', defaultValue: true },
+                      { type: 'select', key: 'm', label: 'M', defaultValue: 'unlimited', options: COUNT },
+                      { type: 'text', key: 't', isPassword: true, placeholder: '...' }];
+            }
+            module.exports = { getStreams: async () => [], onSettings };
+        """.trimIndent()
+        val fields = runBlocking { runtime().settingsLayout(code, "x") }!!
+        assertEquals(4, fields.size)
+        assertTrue(fields[3] is com.kaan.play.data.plugin.runtime.PluginSettingField.Text)
+
+        // onSettings yok: boş liste; hata atıyor ya da süre aşıyor: null.
+        assertEquals(emptyList<Any>(), runBlocking { runtime().settingsLayout("module.exports = { getStreams: async () => [] };") })
+        assertNull(runBlocking { runtime().settingsLayout("module.exports = { onSettings: async () => { throw new Error('x'); } };") })
+        assertNull(runBlocking { runtime().settingsLayout("module.exports = { onSettings: async () => { while (true) {} } };", "x", 500) })
+        // global onSettings (module.exports'suz) da bulunur.
+        assertEquals(0, runBlocking { runtime().settingsLayout("async function onSettings() { return []; }") }!!.size)
+    }
+
+    @Test
+    fun randomValuesAndUuidWorkWhileSubtleIsAbsent() {
+        val title = probe(
+            "r",
+            setup = """
+              var r = {};
+              var a = new Uint8Array(32); crypto.getRandomValues(a); var b = new Uint8Array(32); crypto.getRandomValues(b);
+              var allZero = true, same = true; for (var i = 0; i < 32; i++) { if (a[i] !== 0) allZero = false; if (a[i] !== b[i]) same = false; }
+              r.allZero = allZero; r.same = same;
+              var big = new Uint32Array(100); r.same32 = crypto.getRandomValues(big) === big;
+              r.uuid = crypto.randomUUID(); r.subtle = typeof crypto.subtle;
+              try { crypto.getRandomValues(new Uint8Array(70000)); r.quota = 'no'; } catch (e) { r.quota = 'threw'; }
+            """.trimIndent(),
+        )
+        assertTrue(title, title.contains("\"allZero\":false") && title.contains("\"same\":false") && title.contains("\"same32\":true"))
+        assertTrue(title, Regex("\"uuid\":\"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\"").containsMatchIn(title))
+        assertTrue(title, title.contains("\"subtle\":\"undefined\"") && title.contains("\"quota\":\"threw\""))
+    }
+
+    @Test
+    fun diagnosticNotesNameHostsAndStatusesButNeverUrlsOrKeys() {
+        handler = { MockResponse.Builder().code(403).body("no").build() }
+        val out = run(
+            """
+            module.exports = { getStreams: async function () {
+              await fetch('${base()}/secret/path?api_key=' + TMDB_API_KEY + '&x=1');
+              console.error('hata: ' + TMDB_API_KEY + ' https://x.example/?api_key=ABCDEF');
+              return [];
+            } };
+            """.trimIndent(),
+        )
+        assertTrue(out is PluginOutcome.Success && out.streams.isEmpty())
+        val notes = out.notes.joinToString("|")
+        assertTrue(notes, notes.contains("127.0.0.1 403"))
+        assertTrue(notes, notes.contains("console: hata:"))
+        listOf("secret", "path", "api_key=A", realKey, "PLAY_TMDB_KEY_PLACEHOLDER", "ABCDEF").forEach { assertFalse("$it sızdı: $notes", notes.contains(it)) }
+
+        val blocked = run("module.exports = { getStreams: async () => { await fetch('http://10.1.2.3/x'); return []; } };", rt = runtime(policy = NetworkPolicy()))
+        assertTrue(blocked.notes.joinToString(), blocked.notes.contains("10.1.2.3 blocked"))
+        val timeout = run("module.exports = { getStreams: async () => { await fetch('${base()}/a'); while (true) {} } };", timeoutMs = 600)
+        assertTrue(timeout is PluginOutcome.Failure && timeout.notes.isNotEmpty()) // zaman aşımında da o ana kadarki notlar var
+    }
+
+    @Test
+    fun invisibleAndOddCharactersAreStrippedFromTextFieldsButUsefulOnesStay() {
+        val code = """
+            module.exports = { getStreams: async () => [
+              { name: 'A​‌﻿⁠B\u0007C­DE�F‮G ğüşiöç İ 日本 😀', title: 'tab\there', url: 'https://t.example/v', quality: '1080p' }
+            ] };
+        """.trimIndent()
+        val s = (run(code) as PluginOutcome.Success).streams.single()
+        assertEquals("ABCDEFG ğüşiöç İ 日本 😀", s.name)
+        assertEquals("tabhere", s.title) // sekme gibi denetim karakterleri de gider
+    }
+
+    @Test
+    fun subtitleLanguagesAreNormalizedForThePlayer() {
+        val code = """
+            module.exports = { getStreams: async () => [{ url: 'https://t.example/v', subtitles: [
+              { url: 'https://s/1.srt', language: 'tur' }, { url: 'https://s/2.srt', language: 'English' }, { url: 'https://s/3.srt', lang: 'pt-BR' },
+              { url: 'https://s/4.srt', name: 'Turkish subs' }, { url: 'https://s/5.srt', language: 'Klingon' }, { url: 'https://s/6.srt' }
+            ] }] };
+        """.trimIndent()
+        val playable = (run(code).toStreamResult(StreamSource(1, "A")) as StreamResult.Found).streams.single()
+        assertEquals(listOf("tur", "en", "pt-BR", "tr", null, null), playable.subtitles.map { it.language })
     }
 }

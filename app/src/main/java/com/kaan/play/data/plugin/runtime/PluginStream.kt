@@ -61,7 +61,8 @@ data class PluginStream(
         }
 
         internal fun clean(value: String): String? =
-            value.filterNot { it in INVISIBLE }.trim().take(MAX_TEXT).takeIf { it.isNotEmpty() && !it.contains("[object") }
+            value.filter { c -> c == '\n' || (c !in INVISIBLE && c != '�' && Character.getType(c).toByte() !in UNWANTED_TYPES) }
+                .trim().take(MAX_TEXT).takeIf { it.isNotEmpty() && !it.contains("[object") }
 
         internal fun JsonObject?.headerMap(): Map<String, String> {
             if (this == null) return emptyMap()
@@ -73,6 +74,12 @@ data class PluginStream(
             }
             return out
         }
+
+        /** Görünmez/garip karakter sınıfları: denetim, biçim (sıfır genişlik), özel kullanım, atanmamış, satır/paragraf ayırıcı. */
+        private val UNWANTED_TYPES = setOf(
+            Character.CONTROL, Character.FORMAT, Character.PRIVATE_USE, Character.UNASSIGNED,
+            Character.LINE_SEPARATOR, Character.PARAGRAPH_SEPARATOR,
+        )
 
         private val INVISIBLE = ('​'..'‏').toSet() + '﻿' + '⁠' + ('‪'..'‮').toSet()
     }
@@ -105,7 +112,7 @@ fun PluginStream.toPlayable(source: StreamSource): PlayableStream {
         resolution = StreamLabels.resolution(text),
         sizeBytes = size?.let(StreamLabels::sizeBytes) ?: StreamLabels.sizeBytes(text),
         headers = headers,
-        subtitles = subtitles.map { StreamSubtitle(it.url, it.language) },
+        subtitles = subtitles.map { StreamSubtitle(it.url, subtitleLanguage(it.language ?: it.name)) },
         language = language?.let { StreamLabels.language(it) } ?: StreamLabels.language(text),
     )
 }
@@ -117,4 +124,14 @@ fun PluginOutcome.toStreamResult(source: StreamSource): StreamResult = when (thi
         source,
         if (reason == PluginOutcome.Reason.Timeout) FailureReason.Timeout else FailureReason.InvalidResponse,
     )
+}
+
+private val LANGUAGE_CODE = Regex("^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,4})?$")
+
+/** Altyazı dili: kısa kod ("tur", "en", "pt-BR") olduğu gibi; "English"/"Turkish" gibi adlar iki harfli koda çevrilir; tanınmazsa null. */
+internal fun subtitleLanguage(raw: String?): String? {
+    val v = raw?.trim().orEmpty()
+    if (v.isEmpty()) return null
+    if (LANGUAGE_CODE.matches(v)) return v
+    return StreamLabels.language(v)?.takeIf { it != "MULTI" }?.lowercase()
 }

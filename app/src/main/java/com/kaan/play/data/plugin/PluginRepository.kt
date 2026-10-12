@@ -81,6 +81,8 @@ class PluginRepository(
     private val store: PluginCodeStore,
     private val clock: () -> Long = System::currentTimeMillis,
     private val parallelDownloads: Int = 4,
+    /** Bir kazıyıcı silinince çağrılır (kayıtlı ayarlarını temizlemek için). */
+    private val onPluginRemoved: suspend (Long) -> Unit = {},
 ) {
 
     val repos: Flow<List<PluginRepo>> = combine(
@@ -185,6 +187,7 @@ class PluginRepository(
         plan.removedIds.forEach { id ->
             store.delete(id)
             pluginDao.delete(id)
+            onPluginRemoved(id)
         }
         addonDao.updateInfo(
             id = plan.repoId, name = plan.manifest.name, version = plan.manifest.version, description = plan.manifest.description,
@@ -194,6 +197,7 @@ class PluginRepository(
     }
 
     suspend fun remove(repoId: Long) {
+        pluginDao.ofRepo(repoId).forEach { onPluginRemoved(it.id) }
         removeFiles(repoId)
         addonDao.delete(repoId) // kazıyıcı satırları CASCADE ile silinir
     }

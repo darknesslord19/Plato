@@ -21,7 +21,7 @@ internal object PluginPrelude {
     /** Eklenti kodunu `module`/`exports` ile sarar; yalnızca global `getStreams` tanımlayanlar da çalışsın diye dışa aktarılır. */
     fun wrap(code: String): String =
         "var module = { exports: {} };\nvar exports = module.exports;\n(function () {\n" + code +
-            "\n;if (typeof getStreams === 'function' && !module.exports.getStreams) { module.exports.getStreams = getStreams; }\n})();"
+            "\n;if (typeof getStreams === 'function' && !module.exports.getStreams) { module.exports.getStreams = getStreams; }\nif (typeof onSettings === 'function' && !module.exports.onSettings) { module.exports.onSettings = onSettings; }\n})();"
 
     /** getStreams çağrısı: sonuç `__host_capture` ile tek JSON olarak geri verilir. */
     val CALL = """
@@ -32,6 +32,20 @@ internal object PluginPrelude {
             var a = JSON.parse(__host_args());
             var r = await gs(a.tmdbId, a.mediaType, a.season == null ? undefined : a.season, a.episode == null ? undefined : a.episode);
             __host_capture(JSON.stringify({ ok: true, streams: Array.isArray(r) ? r : [] }));
+          } catch (e) {
+            __host_capture(JSON.stringify({ ok: false, error: String((e && e.message) || e) }));
+          }
+        })();
+    """.trimIndent()
+
+    /** `onSettings()` çağrısı: ayar düzeni `__host_capture` ile geri verilir. */
+    val CALL_SETTINGS = """
+        (async function () {
+          try {
+            var f = (module.exports && module.exports.onSettings) || globalThis.onSettings;
+            if (typeof f !== 'function') { __host_capture(JSON.stringify({ ok: true, layout: [] })); return; }
+            var r = await f();
+            __host_capture(JSON.stringify({ ok: true, layout: Array.isArray(r) ? r : [] }));
           } catch (e) {
             __host_capture(JSON.stringify({ ok: false, error: String((e && e.message) || e) }));
           }
@@ -527,6 +541,27 @@ internal object PluginPrelude {
     TripleDES: makeCipher('DESede', 8, [24])
   };
   g.CryptoJS = CryptoJS;
+
+  // ---- crypto.getRandomValues / randomUUID (crypto.subtle bilerek yok) ----
+  function randomBytes(n) {
+    var out = [];
+    while (out.length < n) { out = out.concat(bytesFromHex(__host_random(Math.min(64, n - out.length)))); }
+    return out;
+  }
+  g.crypto = {
+    getRandomValues: function (arr) {
+      if (!ArrayBuffer.isView(arr)) throw new TypeError('getRandomValues: typed array expected');
+      if (arr.byteLength > 65536) throw new Error('QuotaExceededError');
+      var u = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength), r = randomBytes(u.length);
+      for (var i = 0; i < u.length; i++) u[i] = r[i];
+      return arr;
+    },
+    randomUUID: function () {
+      var b = randomBytes(16); b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+      var h = hexOf(b);
+      return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+    }
+  };
 
   // ---- require: yalnızca izin listesi ----
   g.require = function (name) {

@@ -1,6 +1,7 @@
 package com.kaan.play.ui.addons
 
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -178,7 +179,7 @@ private fun RepoRow(repo: PluginRepo, busy: Boolean, enabled: Boolean, onCheck: 
  * Depo eklentileri **varsayılan kapalıdır**; kullanıcı bilinçle açar. Depoyu silmek "Kurulu tüm depolar"dandır.
  */
 @Composable
-fun InstalledAddonsScreen(onBack: () -> Unit) {
+fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
     val vm = containerViewModel { InstalledAddonsViewModel(it.addons, it.plugins) }
     val addons by vm.addons.collectAsStateWithLifecycle()
     val groups by vm.groups.collectAsStateWithLifecycle()
@@ -216,7 +217,7 @@ fun InstalledAddonsScreen(onBack: () -> Unit) {
                         )
                     }
                     items(group.plugins, key = { "p-${it.id}" }) { plugin ->
-                        PluginRow(plugin = plugin, onToggle = { vm.setPluginEnabled(plugin, it) })
+                        PluginRow(plugin = plugin, onToggle = { vm.setPluginEnabled(plugin, it) }, onOpen = { onOpenPlugin(plugin.id) })
                     }
                 }
             }
@@ -239,14 +240,19 @@ fun InstalledAddonsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun PluginRow(plugin: InstalledPlugin, onToggle: (Boolean) -> Unit) {
+private fun PluginRow(plugin: InstalledPlugin, onToggle: (Boolean) -> Unit, onOpen: () -> Unit) {
     val toggleLabel = stringResource(R.string.addons_enabled_toggle, plugin.name)
     val movie = stringResource(R.string.type_movie)
     val series = stringResource(R.string.type_series)
     val types = plugin.supportedTypes.joinToString(", ") { if (it == "movie") movie else series }
     val detail = plugin.contentLanguage.takeIf { it.isNotEmpty() }?.joinToString(", ") { it.uppercase() } ?: types
 
-    Row(modifier = Modifier.fillMaxWidth().height(64.dp), verticalAlignment = Alignment.CenterVertically) {
+    // Ayarı olan eklentiye dokununca küçük ayrıntı sayfası açılır (aç/kapat + eklentinin kendi ayar formu).
+    Row(
+        modifier = Modifier.fillMaxWidth().height(64.dp)
+            .then(if (plugin.hasSettings) Modifier.clickable(onClick = onOpen) else Modifier),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column(modifier = Modifier.weight(1f).alpha(if (plugin.enabled) 1f else 0.6f)) {
             Text(text = plugin.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
@@ -256,6 +262,9 @@ private fun PluginRow(plugin: InstalledPlugin, onToggle: (Boolean) -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+        if (plugin.hasSettings) {
+            Icon(PlayIcons.Forward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Switch(
             checked = plugin.enabled,
