@@ -11,7 +11,7 @@ Sade, özgün bir Android film/dizi istemcisi. Kotlin + Jetpack Compose + Materi
 ## Dil desteği (İngilizce + Türkçe, baştan)
 - Arayüzdeki **hiçbir metin koda gömülmez**; hepsi string resource. Varsayılan `values/strings.xml` İngilizce, `values-tr/strings.xml` Türkçe. Yeni string eklerken iki dosyaya birden eklenir (`StringResourcesTest` anahtar eşitliğini denetler). Çevrilmeyecek metinler (dil adları, uygulama adı) `translatable="false"`.
 - Cihaz dili Türkçeyse Türkçe, değilse İngilizce açılır. Ayarlar'da "Dil": Sistem / English / Türkçe; AppCompat per-app language ile uygulanır (`i18n/AppLanguage.kt`, `MainActivity` bu yüzden `AppCompatActivity`). Seçimin kaynağı AppCompat'tir, DataStore'a kopyalanmaz.
-- **TMDB** isteklerinde `language` parametresi `AppLanguage.effective().tmdbTag` (`tr-TR` / `en-US`). Türkçe özet/başlık boşsa İngilizceye (`en-US`) düşülür. Poster isteklerinde `include_image_language=<iso>,en,null`.
+- **TMDB** isteklerinde `language` parametresi `AppLanguage.effective().tmdbTag` (`tr-TR` / `en-US`), her istekte yeniden okunur. Detayda Türkçe özet boşsa, bölümde boş bölüm özetleri varsa `en-US` ile bir kez daha istenip boşluk doldurulur (yedek isteği başarısız olursa Türkçe sonuç döner). Listelerde (trend/popüler/arama) yedek yok; kartlar başlık+poster gösterir. Poster yolu `language` parametresiyle gelen `poster_path`tir; ayrı bir images çağrısı yok.
 - **Varsayılan altyazı dili** ayarı, kullanıcı seçmediyse seçili arayüz diline göre başlar (DataStore'da null = arayüz dilini izle).
 - Çok sayılı/biçimli metinler için `plurals` ve biçim argümanları kullanılır; metin birleştirme yapılmaz.
 
@@ -26,6 +26,7 @@ Aniyomi, ayrı Stremio ekosistemi, manga, IPTV, Telegram, tracker, profil/kilit,
 ## Mimari kararlar
 - **Yığın:** Compose + M3, Navigation Compose, Coroutines/Flow, OkHttp, kotlinx.serialization (tek JSON kütüphanesi), Media3 (exoplayer, hls, dash, ui, datasource-okhttp), Coil, Room, DataStore. DI framework yok; elle kurulan `AppContainer`.
 - **Metadata:** TMDB (trend, popüler, arama, detay, sezon/bölüm, poster). Anahtar `local.properties` → `TMDB_API_KEY` → `BuildConfig`. Anahtar git'e girmez. Hakkında ekranı TMDB'nin zorunlu atıf metnini gösterir.
+  Katman: `data/tmdb` (`TmdbService` ince HTTP/DTO, `TmdbRepository` alan modeli + dil yedeği, `TmdbException` tek hata türü, `TmdbImages` görsel adresleri). Anahtar `api_key` sorgu parametresiyle gider (v3); URL asla loglanmaz ve hatalara girmez.
 - **Kimlik:** birincil kimlik TMDB id. Addon'lar IMDb `tt...` ister; TMDB `external_ids` ile türetilir.
 - **Akış kaynağı arayüzü:** `StreamProvider.streams(request: StreamRequest(tmdbId, imdbId, type, season?, episode?)): Flow<StreamResult>`. Faz 1'de tek implementasyon `AddonStreamProvider`; Faz 2/3 kaynakları aynı arayüze takılacak şekilde tasarlanır.
 - **Addon protokolü:** `GET {base}/manifest.json`, `GET {base}/stream/{movie|series}/{imdbId}.json` (dizide `{imdbId}:{sezon}:{bölüm}`). Manifest'teki `resources/types/idPrefixes` dikkate alınır; addon'a yalnızca desteklediği istek gider. Sadece `url` tipli akışlar gösterilir, `infoHash` yok sayılır. `behaviorHints.proxyHeaders` Media3 OkHttp datasource'una aktarılır. Akıştaki altyazılar oynatıcıya eklenir.
@@ -38,7 +39,7 @@ Ana sayfa (TMDB satırları + "devam et"), Ara, Detay, Kaynak seçimi (alttan li
 Ayarlar yalnızca: eklenti yönetimi (ekle/sil/aç-kapat), kaynak zaman aşımı, oynatıcı varsayılanları (altyazı dili, hız), tema, dil, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
 
 ## Çalışma şekli
-- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı → (3) Room + addon yönetimi → (4) ana sayfa/arama/detay → (5) kaynak toplama → (6) oynatıcı → (7) kütüphane + ayarlar.
+- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi → (4) ana sayfa/arama/detay → (5) kaynak toplama → (6) oynatıcı → (7) kütüphane + ayarlar.
 - 1. adımdan sonra kullanıcı onayı beklenir. Her adımın sonunda derle, çalışan testleri çalıştır, iki cümleyle özetle.
 - Parser ve protokol kodu sahte JSON ile birim testlerle doğrulanır.
 - Belirsiz tasarım kararında en sade seçenek seçilir ve README'ye not düşülür.

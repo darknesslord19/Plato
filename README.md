@@ -21,3 +21,4 @@ TMDB_API_KEY=<tmdb v3 anahtarı>
 - **Alt menü ikonları:** `material-icons-extended` yerine kendi çizdiğimiz birkaç vektör ikon (`ui/nav/PlayIcons.kt`); hem özgün hem küçük.
 - **Diller:** İngilizce (varsayılan) ve Türkçe. Dil seçimi AppCompat per-app language'e devredildi (API 33+ sistem saklar, altında AppCompat'in metadata servisi); kendi DataStore kopyamız yok. APK'ya yalnızca `en` ve `tr` paketlenir (`localeFilters`). İngilizce arayüzde "addon" yazıyoruz.
 - **Yedekleme kapalı** (`allowBackup=false`): izleme geçmişi ve addon listesi buluta gitmez.
+- **TMDB:** v3 API anahtarı `api_key` sorgu parametresiyle gider (v3'te başka yol yok) ve istemci tarafında APK'ya girer; kişisel kullanım için kabul edildi. Sezon 0 ("Özel bölümler") listelenmez. Listelerde dil yedeği yok, yalnızca detay ve bölüm özetlerinde var. Sayfalama modeli (`Page`) hazır; Ana sayfa satırları ilk sayfayı kullanır.
