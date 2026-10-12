@@ -20,4 +20,6 @@ fun AddonException.userMessage(): String = when (kind) {
     Kind.InvalidField -> stringResource(R.string.addon_error_invalid_field, detail.orEmpty())
     Kind.NoStreamResource -> stringResource(R.string.addon_error_no_stream)
     Kind.UnsupportedTypes -> stringResource(R.string.addon_error_unsupported_types)
+    Kind.NoPlugins -> stringResource(R.string.addon_error_no_plugins)
+    Kind.PluginFileFailed -> stringResource(R.string.addon_error_plugin_file, detail.orEmpty())
 }

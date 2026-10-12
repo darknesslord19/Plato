@@ -34,6 +34,12 @@ private class FakeDao : AddonDao {
     override suspend fun delete(id: Long) {
         rows.value = rows.value.filterNot { it.id == id }
     }
+
+    override suspend fun updateInfo(id: Long, name: String, version: String?, description: String?, manifestJson: String) {
+        rows.value = rows.value.map { if (it.id == id) it.copy(name = name, version = version, description = description, manifestJson = manifestJson) else it }
+    }
+
+    override suspend fun byId(id: Long): AddonEntity? = rows.value.firstOrNull { it.id == id }
 }
 
 class WebSiteRepositoryTest {

@@ -26,5 +26,11 @@ class AddonException(
         NoStreamResource,
         /** `stream` kaynağı var ama ne film ne dizi için. */
         UnsupportedTypes,
+
+        /** Eklenti deposu geçerli ama kullanılabilir hiç kazıyıcı girişi yok. */
+        NoPlugins,
+
+        /** Hiçbir kazıyıcı dosyası indirilemedi ya da geçerli değil; [detail] ilk başarısız kazıyıcının adı. */
+        PluginFileFailed,
     }
 }

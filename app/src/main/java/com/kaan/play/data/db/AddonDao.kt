@@ -30,4 +30,11 @@ interface AddonDao {
 
     @Query("DELETE FROM addons WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /** Depo satırının üst bilgisini ve (yeniden kodlanmış) manifest'ini günceller. */
+    @Query("UPDATE addons SET name = :name, version = :version, description = :description, manifestJson = :manifestJson WHERE id = :id")
+    suspend fun updateInfo(id: Long, name: String, version: String?, description: String?, manifestJson: String)
+
+    @Query("SELECT * FROM addons WHERE id = :id")
+    suspend fun byId(id: Long): AddonEntity?
 }

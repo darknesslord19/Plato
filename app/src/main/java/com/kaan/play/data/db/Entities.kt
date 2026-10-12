@@ -33,8 +33,9 @@ data class AddonEntity(
 )
 
 /**
- * Bir depo ([AddonType.NUVIO_PLUGIN_REPO] / [AddonType.CLOUDSTREAM_REPO]) içindeki tek tek plugin'ler.
- * Faz 1'de tablo boş kalır ve kullanılmaz; Faz 2/3 sütunları gerekirse genişletir.
+ * Bir depo ([AddonType.NUVIO_PLUGIN_REPO] / [AddonType.CLOUDSTREAM_REPO]) içindeki tek tek plugin'ler (Faz 2: JS kazıyıcılar).
+ * Kod uygulamaya özel dizinde saklanır (`PluginCodeStore`); burada yalnızca üst bilgi, bütünlük özeti ve açık/kapalı durumu
+ * vardır. [enabled] varsayılan KAPALIDIR: kullanıcı bilinçle açar. Şema sürüm 2'de genişledi (tablo Faz 1'de boştu).
  */
 @Entity(
     tableName = "plugins",
@@ -54,8 +55,20 @@ data class PluginEntity(
     val pluginId: String,
     val name: String,
     val version: String?,
+    val description: String? = null,
+    /** Manifest'teki ham dosya adı. */
+    val filename: String = "",
+    /** İndirme adresi (çözülmüş). */
     val scriptUrl: String,
-    val enabled: Boolean = true,
+    /** Ham `supportedTypes`, virgülle ayrılmış (`movie,tv`). */
+    val supportedTypes: String = "movie,tv",
+    /** `contentLanguage`, virgülle ayrılmış. */
+    val contentLanguage: String = "",
+    val hasSettings: Boolean = false,
+    /** İndirilen kodun SHA-256 özeti (hex) ve bayt boyutu: bütünlük ve değişim denetimi için. */
+    val sha256: String = "",
+    val sizeBytes: Long = 0,
+    val enabled: Boolean = false,
     val installedAt: Long,
 )
 

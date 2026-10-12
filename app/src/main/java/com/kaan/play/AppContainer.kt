@@ -1,6 +1,7 @@
 package com.kaan.play
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
@@ -11,6 +12,11 @@ import com.kaan.play.data.library.ContinueWatching
 import com.kaan.play.data.library.LibraryRepository
 import com.kaan.play.data.library.NextEpisodeResolver
 import com.kaan.play.data.net.PlayJson
+import com.kaan.play.data.plugin.FilePluginCodeStore
+import com.kaan.play.data.plugin.OkHttpPluginCodeFetcher
+import com.kaan.play.data.plugin.PluginRepository
+import com.kaan.play.data.plugin.SourceInstaller
+import com.kaan.play.data.plugin.runtime.PluginRuntime
 import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.stream.AddonStreamProvider
 import com.kaan.play.data.stream.StreamProvider
@@ -25,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -53,7 +60,9 @@ class AppContainer(context: Context) {
     }
 
     val database: PlayDatabase by lazy {
-        Room.databaseBuilder(appContext, PlayDatabase::class.java, "play.db").build()
+        Room.databaseBuilder(appContext, PlayDatabase::class.java, "play.db")
+            .addMigrations(PlayDatabase.MIGRATION_1_2)
+            .build()
     }
 
     val settings: SettingsRepository by lazy {
@@ -77,6 +86,28 @@ class AppContainer(context: Context) {
 
     val addons: AddonRepository by lazy {
         AddonRepository(database.addonDao(), OkHttpManifestFetcher(httpClient))
+    }
+
+    /** Nuvio eklenti depoları (JS kazıyıcılar; Faz 2). Kodlar uygulamaya özel `filesDir/plugins` içinde durur. */
+    val plugins: PluginRepository by lazy {
+        PluginRepository(
+            addonDao = database.addonDao(),
+            pluginDao = database.pluginDao(),
+            fetcher = OkHttpManifestFetcher(httpClient),
+            codeFetcher = OkHttpPluginCodeFetcher(httpClient),
+            store = FilePluginCodeStore(File(appContext.filesDir, "plugins")),
+        )
+    }
+
+    /** "Eklenti ekle": adresin içeriğine bakıp addon mu eklenti deposu mu olduğunu kendisi anlar. */
+    val sourceInstaller: SourceInstaller by lazy { SourceInstaller(addons, plugins, OkHttpManifestFetcher(httpClient)) }
+
+    /**
+     * JS kazıyıcı çalıştırıcısı (QuickJS). Gerçek TMDB anahtarı yalnızca ağ köprüsüne verilir, eklentilere yer tutucu görünür.
+     * Kaynak listesine bağlama sonraki turdadır; şimdilik kullanılmıyor.
+     */
+    val pluginRuntime: PluginRuntime by lazy {
+        PluginRuntime(httpClient, BuildConfig.TMDB_API_KEY, log = { level, message -> Log.d("PlayPlugin", "[$level] $message") })
     }
 
     /** Kullanıcının eklediği web siteleri (reklamsız web görünümü). */

@@ -1,5 +1,6 @@
 package com.kaan.play.ui.addons
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.R
 import com.kaan.play.data.addon.Addon
+import com.kaan.play.data.plugin.AddResult
 import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.web.WebSite
 import com.kaan.play.ui.web.WebActivity
@@ -75,7 +77,7 @@ fun AddonsScreen(
     onOpenRepos: () -> Unit,
     onOpenInstalled: () -> Unit,
 ) {
-    val vm = containerViewModel { AddonsViewModel(it.addons, it.pendingAddonUrl) }
+    val vm = containerViewModel { AddonsViewModel(it.sourceInstaller, it.addons, it.pendingAddonUrl) }
     val addons by vm.addons.collectAsStateWithLifecycle()
     val dialog by vm.dialog.collectAsStateWithLifecycle()
     val container = rememberContainer()
@@ -84,6 +86,20 @@ fun AddonsScreen(
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_TIMEOUT_SECONDS)
     var showTimeout by remember { mutableStateOf(false) }
     val focus = rememberFocusMemory()
+
+    // Sade bildirim: "Eklenti eklendi (addon)" ya da "Eklenti deposu eklendi" (atlanan dosya varsa sayısıyla).
+    val appContext = LocalContext.current
+    LaunchedEffect(vm) {
+        vm.added.collect { result ->
+            val text = when (result) {
+                is AddResult.Addon -> appContext.getString(R.string.add_done_addon)
+                is AddResult.PluginRepo ->
+                    if (result.skipped > 0) appContext.getString(R.string.add_done_repo_skipped, result.skipped)
+                    else appContext.getString(R.string.add_done_repo)
+            }
+            Toast.makeText(appContext, text, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // Ana sayfadaki "eklenti ekle" düğmesinden geldiyse pencere hemen açılır.
     LaunchedEffect(startAdding) { if (startAdding) vm.startAddingOnce() }
@@ -209,64 +225,8 @@ fun AddonsScreen(
     }
 }
 
-/** "Kurulu tüm depolar": depolar (Faz 2/3) gelene kadar boştur. */
 @Composable
-fun RepositoriesScreen(onBack: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        ScreenHeader(title = stringResource(R.string.addons_repos), onBack = onBack)
-        EmptyMessage(stringResource(R.string.addons_repos_empty))
-    }
-}
-
-/** "Yüklü eklentiler": aç/kapat ve kaldır. */
-@Composable
-fun InstalledAddonsScreen(onBack: () -> Unit) {
-    val vm = containerViewModel { InstalledAddonsViewModel(it.addons) }
-    val addons by vm.addons.collectAsStateWithLifecycle()
-    var toRemove by remember { mutableStateOf<Addon?>(null) }
-
-    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        ScreenHeader(title = stringResource(R.string.addons_installed), onBack = onBack)
-
-        val list = addons
-        when {
-            list == null -> Unit // yükleniyor: boş mesaj yanıp sönmesin
-            list.isEmpty() -> EmptyMessage(stringResource(R.string.addons_empty))
-            else -> LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                items(list, key = { it.id }) { addon ->
-                    AddonRow(
-                        addon = addon,
-                        onToggle = { vm.setEnabled(addon, it) },
-                        onRemove = { toRemove = addon },
-                    )
-                }
-            }
-        }
-    }
-
-    toRemove?.let { addon ->
-        AlertDialog(
-            onDismissRequest = { toRemove = null },
-            title = { Text(stringResource(R.string.addons_remove_title)) },
-            text = { Text(stringResource(R.string.addons_remove_message, addon.manifest.name)) },
-            confirmButton = {
-                TextButton(onClick = { vm.remove(addon); toRemove = null }) {
-                    Text(stringResource(R.string.addons_remove), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { toRemove = null }) { Text(stringResource(R.string.common_cancel)) }
-            },
-        )
-    }
-}
-
-@Composable
-private fun EmptyMessage(text: String) {
+internal fun EmptyMessage(text: String) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -282,7 +242,7 @@ private fun EmptyMessage(text: String) {
 }
 
 @Composable
-private fun AddonRow(addon: Addon, onToggle: (Boolean) -> Unit, onRemove: () -> Unit) {
+internal fun AddonRow(addon: Addon, onToggle: (Boolean) -> Unit, onRemove: () -> Unit) {
     val name = addon.manifest.name
     val host = remember(addon.sourceUrl) { addon.sourceUrl.toHttpUrlOrNull()?.host ?: addon.sourceUrl }
     val toggleLabel = stringResource(R.string.addons_enabled_toggle, name)

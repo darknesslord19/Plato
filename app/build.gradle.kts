@@ -76,6 +76,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
+    implementation(libs.jsoup)
+    implementation(libs.quickjs.kt)
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
@@ -95,6 +97,7 @@ dependencies {
     testImplementation(libs.okhttp.mockwebserver)
 
     androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -105,4 +108,13 @@ dependencies {
 // Room şeması sürüm sürüm repoya yazılır; göçler bunlara karşı doğrulanır.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// Yerel JVM birim testleri Android'e özgü yerel kütüphaneyi yükleyemez: QuickJS testleri masaüstü (-jvm) paketini kullanır.
+// Cihaz testleri (androidTest) ve uygulama kendi Android paketini kullanır.
+configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configureEach {
+    resolutionStrategy.dependencySubstitution {
+        substitute(module("io.github.dokar3:quickjs-kt-android"))
+            .using(module(libs.quickjs.kt.jvm.get().toString()))
+    }
 }

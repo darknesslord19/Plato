@@ -133,6 +133,31 @@
     <string name="addon_error_invalid_field">Eklentinin “%1$s” alanı bozuk.</string>
     <string name="addon_error_no_stream">Bu eklenti akış sunmuyor, bu yüzden Play onu kullanamaz.</string>
     <string name="addon_error_unsupported_types">Bu eklenti film veya dizi sunmuyor, bu yüzden Play onu kullanamaz.</string>
+    <string name="addon_error_no_plugins">Bu depoda kullanılabilir eklenti yok.</string>
+    <string name="addon_error_plugin_file">“%1$s” indirilemedi ya da geçerli bir eklenti dosyası değil. Bağlantıyı kontrol edip tekrar dene.</string>
+
+    <!-- Eklenti deposu (Faz 2) -->
+    <string name="add_done_addon">Eklenti eklendi (addon)</string>
+    <string name="add_done_repo">Eklenti deposu eklendi</string>
+    <string name="add_done_repo_skipped">Eklenti deposu eklendi · %1$d atlandı</string>
+    <string name="plugins_note">Eklentiler üçüncü taraflarca yazılır; Play içerik sağlamaz.</string>
+    <plurals name="plugins_count">
+        <item quantity="one">%d eklenti</item>
+        <item quantity="other">%d eklenti</item>
+    </plurals>
+    <string name="repos_check">Güncellemeleri denetle</string>
+    <string name="repos_checking">Denetleniyor…</string>
+    <string name="repos_up_to_date">Her şey güncel.</string>
+    <string name="repos_update_title">Güncelleme var</string>
+    <plurals name="repos_update_message">
+        <item quantity="one">“%2$s” için %d değişiklik var.</item>
+        <item quantity="other">“%2$s” için %d değişiklik var.</item>
+    </plurals>
+    <string name="repos_update">Güncelle</string>
+    <string name="repos_updated">Güncellendi</string>
+    <string name="repos_remove">Depoyu kaldır</string>
+    <string name="repos_remove_title">Depo kaldırılsın mı?</string>
+    <string name="repos_remove_message">“%1$s” ve eklentileri Play\'den kaldırılacak.</string>
 
     <!-- Kütüphane -->
     <string name="library_favorites">Favoriler</string>

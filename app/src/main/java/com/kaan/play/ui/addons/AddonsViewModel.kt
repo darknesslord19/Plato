@@ -5,6 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.kaan.play.data.addon.Addon
 import com.kaan.play.data.addon.AddonException
 import com.kaan.play.data.addon.AddonRepository
+import com.kaan.play.data.plugin.AddResult
+import com.kaan.play.data.plugin.InstalledPlugin
+import com.kaan.play.data.plugin.PluginRepo
+import com.kaan.play.data.plugin.PluginRepository
+import com.kaan.play.data.plugin.SourceInstaller
+import com.kaan.play.data.plugin.UpdatePlan
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,9 +33,14 @@ data class AddDialogState(
 )
 
 class AddonsViewModel(
-    private val repo: AddonRepository,
+    private val installer: SourceInstaller,
+    repo: AddonRepository,
     private val pendingUrl: MutableStateFlow<String?>,
 ) : ViewModel() {
+
+    /** Başarılı eklemelerin sade bildirimi (tek seferlik): "Eklenti eklendi" / "Eklenti deposu eklendi". */
+    private val _added = MutableSharedFlow<AddResult>(extraBufferCapacity = 4)
+    val added: SharedFlow<AddResult> = _added.asSharedFlow()
 
     /** null = henüz yüklenmedi (boş liste mesajı yanıp sönmesin). */
     val addons: StateFlow<List<Addon>?> =
@@ -75,8 +90,9 @@ class AddonsViewModel(
         _dialog.value = current.copy(busy = true, error = null)
         submitJob = viewModelScope.launch {
             try {
-                repo.add(current.input)
+                val result = installer.add(current.input)
                 _dialog.value = null
+                _added.emit(result)
             } catch (e: AddonException) {
                 _dialog.update { it?.copy(busy = false, error = e) }
             }
@@ -85,18 +101,95 @@ class AddonsViewModel(
 
 }
 
-/** "Yüklü eklentiler" listesi: aç/kapat ve kaldır. */
-class InstalledAddonsViewModel(private val repo: AddonRepository) : ViewModel() {
+/** Bir deponun kazıyıcıları (Yüklü eklentiler listesinde depo adı altında). */
+data class PluginGroup(val repo: PluginRepo, val plugins: List<InstalledPlugin>)
+
+/** "Yüklü eklentiler" listesi: addon'lar (aç/kapat/kaldır) ve depo kazıyıcıları (yalnızca aç/kapat; varsayılan kapalı). */
+class InstalledAddonsViewModel(private val repo: AddonRepository, plugins: PluginRepository) : ViewModel() {
+
+    private val pluginRepo = plugins
 
     /** null = henüz yüklenmedi (boş liste mesajı yanıp sönmesin). */
     val addons: StateFlow<List<Addon>?> =
         repo.addons.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    val groups: StateFlow<List<PluginGroup>?> =
+        combine(plugins.repos, plugins.plugins) { repos, all ->
+            repos.mapNotNull { r -> all.filter { it.repoId == r.id }.takeIf { it.isNotEmpty() }?.let { PluginGroup(r, it) } }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     fun setEnabled(addon: Addon, enabled: Boolean) {
         viewModelScope.launch { repo.setEnabled(addon.id, enabled) }
     }
 
+    fun setPluginEnabled(plugin: InstalledPlugin, enabled: Boolean) {
+        viewModelScope.launch { pluginRepo.setPluginEnabled(plugin.id, enabled) }
+    }
+
     fun remove(addon: Addon) {
         viewModelScope.launch { repo.remove(addon.id) }
+    }
+}
+
+/** Bir güncelleme denetiminin ya da işleminin sonucu (tek seferlik bildirim). */
+sealed interface RepoEvent {
+    data object UpToDate : RepoEvent
+    data class Updated(val count: Int) : RepoEvent
+    data class Failed(val error: AddonException) : RepoEvent
+}
+
+/** "Kurulu tüm depolar": depoları listeler; güncelleme denetimi (sürüm karşılaştırma), güncelleme ve kaldırma. */
+class RepositoriesViewModel(private val plugins: PluginRepository) : ViewModel() {
+
+    val repos: StateFlow<List<PluginRepo>?> =
+        plugins.repos.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Denetlenen/güncellenen deponun kimliği (düğme dönen gösterge olur); yoksa null. */
+    private val _busy = MutableStateFlow<Long?>(null)
+    val busy: StateFlow<Long?> = _busy.asStateFlow()
+
+    /** Bulunan güncelleme planı: arayüz "Güncelle / Vazgeç" penceresi gösterir. */
+    private val _plan = MutableStateFlow<Pair<PluginRepo, UpdatePlan>?>(null)
+    val plan: StateFlow<Pair<PluginRepo, UpdatePlan>?> = _plan.asStateFlow()
+
+    private val _events = MutableSharedFlow<RepoEvent>(extraBufferCapacity = 4)
+    val events: SharedFlow<RepoEvent> = _events.asSharedFlow()
+
+    fun check(repo: PluginRepo) {
+        if (_busy.value != null) return
+        _busy.value = repo.id
+        viewModelScope.launch {
+            try {
+                val found = plugins.checkForUpdates(repo.id)
+                if (found.isEmpty) _events.emit(RepoEvent.UpToDate) else _plan.value = repo to found
+            } catch (e: AddonException) {
+                _events.emit(RepoEvent.Failed(e))
+            } finally {
+                _busy.value = null
+            }
+        }
+    }
+
+    fun applyPlan() {
+        val (repo, found) = _plan.value ?: return
+        _plan.value = null
+        _busy.value = repo.id
+        viewModelScope.launch {
+            try {
+                _events.emit(RepoEvent.Updated(plugins.applyUpdate(found).updated))
+            } catch (e: AddonException) {
+                _events.emit(RepoEvent.Failed(e))
+            } finally {
+                _busy.value = null
+            }
+        }
+    }
+
+    fun dismissPlan() {
+        _plan.value = null
+    }
+
+    fun remove(repo: PluginRepo) {
+        viewModelScope.launch { plugins.remove(repo.id) }
     }
 }
