@@ -1,16 +1,21 @@
 package com.kaan.play
 
 import android.content.Context
+import androidx.room.Room
+import com.kaan.play.data.addon.AddonRepository
+import com.kaan.play.data.addon.OkHttpManifestFetcher
+import com.kaan.play.data.db.PlayDatabase
 import com.kaan.play.data.net.PlayJson
 import com.kaan.play.data.tmdb.TmdbRepository
 import com.kaan.play.i18n.AppLanguage
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 /**
  * Elle kurulan bağımlılık kabı. DI framework'ü yok; katmanlar eklendikçe
- * (Room, DataStore, StreamProvider) buraya tembel alanlar olarak eklenir.
+ * (DataStore, StreamProvider) buraya tembel alanlar olarak eklenir.
  */
 class AppContainer(context: Context) {
 
@@ -28,4 +33,18 @@ class AppContainer(context: Context) {
     val tmdb: TmdbRepository by lazy {
         TmdbRepository(httpClient, json, BuildConfig.TMDB_API_KEY, language = AppLanguage::effective)
     }
+
+    val database: PlayDatabase by lazy {
+        Room.databaseBuilder(appContext, PlayDatabase::class.java, "play.db").build()
+    }
+
+    val addons: AddonRepository by lazy {
+        AddonRepository(database.addonDao(), OkHttpManifestFetcher(httpClient))
+    }
+
+    /**
+     * Dışarıdan (https manifest bağlantısı) gelen addon adresi. Etkinlik yazar,
+     * [com.kaan.play.ui.addons.AddonsViewModel] alıp sıfırlar.
+     */
+    val pendingAddonUrl = MutableStateFlow<String?>(null)
 }

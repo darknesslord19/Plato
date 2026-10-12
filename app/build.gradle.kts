@@ -93,3 +93,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
 }
+
+// Room şeması sürüm sürüm repoya yazılır; göçler bunlara karşı doğrulanır.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
