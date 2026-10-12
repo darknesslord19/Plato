@@ -48,6 +48,7 @@ object StreamParser {
                     ?: return@mapNotNull null
                 StreamSubtitle(subUrl, s.lang?.takeIf { it.isNotBlank() })
             },
+            language = StreamLabels.language(text),
         )
     }
 
@@ -72,6 +73,46 @@ object StreamLabels {
             "576p", "480p" -> 480
             else -> 360
         }
+    }
+
+    /** Dil ipuçları: sözcük sınırlı ad/kod ve bayrak emojisi (bölge göstergesi harf çiftleri). */
+    private val LANGUAGES: List<Pair<String, Regex>> = listOf(
+        "EN" to hint("english|eng", "🇬🇧", "🇺🇸"),
+        "TR" to hint("turkish|türkçe|turkce|tur", "🇹🇷"),
+        "ES" to hint("spanish|español|castellano|latino|spa", "🇪🇸"),
+        "FR" to hint("french|français|francais|fra", "🇫🇷"),
+        "DE" to hint("german|deutsch|deu", "🇩🇪"),
+        "IT" to hint("italian|italiano", "🇮🇹"),
+        "PT" to hint("portuguese|português|portugues", "🇵🇹", "🇧🇷"),
+        "RU" to hint("russian|rus", "🇷🇺"),
+        "JA" to hint("japanese|jpn", "🇯🇵"),
+        "KO" to hint("korean|kor", "🇰🇷"),
+        "HI" to hint("hindi", "🇮🇳"),
+        "AR" to hint("arabic"),
+        "MULTI" to hint("multi|dual"),
+    )
+
+    private fun hint(words: String, vararg flags: String): Regex {
+        val alternatives = buildList {
+            add("""\b($words)\b""")
+            flags.forEach { add(Regex.escape(it)) }
+        }
+        return Regex(alternatives.joinToString("|"), RegexOption.IGNORE_CASE)
+    }
+
+    /** Köşeli/parantezli/dikey çizgili iki harfli kod: "[EN]", "(TR)", "|DE|". */
+    private val BRACKETED = Regex("""[\[(|]\s*(en|tr|es|fr|de|it|pt|ru|ja|ko|hi|ar)\s*[\])|]""", RegexOption.IGNORE_CASE)
+
+    /**
+     * Akış metnindeki ses dili ipucu (ilk geçen): "EN", "TR" ... ya da "MULTI". Serbest metinden tahmindir;
+     * bulunamazsa null.
+     */
+    fun language(text: String): String? {
+        val hits = buildList {
+            LANGUAGES.forEach { (code, regex) -> regex.find(text)?.let { add(it.range.first to code) } }
+            BRACKETED.find(text)?.let { add(it.range.first to it.groupValues[1].uppercase()) }
+        }
+        return hits.minByOrNull { it.first }?.second
     }
 
     fun sizeBytes(text: String): Long? {

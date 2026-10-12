@@ -11,14 +11,14 @@ Sade, özgün bir Android film/dizi istemcisi. Kotlin + Jetpack Compose + Materi
 ## Dil desteği (İngilizce + Türkçe, baştan)
 - Arayüzdeki **hiçbir metin koda gömülmez**; hepsi string resource. Varsayılan `values/strings.xml` İngilizce, `values-tr/strings.xml` Türkçe. Yeni string eklerken iki dosyaya birden eklenir (`StringResourcesTest` anahtar eşitliğini denetler). Çevrilmeyecek metinler (dil adları, uygulama adı) `translatable="false"`.
 - Cihaz dili Türkçeyse Türkçe, değilse İngilizce açılır. Ayarlar'da "Dil": Sistem / English / Türkçe; AppCompat per-app language ile uygulanır (`i18n/AppLanguage.kt`, `MainActivity` bu yüzden `AppCompatActivity`). Seçimin kaynağı AppCompat'tir, DataStore'a kopyalanmaz.
-- **TMDB** isteklerinde `language` parametresi `AppLanguage.effective().tmdbTag` (`tr-TR` / `en-US`), her istekte yeniden okunur. Detayda Türkçe özet boşsa, bölümde boş bölüm özetleri varsa `en-US` ile bir kez daha istenip boşluk doldurulur (yedek isteği başarısız olursa Türkçe sonuç döner). Listelerde (trend/popüler/arama) yedek yok; kartlar başlık+poster gösterir. Poster yolu `language` parametresiyle gelen `poster_path`tir; ayrı bir images çağrısı yok.
+- **TMDB** isteklerinde `language` parametresi `AppLanguage.effective().tmdbTag` (`tr-TR` / `en-US`), her istekte yeniden okunur. Detayda Türkçe özet boşsa, bölümde boş bölüm özetleri varsa `en-US` ile bir kez daha istenip boşluk doldurulur (yedek isteği başarısız olursa Türkçe sonuç döner). Listelerde (trend/popüler/arama) yedek yok; kartlar başlık+poster gösterir. Poster yolu `language` parametresiyle gelen `poster_path`tir. Başlık logosu (10. adım): Detay'te aynı istekle (`append_to_response=images,credits,release_dates|content_ratings`, `include_image_language=<dil>,en,null`), kapak karuselinde kapak başına ayrı bir `images` çağrısıyla (en iyi çaba; olmazsa metin başlık) gelir.
 - **Varsayılan altyazı dili** ayarı, kullanıcı seçmediyse seçili arayüz diline göre başlar (DataStore'da null = arayüz dilini izle).
 - Çok sayılı/biçimli metinler için `plurals` ve biçim argümanları kullanılır; metin birleştirme yapılmaz.
 
 ## Arayüz ilkeleri (kalıcı kural)
 1. **Tek ana iş:** her ekranın tek bir ana işi vardır. İkincil seçenekler gizli menüde ya da altta küçük durur.
 2. **Sade görünüm:** ekranda aynı anda en fazla bir vurgu rengi ve iki yazı boyutu/ağırlığı kullanılır.
-3. **Teknik ayrıntı yok:** codec, HDR, ses kanalı vb. arayüzde gösterilmez; kaynak satırında yalnızca kalite ve boyut.
+3. **Teknik ayrıntı yok:** codec, HDR, ses kanalı vb. arayüzde gösterilmez; kaynak satırında yalnızca eklenti adı, kalite, boyut, ses dili ve "altyazılı" bilgisi (10. adımda dil/altyazı eklendi).
 4. **Ayarlar ≤ 5 kalem:** her kalem tek satırda anlaşılır olmalı.
 5. **Yeni özellik testi:** eklemeden önce "bu olmadan uygulama çalışır mı?" diye sorulur; çalışıyorsa eklenmez.
 6. **İki dilde taşmasın:** her ekran Türkçe ve İngilizce metinle taşmadan görünür; uzun Türkçe metinlerle (ve büyük yazı boyutuyla) test edilir.
@@ -43,13 +43,19 @@ Aniyomi, ayrı Stremio ekosistemi, manga, IPTV, Telegram, tracker, profil/kilit,
 - **Web siteleri (8. adım):** Ayarlar > Eklentiler içinde "Web sitesi ekle" + "Web siteleri" listesi (Ayarlar'a yeni kalem eklenmez). `addons` tablosunda `type = WEB_SITE` satırı (şema/göç yok); eklenti listeleri ve kaynak toplama bunları görmez. Site `WebActivity` içinde (WebView) açılır; kurallar `data/web/WebPolicy` (Android'den bağımsız, birim testli), reklam alan adı listesi ayrı dosyada `data/web/AdDomains.kt` (kendi derlediğimiz küçük liste; başkasının lisanslı filtre listesi kopyalanmaz). Engellenenler: listedeki alan adlarına istekler, hareketsiz/yabancı açılır pencereler, http/https dışı gezinme (`intent://`, `market://` …), hareketsiz başka siteye atlama, JS alert/confirm/prompt, üçüncü taraf çerezleri. **Her reklamın engelleneceği vaat edilmez** (Hakkında/README'de not var). Site kaldırılınca çerez/depolama/önbellek silinir. Varsayılan site gömülmez. Çubuk ve sayfa D-pad ile erişilebilir olmalı (TV kuralı).
 - **Gömülü içerik yok:** uygulamaya hiçbir varsayılan addon/içerik kaynağı gömülmez. Addon'lar yalnızca kullanıcının girdiği URL'lerden gelir. https manifest bağlantıları uygulamayı açıp "addon ekle" akışını başlatır.
 
+## Görünüm kimliği (10. adım)
+- Koyu, sinematik, büyük afişli, sade. Tek vurgu turkuaz; yeni renk eklenmez. Afiş köşe yuvarlaklığı 14dp (`MaterialTheme.shapes.medium`); birincil düğmeler turkuaz dolgulu (beyaz hap değil).
+- Kendi puan rozetimiz: turkuaz çerçeveli "TMDB 8.0" (`ui/components/Badges.kt`); yaş sınırı çipi nötr çerçeveli. IMDb rozeti yok.
+- Başlık logosu TMDB `images`ten (arayüz dili, yoksa İngilizce/dilsiz); yoksa metin başlık. Fragman bölümü yoktur.
+- Ana sayfa ve Detay durum çubuğunun arkasına uzanır (`StatusBarScrim`); alt/yan menü etiketleri en çok 1.0 yazı ölçeğiyle çizilir (büyük yazıda "Kütüphane" kısalmasın).
+
 ## Ekranlar
-Ana sayfa (TMDB satırları + "devam et"), Ara, Detay, Kaynak seçimi (alttan liste; en uygun seçili, tek dokunuş; satırda yalnızca kalite ve boyut), Oynatıcı (tam ekran, oynat/durdur, ileri-geri, altyazı, hız), Kütüphane (geçmiş + favoriler), Ayarlar. Alt menü: Ana sayfa, Ara, Kütüphane, Ayarlar.
+Ana sayfa (üstte kapak karuseli; altında "devam et" ve TMDB afiş sıraları, her sıranın "tümü" ekranı), Ara, Detay (arka plan görseli, başlık logosu, Oynat/sezon seçici + "daha fazla", puan rozeti, oyuncular), Kaynak seçimi (alttan liste; yenile + eklenti süzgeci, eklenti başlıkları altında kaynaklar; en uygun seçili, tek dokunuş; satırda eklenti adı + "kalite · boyut · dil · altyazılı"), Oynatıcı (tam ekran, oynat/durdur, ileri-geri, altyazı, hız), Kütüphane (geçmiş + favoriler), Ayarlar. Alt menü: Ana sayfa, Ara, Kütüphane, Ayarlar.
 Web görünümü (Ayarlar > Eklentiler > Web siteleri'nden açılır): üstte sade çubuk (kapat, site adı, geri, ileri, yenile) + WebView.
 Ayarlar en çok beş kalem: Eklentiler (ekle/sil/aç-kapat; web sitesi ekle/sil; kaynak zaman aşımı bu ekranın altında küçük bir ayar), Oynatıcı (altyazı görünümü, kaldığın yerden devam; 7. adım), Tema, Dil, Hakkında. Addon yokken Ana sayfa: ortada tek cümle ve tek buton ("Başlamak için bir eklenti ekle"). Koyu tema varsayılan.
 
 ## Çalışma şekli
-- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay ✅ → (5) kaynak toplama ✅ → (6) oynatıcı ✅ → (7) kütüphane + ayarlar ✅ → (8) web sitesi ekle (reklamsız web görünümü; kullanıcı isteğiyle eklendi) ✅ → (9) TV, tablet ve kumanda desteği ✅. **Faz 1 tamamlandı.** Faz 2'ye kendiliğinden başlanmaz; sıradaki adım için kullanıcı onayı beklenir.
+- Adımlar sırayla: (1) iskelet ✅ → (2) TMDB katmanı ✅ → (3) Room + addon yönetimi ✅ → (4) ana sayfa/arama/detay ✅ → (5) kaynak toplama ✅ → (6) oynatıcı ✅ → (7) kütüphane + ayarlar ✅ → (8) web sitesi ekle (reklamsız web görünümü; kullanıcı isteğiyle eklendi) ✅ → (9) TV, tablet ve kumanda desteği ✅ → (10) görünüm cilası (kapak karuseli, sinematik Detay, kaynak listesi, alt çubuk, kumanda düzeltmeleri) ✅. **Faz 1 tamamlandı.** Faz 2'ye kendiliğinden başlanmaz; sıradaki adım için kullanıcı onayı beklenir.
 - 1. adımdan sonra kullanıcı onayı beklenir. Her adımın sonunda derle, çalışan testleri çalıştır, iki cümleyle özetle.
 - Parser ve protokol kodu sahte JSON ile birim testlerle doğrulanır.
 - Belirsiz tasarım kararında en sade seçenek seçilir ve README'ye not düşülür.

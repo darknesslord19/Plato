@@ -9,6 +9,9 @@ enum class UiLanguage(val iso: String, val tmdbTag: String) {
     English("en", "en-US"),
     Turkish("tr", "tr-TR");
 
+    /** Ülke kodu (yaş sınırı için): `tr-TR` -> `TR`. */
+    val region: String get() = tmdbTag.substringAfter('-')
+
     companion object {
         /** Desteklenmeyen her dil İngilizceye düşer. */
         fun fromLocale(locale: Locale): UiLanguage =

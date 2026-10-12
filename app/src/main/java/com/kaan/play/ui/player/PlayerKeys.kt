@@ -3,26 +3,36 @@ package com.kaan.play.ui.player
 import androidx.compose.ui.input.key.Key
 
 /** Oynatıcıda bir tuşun yaptığı iş. [PassThrough]: olayı dokunma kontrollerine (odaklı düğme/çubuk) bırak. */
-enum class PlayerKeyAction { PassThrough, TogglePlay, SeekBack, SeekForward, Reveal, OpenMenu }
+enum class PlayerKeyAction { PassThrough, TogglePlay, SeekBack, SeekForward, Reveal, OpenMenu, GoToButtons, LeaveBarUp }
 
 /**
  * Oynatıcı kumanda eşlemesi (Android'den bağımsız, birim testli).
  *
  * Kontroller **gizliyken**: Tamam/Enter = oynat/duraklat; Sol/Sağ = geri/ileri sar; Yukarı = kontrolleri göster;
  * Aşağı (ya da Menü) = altyazı/kaynak menüsü; medya tuşları her zaman çalışır; başka herhangi bir tuş kontrolleri geri getirir.
- * Kontroller **açıkken** yön tuşları ve Tamam odaktaki düğmeye bırakılır (düğmeler arasında gezilir, Tamam basar);
- * oynat düğmesi başlangıç odağındadır, yani Tamam yine oynat/duraklatır.
+ * Kontroller **açıkken** yön tuşları ve Tamam odaktaki düğmeye bırakılır (düğmeler arasında gezilir, Tamam basar).
+ * Başlangıç odağı ilerleme çubuğundadır ([actionFor] `progressFocused`): Sol/Sağ 10 sn sarar, Tamam oynat/duraklatır,
+ * Aşağı düğmelere geçer, düğmelerden Yukarı çubuğa döner.
  */
 object PlayerKeys {
 
-    fun actionFor(key: Key, controlsVisible: Boolean): PlayerKeyAction = when (key) {
+    fun actionFor(key: Key, controlsVisible: Boolean, progressFocused: Boolean = false): PlayerKeyAction = when (key) {
         // Ses tuşlarını sistem işler; asla yutulmaz.
         Key.VolumeUp, Key.VolumeDown, Key.VolumeMute -> PlayerKeyAction.PassThrough
         Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause -> PlayerKeyAction.TogglePlay
         Key.MediaFastForward, Key.MediaStepForward -> PlayerKeyAction.SeekForward
         Key.MediaRewind, Key.MediaStepBackward -> PlayerKeyAction.SeekBack
         else -> if (controlsVisible) {
-            PlayerKeyAction.PassThrough
+            // İlerleme çubuğu odaktayken Sol/Sağ 10 sn sarar, Tamam oynat/duraklatır, Aşağı düğmelere geçer, Yukarı çubuktan çıkar.
+            if (progressFocused) when (key) {
+                Key.DirectionLeft -> PlayerKeyAction.SeekBack
+                Key.DirectionRight -> PlayerKeyAction.SeekForward
+                Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> PlayerKeyAction.TogglePlay
+                // Material Slider Yukarı/Aşağı ile değeri oynatır; odak gezintisi için olay burada alınır.
+                Key.DirectionDown -> PlayerKeyAction.GoToButtons
+                Key.DirectionUp -> PlayerKeyAction.LeaveBarUp
+                else -> PlayerKeyAction.PassThrough
+            } else PlayerKeyAction.PassThrough
         } else when (key) {
             Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> PlayerKeyAction.TogglePlay
             Key.DirectionLeft -> PlayerKeyAction.SeekBack

@@ -223,6 +223,20 @@ object PlayIcons {
         }
     }
 
+    /** Üç nokta: "daha fazla". */
+    val More: ImageVector by lazy {
+        icon("More") {
+            solid {
+                for (cx in floatArrayOf(5.5f, 12f, 18.5f)) {
+                    moveTo(cx - 1.7f, 12f)
+                    arcToRelative(1.7f, 1.7f, 0f, true, true, 3.4f, 0f)
+                    arcToRelative(1.7f, 1.7f, 0f, true, true, -3.4f, 0f)
+                    close()
+                }
+            }
+        }
+    }
+
     val Settings: ImageVector by lazy {
         icon("Settings") {
             line {

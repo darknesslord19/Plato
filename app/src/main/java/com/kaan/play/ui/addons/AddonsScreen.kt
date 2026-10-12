@@ -58,6 +58,7 @@ import com.kaan.play.ui.containerViewModel
 import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.tv.dpadLeavesTextField
+import com.kaan.play.ui.tv.rememberCursorField
 import com.kaan.play.ui.tv.focusMemory
 import com.kaan.play.ui.tv.rememberFocusMemory
 import kotlinx.coroutines.launch
@@ -322,14 +323,15 @@ private fun AddAddonDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val field = rememberCursorField(state.input, onInputChange)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.addons_add_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
-                    value = state.input,
-                    onValueChange = onInputChange,
+                    value = field.value,
+                    onValueChange = field.onValueChange,
                     label = { Text(stringResource(R.string.addons_add_field)) },
                     placeholder = { Text(stringResource(R.string.addons_add_hint)) },
                     singleLine = true,
@@ -337,7 +339,7 @@ private fun AddAddonDialog(
                     isError = state.error != null,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { if (!state.busy && state.input.isNotBlank()) onConfirm() }),
-                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(),
+                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(field),
                 )
                 when {
                     state.busy -> Row(verticalAlignment = Alignment.CenterVertically) {

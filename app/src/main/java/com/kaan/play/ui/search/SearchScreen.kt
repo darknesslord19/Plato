@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.focus.focusRequester
 import com.kaan.play.ui.tv.dpadLeavesTextField
+import com.kaan.play.ui.tv.rememberCursorField
 import com.kaan.play.ui.tv.focusMemory
 import com.kaan.play.ui.tv.rememberFocusMemory
 import com.kaan.play.ui.tv.rememberInitialFocus
@@ -60,10 +61,12 @@ fun SearchScreen(onOpenDetail: (MediaType, Int) -> Unit) {
     val fieldFocus = rememberInitialFocus(enabled = !startedWithResults)
     val focus = rememberFocusMemory(enabled = startedWithResults)
 
+    val field = rememberCursorField(state.query, vm::onQueryChange)
+
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         OutlinedTextField(
-            value = state.query,
-            onValueChange = vm::onQueryChange,
+            value = field.value,
+            onValueChange = field.onValueChange,
             placeholder = { Text(stringResource(R.string.search_hint)) },
             leadingIcon = { Icon(PlayIcons.Search, contentDescription = null) },
             trailingIcon = {
@@ -78,7 +81,7 @@ fun SearchScreen(onOpenDetail: (MediaType, Int) -> Unit) {
             // Kumanda/klavye ile odaklanınca klavye kendiliğinden açılmaz; Tamam/dokunma açar. Ara: sonucu gösterir, klavyeyi kapatır.
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search, showKeyboardOnFocus = false),
             keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp).focusRequester(fieldFocus).dpadLeavesTextField(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp).focusRequester(fieldFocus).dpadLeavesTextField(field),
         )
 
         Box(Modifier.weight(1f).fillMaxWidth()) {

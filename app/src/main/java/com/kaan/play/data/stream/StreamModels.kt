@@ -54,6 +54,8 @@ data class PlayableStream(
     val sizeBytes: Long?,
     val headers: Map<String, String>,
     val subtitles: List<StreamSubtitle>,
+    /** Akış metninden çıkarılan ses dili ("EN", "TR", "MULTI" ...); bulunamazsa null. */
+    val language: String? = null,
 )
 
 /** Akışla gelen altyazı; [language] addon'un verdiği ham etiket (`eng`, `tur` ...). */
@@ -77,4 +79,10 @@ sealed interface StreamResult {
  */
 fun interface StreamProvider {
     fun streams(request: StreamRequest): Flow<StreamResult>
+
+    /**
+     * Bu istek için sorulacak kaynaklar (cevap gelmeden önce bilinen liste): arayüz hangileri beklenirken hangileri
+     * bitti diye gösterebilsin. Bilinmiyorsa boş.
+     */
+    suspend fun sources(request: StreamRequest): List<StreamSource> = emptyList()
 }

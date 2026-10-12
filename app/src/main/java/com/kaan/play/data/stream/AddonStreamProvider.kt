@@ -35,11 +35,19 @@ class AddonStreamProvider(
         val contentId = request.contentId ?: return@channelFlow
         val type = request.type.addonType
         val limit = timeout()
-        for (addon in addons()) {
-            if (!addon.manifest.supportsStream(type, contentId)) continue
+        for (addon in askable(type, contentId)) {
             launch { send(query(addon, type, contentId, limit)) }
         }
     }
+
+    override suspend fun sources(request: StreamRequest): List<StreamSource> {
+        val contentId = request.contentId ?: return emptyList()
+        return askable(request.type.addonType, contentId).map { StreamSource(it.id, it.manifest.name) }
+    }
+
+    /** Manifest'e uyan (tür / `idPrefixes`) aktif addon'lar; diğerlerine istek gitmez. */
+    private suspend fun askable(type: String, contentId: String): List<Addon> =
+        addons().filter { it.manifest.supportsStream(type, contentId) }
 
     private suspend fun query(addon: Addon, type: String, contentId: String, limit: Duration): StreamResult {
         val source = StreamSource(addon.id, addon.manifest.name)

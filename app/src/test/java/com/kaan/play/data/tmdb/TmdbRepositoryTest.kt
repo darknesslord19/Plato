@@ -145,7 +145,8 @@ class TmdbRepositoryTest {
         assertEquals(148, d.runtimeMinutes)
         assertEquals(listOf("Bilim Kurgu", "Aksiyon"), d.genres)
         assertEquals("Başlangıç", d.summary.title)
-        assertEquals("external_ids", seen.single().queryParameter("append_to_response"))
+        assertEquals("external_ids,credits,images,release_dates", seen.single().queryParameter("append_to_response"))
+        assertEquals("tr,en,null", seen.single().queryParameter("include_image_language"))
         assertEquals(1, seen.size) // Özet dolu: yedek isteği yok.
     }
 
@@ -287,5 +288,120 @@ class TmdbRepositoryTest {
         assertEquals("https://image.tmdb.org/t/p/w342/a.jpg", TmdbImages.url("/a.jpg", TmdbImages.Size.Poster))
         assertNull(TmdbImages.url(null, TmdbImages.Size.Poster))
         assertNull(TmdbImages.url("", TmdbImages.Size.Poster))
+    }
+
+    // ---- 10. adım: logo, yaş sınırı, oyuncular, kapak karuseli ----
+
+    private val movieRich = """
+        {"id":27205,"title":"Başlangıç","overview":"Özet","release_date":"2010-07-15","vote_average":8.4,"runtime":148,
+         "genres":[{"id":28,"name":"Aksiyon"}],"external_ids":{"imdb_id":"tt1375666"},
+         "credits":{
+           "cast":[{"id":2,"name":"İkinci","character":"Arthur","order":1,"profile_path":"/c2.jpg"},
+                   {"id":1,"name":"Birinci","character":"Cobb","order":0,"profile_path":null},
+                   {"id":3,"name":"","character":"X","order":2}],
+           "crew":[{"name":"Christopher Nolan","job":"Director"},{"name":"Christopher Nolan","job":"Screenplay"},
+                   {"name":"Emma Thomas","job":"Producer"},{"name":"Jonathan Nolan","job":"Story"},{"name":"Üçüncü Yazar","job":"Writer"}]},
+         "images":{"logos":[
+           {"file_path":"/en-low.png","iso_639_1":"en","vote_average":3.0},
+           {"file_path":"/en-high.png","iso_639_1":"en","vote_average":5.5},
+           {"file_path":"/tr.png","iso_639_1":"tr","vote_average":1.0},
+           {"file_path":"/vec.svg","iso_639_1":"tr","vote_average":9.0}]},
+         "release_dates":{"results":[
+           {"iso_3166_1":"US","release_dates":[{"certification":""},{"certification":"PG-13"}]},
+           {"iso_3166_1":"TR","release_dates":[{"certification":"13+"}]}]}}
+    """
+
+    @Test
+    fun detailCarriesCastCrewLogoAndTurkishCertification() = runTest {
+        fixtures["movie/27205|tr-TR"] = movieRich
+        val d = repo().detail(MediaType.Movie, 27205)
+
+        assertEquals("/tr.png", d.logoPath) // arayüz dili önce; SVG atlanır
+        assertEquals("13+", d.certification)
+        assertEquals(listOf("Christopher Nolan"), d.directors)
+        assertEquals(listOf("Christopher Nolan", "Jonathan Nolan"), d.writers) // yinelenen ad bir kez, en çok iki
+        assertEquals(listOf("Birinci", "İkinci"), d.cast.map { it.name }) // sıraya göre, adsız oyuncu yok
+        assertEquals("Arthur", d.cast[1].role)
+        assertEquals("/c2.jpg", d.cast[1].profilePath)
+        assertNull(d.cast[0].profilePath)
+    }
+
+    @Test
+    fun englishUiPicksEnglishLogoWithBestVoteAndUsCertification() = runTest {
+        language = UiLanguage.English
+        fixtures["movie/27205|en-US"] = movieRich
+        val d = repo().detail(MediaType.Movie, 27205)
+
+        assertEquals("/en-high.png", d.logoPath)
+        assertEquals("PG-13", d.certification)
+        assertEquals("en,null", seen.single().queryParameter("include_image_language"))
+    }
+
+    @Test
+    fun certificationFallsBackToUsAndMissingExtrasAreEmpty() = runTest {
+        fixtures["movie/1|tr-TR"] = """
+            {"id":1,"title":"A","overview":"x","release_dates":{"results":[{"iso_3166_1":"US","release_dates":[{"certification":"R"}]}]}}
+        """
+        val d = repo().detail(MediaType.Movie, 1)
+        assertEquals("R", d.certification)
+        assertNull(d.logoPath)
+        assertTrue(d.cast.isEmpty() && d.directors.isEmpty() && d.writers.isEmpty() && d.creators.isEmpty())
+
+        fixtures["movie/2|tr-TR"] = """{"id":2,"title":"B","overview":"x"}"""
+        assertNull(repo().detail(MediaType.Movie, 2).certification)
+    }
+
+    @Test
+    fun tvDetailUsesContentRatingsAndCreators() = runTest {
+        fixtures["tv/9|tr-TR"] = """
+            {"id":9,"name":"Dizi","overview":"x","created_by":[{"name":"Yaratıcı A"},{"name":"Yaratıcı B"},{"name":"Yaratıcı C"}],
+             "content_ratings":{"results":[{"iso_3166_1":"US","rating":"TV-MA"},{"iso_3166_1":"TR","rating":"18+"}]}}
+        """
+        val d = repo().detail(MediaType.Tv, 9)
+
+        assertEquals("18+", d.certification)
+        assertEquals(listOf("Yaratıcı A", "Yaratıcı B"), d.creators)
+        assertEquals("external_ids,credits,images,content_ratings", seen.single().queryParameter("append_to_response"))
+    }
+
+    @Test
+    fun trendingByTypeUsesTypedPathAndKeepsGenreIds() = runTest {
+        fixtures["trending/tv/week|tr-TR"] =
+            """{"page":1,"total_pages":1,"results":[{"id":7,"name":"X","genre_ids":[18,80]}]}"""
+        val item = repo().trending(MediaType.Tv).items.single()
+
+        assertEquals(MediaType.Tv, item.type)
+        assertEquals(listOf(18, 80), item.genreIds)
+    }
+
+    @Test
+    fun heroKeepsOnlyBackdropItemsWithGenreNamesAndLogos() = runTest {
+        fixtures["trending/all/week|tr-TR"] = """
+            {"results":[
+              {"id":1,"media_type":"movie","title":"Film Bir","backdrop_path":"/b1.jpg","release_date":"2020-01-01","genre_ids":[28,12,35]},
+              {"id":2,"media_type":"tv","name":"Dizi İki","backdrop_path":null,"genre_ids":[18]},
+              {"id":3,"media_type":"tv","name":"Dizi Üç","backdrop_path":"/b3.jpg","genre_ids":[18]}]}
+        """
+        fixtures["genre/movie/list|tr-TR"] = """{"genres":[{"id":28,"name":"Aksiyon"},{"id":12,"name":"Macera"},{"id":35,"name":"Komedi"}]}"""
+        fixtures["genre/tv/list|tr-TR"] = """{"genres":[{"id":18,"name":"Dram"}]}"""
+        fixtures["movie/1/images|tr-TR"] = """{"logos":[{"file_path":"/l1.png","iso_639_1":"tr","vote_average":1}]}"""
+        // dizi üç için images fixture'ı yok (404): logo olmadan da kapak çıkar.
+
+        val hero = repo().hero()
+
+        assertEquals(listOf("Film Bir", "Dizi Üç"), hero.map { it.media.title })
+        assertEquals(listOf("Aksiyon", "Macera"), hero[0].genres) // en çok iki tür
+        assertEquals("/l1.png", hero[0].logoPath)
+        assertEquals(listOf("Dram"), hero[1].genres)
+        assertNull(hero[1].logoPath)
+    }
+
+    @Test
+    fun heroSurvivesGenreListFailure() = runTest {
+        fixtures["trending/all/week|tr-TR"] =
+            """{"results":[{"id":1,"media_type":"movie","title":"Film","backdrop_path":"/b.jpg","genre_ids":[28]}]}"""
+        val hero = repo().hero()
+        assertEquals(1, hero.size)
+        assertTrue(hero[0].genres.isEmpty())
     }
 }

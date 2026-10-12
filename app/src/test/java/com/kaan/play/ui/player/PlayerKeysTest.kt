@@ -55,6 +55,22 @@ class PlayerKeysTest {
     }
 
     @Test
+    fun progressBarFocusSeeksWithLeftRightAndMovesFocusWithUpDown() {
+        fun bar(k: Key) = PlayerKeys.actionFor(k, controlsVisible = true, progressFocused = true)
+        assertEquals(SeekBack, bar(Key.DirectionLeft))
+        assertEquals(SeekForward, bar(Key.DirectionRight))
+        assertEquals(TogglePlay, bar(Key.DirectionCenter))
+        assertEquals(TogglePlay, bar(Key.Enter))
+        // Slider Yukarı/Aşağı ile değeri oynatırdı: Aşağı düğmelere geçer, Yukarı çubuktan çıkar (olay burada alınır).
+        assertEquals(PlayerKeyAction.GoToButtons, bar(Key.DirectionDown))
+        assertEquals(PlayerKeyAction.LeaveBarUp, bar(Key.DirectionUp))
+        // Çubuk odakta değilken (düğmeler) Sol/Sağ yine düğmeleri gezdirir.
+        assertEquals(PassThrough, PlayerKeys.actionFor(Key.DirectionLeft, controlsVisible = true, progressFocused = false))
+        // Kontroller gizliyken çubuk bilgisi önemsizdir.
+        assertEquals(SeekBack, PlayerKeys.actionFor(Key.DirectionLeft, controlsVisible = false, progressFocused = true))
+    }
+
+    @Test
     fun volumeKeysAreNeverSwallowed() {
         listOf(Key.VolumeUp, Key.VolumeDown, Key.VolumeMute).forEach {
             assertEquals(PassThrough, hidden(it))

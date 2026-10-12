@@ -26,8 +26,19 @@ internal class TmdbService(
     suspend fun trending(language: String, page: Int): ListDto =
         get("trending/all/week", ListDto.serializer(), language, "page" to page.toString())
 
+    suspend fun trendingOf(type: String, language: String, page: Int): ListDto =
+        get("trending/$type/week", ListDto.serializer(), language, "page" to page.toString())
+
     suspend fun popular(type: String, language: String, page: Int): ListDto =
         get("$type/popular", ListDto.serializer(), language, "page" to page.toString())
+
+    /** Tür kimliği -> ad listesi (`genre/movie/list`, `genre/tv/list`), istenen dilde. */
+    suspend fun genres(type: String, language: String): GenreListDto =
+        get("genre/$type/list", GenreListDto.serializer(), language)
+
+    /** Yalnızca başlık logoları; [imageLanguages]: `tr,en,null` gibi (TMDB `include_image_language`). */
+    suspend fun images(type: String, id: Int, language: String, imageLanguages: String): ImagesDto =
+        get("$type/$id/images", ImagesDto.serializer(), language, "include_image_language" to imageLanguages)
 
     suspend fun search(query: String, language: String, page: Int): ListDto =
         get(
@@ -35,9 +46,18 @@ internal class TmdbService(
             "query" to query, "page" to page.toString(), "include_adult" to "false",
         )
 
-    /** `external_ids` eklenir: IMDb kimliği hem film hem dizi için buradan okunur. */
-    suspend fun detail(type: String, id: Int, language: String): DetailDto =
-        get("$type/$id", DetailDto.serializer(), language, "append_to_response" to "external_ids")
+    /**
+     * Tek istekte: `external_ids` (IMDb kimliği), `credits` (oyuncu/ekip), `images` (başlık logosu) ve yaş sınırı
+     * (filmde `release_dates`, dizide `content_ratings`).
+     */
+    suspend fun detail(type: String, id: Int, language: String, imageLanguages: String = "en,null"): DetailDto {
+        val rating = if (type == "tv") "content_ratings" else "release_dates"
+        return get(
+            "$type/$id", DetailDto.serializer(), language,
+            "append_to_response" to "external_ids,credits,images,$rating",
+            "include_image_language" to imageLanguages,
+        )
+    }
 
     suspend fun season(tvId: Int, season: Int, language: String): SeasonDetailDto =
         get("tv/$tvId/season/$season", SeasonDetailDto.serializer(), language)

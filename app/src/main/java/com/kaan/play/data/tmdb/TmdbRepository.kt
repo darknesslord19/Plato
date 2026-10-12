@@ -1,6 +1,8 @@
 package com.kaan.play.data.tmdb
 
+import com.kaan.play.data.model.CastMember
 import com.kaan.play.data.model.Episode
+import com.kaan.play.data.model.HeroItem
 import com.kaan.play.data.model.MediaDetail
 import com.kaan.play.data.model.MediaSummary
 import com.kaan.play.data.model.MediaType
@@ -8,6 +10,9 @@ import com.kaan.play.data.model.Page
 import com.kaan.play.data.model.SeasonDetail
 import com.kaan.play.data.model.SeasonInfo
 import com.kaan.play.i18n.UiLanguage
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -36,6 +41,45 @@ class TmdbRepository(
     suspend fun popular(type: MediaType, page: Int = 1): Page<MediaSummary> =
         service.popular(type.tmdbPath, lang(), page).toPage(defaultType = type)
 
+    /** Yalnızca film ya da yalnızca dizi için bu haftanın trendleri. */
+    suspend fun trending(type: MediaType, page: Int = 1): Page<MediaSummary> =
+        service.trendingOf(type.tmdbPath, lang(), page).toPage(defaultType = type)
+
+    /**
+     * Ana sayfa kapak karuseli: bu haftanın trendlerinden arka plan görseli olan ilk [limit] içerik; tür adları ve
+     * (varsa) başlık logosuyla. Tür listesi ya da logo alınamazsa o alan boş kalır, karusel yine çıkar.
+     */
+    suspend fun hero(limit: Int = HERO_COUNT): List<HeroItem> {
+        val items = trending().items.filter { !it.backdropPath.isNullOrBlank() }.take(limit)
+        val names = bestEffort { genreNames() }.orEmpty()
+        return coroutineScope {
+            items.map { media ->
+                async {
+                    val logo = bestEffort { service.images(media.type.tmdbPath, media.id, lang(), imageLanguages()) }
+                        ?.logos?.let { pickLogo(it, language().iso) }
+                    HeroItem(media, media.genreIds.mapNotNull(names::get).take(2), logo)
+                }
+            }.awaitAll()
+        }
+    }
+
+    private var genreCache: Pair<UiLanguage, Map<Int, String>>? = null
+
+    private suspend fun genreNames(): Map<Int, String> {
+        val current = language()
+        genreCache?.takeIf { it.first == current }?.let { return it.second }
+        val merged = buildMap {
+            MediaType.entries.forEach { type ->
+                service.genres(type.tmdbPath, current.tmdbTag).genres.forEach { put(it.id, it.name) }
+            }
+        }
+        genreCache = current to merged
+        return merged
+    }
+
+    /** `tr,en,null`: arayüz dili, İngilizce, dilsiz logolar (sırayla tercih edilir, bkz. [pickLogo]). */
+    private fun imageLanguages(): String = imageLanguagesFor(language())
+
     /** Boş sorgu ağa gitmeden boş sonuç verir. Kişi sonuçları ayıklanır. */
     suspend fun search(query: String, page: Int = 1): Page<MediaSummary> {
         val q = query.trim()
@@ -44,7 +88,7 @@ class TmdbRepository(
     }
 
     suspend fun detail(type: MediaType, id: Int): MediaDetail {
-        val primary = service.detail(type.tmdbPath, id, lang())
+        val primary = service.detail(type.tmdbPath, id, lang(), imageLanguages())
         val merged = if (needsFallback() && primary.overview.isNullOrBlank()) {
             // En-US yedeği en iyi çabadır: başarısız olursa Türkçe sonuç boş özetle yine de döner.
             val english = bestEffort { service.detail(type.tmdbPath, id, UiLanguage.English.tmdbTag) }
@@ -52,7 +96,7 @@ class TmdbRepository(
         } else {
             primary
         }
-        return merged.toDetail(type)
+        return merged.toDetail(type, language())
     }
 
     suspend fun season(tvId: Int, season: Int): SeasonDetail {
@@ -103,10 +147,11 @@ private fun ItemDto.toSummary(defaultType: MediaType?): MediaSummary? {
         backdropPath = backdropPath,
         year = yearOf(releaseDate ?: firstAirDate),
         rating = voteAverage?.takeIf { it > 0.0 },
+        genreIds = genreIds,
     )
 }
 
-private fun DetailDto.toDetail(type: MediaType): MediaDetail = MediaDetail(
+private fun DetailDto.toDetail(type: MediaType, language: UiLanguage): MediaDetail = MediaDetail(
     summary = MediaSummary(
         id = id,
         type = type,
@@ -130,7 +175,64 @@ private fun DetailDto.toDetail(type: MediaType): MediaDetail = MediaDetail(
             posterPath = it.posterPath,
         )
     },
+    logoPath = images?.logos?.let { pickLogo(it, language.iso) },
+    certification = certificationFor(type, language),
+    directors = credits?.crew.orEmpty().filter { it.job == "Director" }.names(),
+    writers = credits?.crew.orEmpty().filter { it.job in WRITER_JOBS }.names(),
+    creators = createdBy.mapNotNull { it.name }.names(),
+    cast = credits?.cast.orEmpty()
+        .filter { !it.name.isNullOrBlank() }
+        .sortedBy { it.order }
+        .take(CAST_COUNT)
+        .map { CastMember(it.id, it.name.orEmpty(), it.character.orEmpty().trim(), it.profilePath) },
 )
+
+private val WRITER_JOBS = setOf("Screenplay", "Writer", "Story", "Novel")
+private const val CAST_COUNT = 12
+private const val NAMES_COUNT = 2
+private const val HERO_COUNT = 5
+
+@JvmName("crewNames")
+private fun List<CrewDto>.names(): List<String> = mapNotNull { it.name }.names()
+
+private fun List<String>.names(): List<String> = filter { it.isNotBlank() }.distinct().take(NAMES_COUNT)
+
+/**
+ * Yaş sınırı: arayüz dilinin ülkesi (TR / US), yoksa ABD; boş değerler atlanır. Filmde `release_dates`,
+ * dizide `content_ratings` okunur.
+ */
+private fun DetailDto.certificationFor(type: MediaType, language: UiLanguage): String? {
+    val regions = listOf(language.region, UiLanguage.English.region).distinct()
+    val byRegion: Map<String, String> = when (type) {
+        MediaType.Movie -> releaseDates?.results.orEmpty().mapNotNull { c ->
+            val cert = c.releases.firstNotNullOfOrNull { it.certification?.trim()?.takeIf(String::isNotEmpty) }
+            if (c.country != null && cert != null) c.country to cert else null
+        }
+        MediaType.Tv -> contentRatings?.results.orEmpty().mapNotNull { c ->
+            val cert = c.rating?.trim()?.takeIf(String::isNotEmpty)
+            if (c.country != null && cert != null) c.country to cert else null
+        }
+    }.toMap()
+    return regions.firstNotNullOfOrNull { byRegion[it] }
+}
+
+/** TMDB `include_image_language` değeri: arayüz dili, İngilizce, dilsiz. */
+internal fun imageLanguagesFor(language: UiLanguage): String =
+    listOf(language.iso, UiLanguage.English.iso, "null").distinct().joinToString(",")
+
+/**
+ * Başlık logosu: arayüz dilindekiler önce, sonra İngilizce, sonra dilsiz; kendi içinde en yüksek oy. SVG atlanır
+ * (görsel yükleyici yalnızca raster çözer).
+ */
+internal fun pickLogo(logos: List<LogoDto>, uiIso: String): String? {
+    val usable = logos.filter { !it.filePath.isNullOrBlank() && !it.filePath.endsWith(".svg", ignoreCase = true) }
+    val order = listOf(uiIso, UiLanguage.English.iso, null).distinct()
+    for (iso in order) {
+        usable.filter { it.language == iso || (iso == null && it.language.isNullOrBlank()) }
+            .maxByOrNull { it.voteAverage }?.let { return it.filePath }
+    }
+    return null
+}
 
 private fun DetailDto.fillFrom(en: DetailDto): DetailDto = copy(
     title = title.takeUnless { it.isNullOrBlank() } ?: en.title,

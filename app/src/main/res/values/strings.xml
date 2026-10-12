@@ -22,7 +22,11 @@
     <string name="home_empty_message">No addons yet.</string>
     <string name="home_empty_action">Add an addon to get started</string>
     <string name="home_row_continue">Continue watching</string>
-    <string name="home_row_trending">Trending this week</string>
+    <string name="home_row_trending_movies">Trending movies</string>
+    <string name="home_row_trending_series">Trending series</string>
+    <string name="home_hero_details">See details</string>
+    <string name="home_see_all">See all</string>
+    <string name="rating_tmdb" translatable="false">TMDB %1$s</string>
     <string name="home_row_popular_movies">Popular movies</string>
     <string name="home_row_popular_series">Popular series</string>
     <string name="continue_left_movie">%1$d min left</string>
@@ -37,6 +41,13 @@
 
     <!-- Detay -->
     <string name="detail_play">Play</string>
+    <string name="detail_more">More</string>
+    <string name="detail_overview_more">Show more</string>
+    <string name="detail_overview_less">Show less</string>
+    <string name="detail_director">Director</string>
+    <string name="detail_writer">Writer</string>
+    <string name="detail_creator">Creator</string>
+    <string name="detail_cast">Cast</string>
     <string name="detail_favorite_add">Add to favorites</string>
     <string name="detail_favorite_remove">Remove from favorites</string>
     <string name="detail_season">Season %1$d</string>
@@ -51,6 +62,11 @@
     <string name="sources_empty">No sources found.</string>
     <string name="sources_failed">%1$s didn\'t respond</string>
     <string name="sources_quality_unknown">Unknown</string>
+    <string name="sources_all">All</string>
+    <string name="sources_refresh">Refresh</string>
+    <string name="sources_loading">Fetching…</string>
+    <string name="sources_checking_more">Checking more addons…</string>
+    <string name="sources_subtitled">Subtitles</string>
 
     <!-- Oynatıcı -->
     <string name="player_title_episode">%1$s · S%2$d E%3$d</string>

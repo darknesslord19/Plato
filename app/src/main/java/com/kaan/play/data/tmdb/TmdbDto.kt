@@ -24,6 +24,7 @@ internal data class ItemDto(
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("first_air_date") val firstAirDate: String? = null,
     @SerialName("vote_average") val voteAverage: Double? = null,
+    @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
 )
 
 @Serializable
@@ -44,7 +45,64 @@ internal data class DetailDto(
     val seasons: List<SeasonDto> = emptyList(),
     @SerialName("imdb_id") val imdbId: String? = null,
     @SerialName("external_ids") val externalIds: ExternalIdsDto? = null,
+    val credits: CreditsDto? = null,
+    val images: ImagesDto? = null,
+    @SerialName("release_dates") val releaseDates: ReleaseDatesDto? = null,
+    @SerialName("content_ratings") val contentRatings: ContentRatingsDto? = null,
+    @SerialName("created_by") val createdBy: List<PersonDto> = emptyList(),
 )
+
+@Serializable
+internal data class PersonDto(val name: String? = null)
+
+@Serializable
+internal data class CreditsDto(val cast: List<CastDto> = emptyList(), val crew: List<CrewDto> = emptyList())
+
+@Serializable
+internal data class CastDto(
+    val id: Int = 0,
+    val name: String? = null,
+    val character: String? = null,
+    @SerialName("profile_path") val profilePath: String? = null,
+    val order: Int = Int.MAX_VALUE,
+)
+
+@Serializable
+internal data class CrewDto(val name: String? = null, val job: String? = null)
+
+@Serializable
+internal data class ImagesDto(val logos: List<LogoDto> = emptyList())
+
+@Serializable
+internal data class LogoDto(
+    @SerialName("file_path") val filePath: String? = null,
+    @SerialName("iso_639_1") val language: String? = null,
+    @SerialName("vote_average") val voteAverage: Double = 0.0,
+)
+
+@Serializable
+internal data class ReleaseDatesDto(val results: List<ReleaseCountryDto> = emptyList())
+
+@Serializable
+internal data class ReleaseCountryDto(
+    @SerialName("iso_3166_1") val country: String? = null,
+    @SerialName("release_dates") val releases: List<ReleaseDto> = emptyList(),
+)
+
+@Serializable
+internal data class ReleaseDto(val certification: String? = null)
+
+@Serializable
+internal data class ContentRatingsDto(val results: List<ContentRatingDto> = emptyList())
+
+@Serializable
+internal data class ContentRatingDto(@SerialName("iso_3166_1") val country: String? = null, val rating: String? = null)
+
+@Serializable
+internal data class GenreListDto(val genres: List<GenreIdDto> = emptyList())
+
+@Serializable
+internal data class GenreIdDto(val id: Int = 0, val name: String = "")
 
 @Serializable
 internal data class GenreDto(val name: String = "")

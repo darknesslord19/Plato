@@ -1,18 +1,15 @@
 package com.kaan.play.ui.detail
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.border
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.unit.Dp
-import com.kaan.play.ui.tv.rememberInitialFocus
-import com.kaan.play.ui.tv.rememberPlayLayout
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -20,21 +17,22 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import com.kaan.play.ui.components.Button
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import com.kaan.play.ui.components.IconButton
 import androidx.compose.material3.MaterialTheme
-import com.kaan.play.ui.components.OutlinedButton
-import com.kaan.play.ui.components.OutlinedIconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,15 +43,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.kaan.play.R
+import com.kaan.play.data.model.CastMember
 import com.kaan.play.data.model.Episode
 import com.kaan.play.data.model.MediaDetail
 import com.kaan.play.data.model.MediaType
@@ -62,11 +68,25 @@ import com.kaan.play.data.stream.PlayTarget
 import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.tmdb.TmdbImages
 import com.kaan.play.i18n.AppLanguage
+import com.kaan.play.ui.components.AgeChip
+import com.kaan.play.ui.components.Button
 import com.kaan.play.ui.components.CenteredLoading
 import com.kaan.play.ui.components.ErrorMessage
+import com.kaan.play.ui.components.IconButton
 import com.kaan.play.ui.components.Loadable
+import com.kaan.play.ui.components.OutlinedButton
+import com.kaan.play.ui.components.OutlinedIconButton
+import com.kaan.play.ui.components.RatingBadge
+import com.kaan.play.ui.components.StatusBarScrim
+import com.kaan.play.ui.components.TextButton
+import com.kaan.play.ui.components.TitleOrLogo
 import com.kaan.play.ui.containerViewModel
 import com.kaan.play.ui.nav.PlayIcons
+import com.kaan.play.ui.tv.focusRing
+import com.kaan.play.ui.tv.rememberInitialFocus
+import com.kaan.play.ui.tv.rememberPlayLayout
+
+private val Gutter = 20.dp
 
 /**
  * Detay. Film: tek ana iş "Oynat". Dizi: ana iş bölüm seçmek (sezon seçici + bölüm listesi).
@@ -90,6 +110,7 @@ fun DetailScreen(type: MediaType, id: Int, onBack: () -> Unit, onPlay: (PlayTarg
             is Loadable.Ready -> DetailContent(
                 detail = d.value,
                 twoPane = layout.twoPane,
+                screenHeight = layout.heightDp.dp,
                 isFavorite = isFavorite,
                 selectedSeason = season,
                 episodes = episodes,
@@ -102,6 +123,7 @@ fun DetailScreen(type: MediaType, id: Int, onBack: () -> Unit, onPlay: (PlayTarg
                 },
             )
         }
+        StatusBarScrim()
         // Geri oku: kapağın üstünde de okunsun diye yarı saydam daire içinde.
         IconButton(
             onClick = onBack,
@@ -123,6 +145,7 @@ private fun DetailContent(
     selectedSeason: Int?,
     episodes: Loadable<List<Episode>>,
     twoPane: Boolean,
+    screenHeight: Dp,
     onToggleFavorite: () -> Unit,
     onSelectSeason: (Int) -> Unit,
     onRetryEpisodes: () -> Unit,
@@ -132,56 +155,71 @@ private fun DetailContent(
     val isSeries = media.type == MediaType.Tv
     // Kumanda: başlangıç odağı ana işte (film: Oynat, dizi: sezon seçici).
     val primaryFocus = rememberInitialFocus()
-    val info: @Composable () -> Unit = {
-        InfoBlock(detail, isFavorite, selectedSeason, primaryFocus, onToggleFavorite, onSelectSeason, onPlay)
+    val header: @Composable (Dp) -> Unit = { padding ->
+        HeaderBlock(detail, isFavorite, selectedSeason, primaryFocus, padding, onToggleFavorite, onSelectSeason, onPlay)
     }
 
     if (twoPane) {
-        // Geniş/yatay ekran: solda afiş, sağda bilgiler + bölümler (kapak ekranı kaplamaz).
+        // Geniş/yatay ekran: tam ekran arka plan sağda görünür, bilgiler solda koyu geçişin üstünde akar.
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            val posterWidth = minOf(maxWidth * 0.3f, (maxHeight - 96.dp) / 1.5f, 320.dp).coerceAtLeast(120.dp)
-            Row(Modifier.fillMaxSize()) {
-                Box(Modifier.statusBarsPadding().padding(start = 24.dp, end = 8.dp, top = 56.dp)) {
-                    Poster(media.posterPath ?: media.backdropPath, posterWidth)
-                }
-                LazyColumn(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                    item { Box(Modifier.statusBarsPadding().padding(top = 16.dp)) { info() } }
-                    if (isSeries) episodeSection(episodes, selectedSeason, onRetryEpisodes, onPlay)
-                    item { Spacer(Modifier.height(24.dp)) }
-                }
+            WideBackdrop(media.backdropPath ?: media.posterPath)
+            LazyColumn(
+                modifier = Modifier.fillMaxHeight().width(minOf(maxWidth * 0.62f, 680.dp)),
+                contentPadding = PaddingValues(start = 24.dp, end = 16.dp, top = 56.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                item { Box(Modifier.statusBarsPadding()) { header(0.dp) } }
+                item { BodyBlock(detail, horizontalPadding = 0.dp) }
+                castSection(detail.cast, horizontalPadding = 0.dp)
+                if (isSeries) episodeSection(episodes, selectedSeason, 8.dp, onRetryEpisodes, onPlay)
             }
         }
     } else {
-        LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(0.dp)) {
-            item { Backdrop(media.backdropPath ?: media.posterPath) }
-            item { info() }
-            if (isSeries) episodeSection(episodes, selectedSeason, onRetryEpisodes, onPlay)
-            item { Spacer(Modifier.height(24.dp)) }
+        // Dik telefon: kapak görseli sayfayla birlikte kayar; başlık ve ana işler görselin alt kenarına biner.
+        val headerHeight = (screenHeight * 0.58f).coerceIn(300.dp, 520.dp)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                val background = MaterialTheme.colorScheme.background
+                Box(Modifier.fillMaxWidth().heightIn(min = headerHeight)) {
+                    TmdbImages.url(media.backdropPath ?: media.posterPath, TmdbImages.Size.BackdropLarge)?.let {
+                        AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+                    }
+                    // Alt kenar sayfa rengine erir: başlık okunur, kapak "kesilmiş" görünmez.
+                    Box(Modifier.matchParentSize().background(Brush.verticalGradient(0.25f to Color.Transparent, 0.9f to background.copy(alpha = 0.95f), 1f to background)))
+                    Box(Modifier.align(Alignment.BottomStart).padding(top = 72.dp)) { header(Gutter) }
+                }
+            }
+            item { BodyBlock(detail, horizontalPadding = Gutter) }
+            castSection(detail.cast, horizontalPadding = Gutter)
+            if (isSeries) episodeSection(episodes, selectedSeason, Gutter, onRetryEpisodes, onPlay)
         }
     }
 }
 
-/** Başlık, künye, özet ve ana işler (film: Oynat + favori; dizi: sezon seçici + favori). */
+/** Başlık (logo ya da metin), tür satırı ve ana işler (film: Oynat + ⋯; dizi: sezon seçici + ⋯). */
 @Composable
-private fun InfoBlock(
+private fun HeaderBlock(
     detail: MediaDetail,
     isFavorite: Boolean,
     selectedSeason: Int?,
     primaryFocus: FocusRequester,
+    horizontalPadding: Dp,
     onToggleFavorite: () -> Unit,
     onSelectSeason: (Int) -> Unit,
     onPlay: (Int?, Int?) -> Unit,
 ) {
     val media = detail.summary
-    Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(media.title, style = MaterialTheme.typography.titleLarge)
-        metaLine(detail)?.let {
+    Column(Modifier.padding(horizontal = horizontalPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        TitleOrLogo(title = media.title, logoPath = detail.logoPath, logoHeight = 72.dp)
+        genreLine(detail)?.let {
             Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (media.overview.isNotBlank()) ExpandableText(media.overview)
-
-        if (media.type == MediaType.Tv) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (media.type == MediaType.Tv) {
                 SeasonPicker(
                     seasons = detail.seasons,
                     selected = selectedSeason,
@@ -189,21 +227,131 @@ private fun InfoBlock(
                     modifier = Modifier.weight(1f),
                     focus = primaryFocus,
                 )
-                Spacer(Modifier.width(12.dp))
-                FavoriteButton(isFavorite, onToggleFavorite)
-            }
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            } else {
                 Button(
                     onClick = { onPlay(null, null) },
-                    modifier = Modifier.weight(1f).height(48.dp).focusRequester(primaryFocus),
+                    modifier = Modifier.weight(1f).height(52.dp).focusRequester(primaryFocus),
                 ) {
-                    Icon(PlayIcons.PlayTriangle, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(PlayIcons.PlayTriangle, contentDescription = null, modifier = Modifier.size(22.dp))
                     Text(stringResource(R.string.detail_play), modifier = Modifier.padding(start = 8.dp))
                 }
-                Spacer(Modifier.width(12.dp))
-                FavoriteButton(isFavorite, onToggleFavorite)
             }
+            MoreButton(isFavorite, onToggleFavorite)
+        }
+    }
+}
+
+/** Yıl · süre, yaş sınırı çipi, TMDB puan rozeti; yönetmen/yazar; kısaltılmış özet. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BodyBlock(detail: MediaDetail, horizontalPadding: Dp) {
+    val media = detail.summary
+    Column(Modifier.padding(horizontal = horizontalPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val yearRuntime = yearRuntimeLine(detail)
+        if (yearRuntime != null || detail.certification != null || media.rating != null) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                yearRuntime?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                detail.certification?.let { AgeChip(it) }
+                media.rating?.let { RatingBadge(it) }
+            }
+        }
+        // Dizide yaratıcı aynı zamanda yönetmen/yazar görünüyorsa üç satırda aynı ad tekrarlanmasın.
+        val directors = detail.directors.filterNot { it in detail.creators }
+        val writers = detail.writers.filterNot { it in detail.creators }
+        if (directors.isNotEmpty()) CreditLine(stringResource(R.string.detail_director), directors)
+        if (writers.isNotEmpty()) CreditLine(stringResource(R.string.detail_writer), writers)
+        if (detail.creators.isNotEmpty()) CreditLine(stringResource(R.string.detail_creator), detail.creators)
+        if (media.overview.isNotBlank()) Overview(media.overview)
+    }
+}
+
+@Composable
+private fun CreditLine(label: String, names: List<String>) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Text(
+        text = buildAnnotatedString {
+            withStyle(SpanStyle(color = muted)) { append(label) }
+            append("  ")
+            append(names.joinToString(", "))
+        },
+        style = MaterialTheme.typography.bodyMedium,
+    )
+}
+
+/** Özet 3 satıra kısaltılır; sığmıyorsa "Daha fazla göster" düğmesi çıkar. */
+@Composable
+private fun Overview(text: String) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    var overflows by remember { mutableStateOf(false) }
+    Column {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = if (expanded) Int.MAX_VALUE else 3,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
+        )
+        if (overflows || expanded) {
+            TextButton(onClick = { expanded = !expanded }, modifier = Modifier.offset(x = (-12).dp)) {
+                Text(stringResource(if (expanded) R.string.detail_overview_less else R.string.detail_overview_more))
+            }
+        }
+    }
+}
+
+private fun LazyListScope.castSection(cast: List<CastMember>, horizontalPadding: Dp) {
+    if (cast.isEmpty()) return
+    item(key = "cast") {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(stringResource(R.string.detail_cast), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = horizontalPadding))
+            LazyRow(
+                contentPadding = PaddingValues(start = (horizontalPadding - 10.dp).coerceAtLeast(0.dp), end = horizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(cast, key = { it.id }) { CastItem(it) }
+            }
+        }
+    }
+}
+
+/** Yuvarlak fotoğraf + ad + rol. Dokunulacak bir işi yok ama kumandayla odaklanır (listeyi kaydırabilmek için). */
+@Composable
+private fun CastItem(member: CastMember) {
+    val shape = RoundedCornerShape(12.dp)
+    Column(
+        modifier = Modifier
+            .width(92.dp)
+            .focusRing(shape)
+            .focusable()
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            Modifier.size(72.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            val photo = TmdbImages.url(member.profilePath, TmdbImages.Size.Profile)
+            if (photo != null) {
+                AsyncImage(model = photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            } else {
+                Text(member.name.take(1).uppercase(), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Text(member.name, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        if (member.role.isNotBlank()) {
+            Text(
+                member.role,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -211,10 +359,10 @@ private fun InfoBlock(
 private fun LazyListScope.episodeSection(
     episodes: Loadable<List<Episode>>,
     selectedSeason: Int?,
+    horizontalPadding: Dp,
     onRetryEpisodes: () -> Unit,
     onPlay: (Int?, Int?) -> Unit,
 ) {
-    item { Spacer(Modifier.height(8.dp)) }
     when (episodes) {
         Loadable.Loading -> item { CenteredLoadingRow() }
         is Loadable.Failed -> item {
@@ -226,62 +374,43 @@ private fun LazyListScope.episodeSection(
                     stringResource(R.string.detail_no_episodes),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(horizontalPadding),
                 )
             }
         } else {
             items(episodes.value, key = { it.number }) { episode ->
-                EpisodeRow(episode) { selectedSeason?.let { onPlay(it, episode.number) } }
+                EpisodeRow(episode, horizontalPadding) { selectedSeason?.let { onPlay(it, episode.number) } }
             }
         }
     }
 }
 
-/** Geniş ekranda sol sütundaki 2:3 afiş. */
+/** Geniş ekranda tüm ekranı kaplayan arka plan: solda koyu geçiş (yazı okunur), sağda görsel görünür. */
 @Composable
-private fun Poster(path: String?, width: Dp) {
-    val shape = MaterialTheme.shapes.medium
-    Box(
-        Modifier
-            .width(width)
-            .aspectRatio(2f / 3f)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .border(1.dp, MaterialTheme.colorScheme.outline, shape),
-    ) {
-        TmdbImages.url(path, TmdbImages.Size.PosterLarge)?.let {
-            AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        }
-    }
-}
-
-@Composable
-private fun Backdrop(path: String?) {
-    val url = TmdbImages.url(path, TmdbImages.Size.BackdropLarge)
+private fun WideBackdrop(path: String?) {
     val background = MaterialTheme.colorScheme.background
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .aspectRatio(16f / 9f)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        if (url != null) {
-            AsyncImage(model = url, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+    Box(Modifier.fillMaxSize()) {
+        TmdbImages.url(path, TmdbImages.Size.BackdropLarge)?.let {
+            AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, alignment = Alignment.CenterEnd, modifier = Modifier.fillMaxSize())
         }
-        // Alt kenar sayfa rengine erir: başlık okunur, kapak "kesilmiş" görünmez.
-        Box(
-            Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to background)),
-        )
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to background, 0.45f to background.copy(alpha = 0.94f), 1f to background.copy(alpha = 0.3f))))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.65f to Color.Transparent, 1f to background)))
     }
 }
 
-/** Yıl · süre · en çok 3 tür. */
+/** En çok 3 tür: "Aksiyon · Macera · Bilim Kurgu". */
 @Composable
-private fun metaLine(detail: MediaDetail): String? {
+private fun genreLine(detail: MediaDetail): String? {
+    if (detail.genres.isEmpty()) return null
+    return detail.genres.take(3).reduce { acc, s -> stringResource(R.string.dot_join, acc, s) }
+}
+
+/** Yıl · süre (biliniyorsa). */
+@Composable
+private fun yearRuntimeLine(detail: MediaDetail): String? {
     val parts = buildList {
         detail.summary.year?.let { add(it.toString()) }
         detail.runtimeMinutes?.let { add(formatRuntime(it)) }
-        if (detail.genres.isNotEmpty()) add(detail.genres.take(3).joinToString(", "))
     }
     if (parts.isEmpty()) return null
     return parts.reduce { acc, s -> stringResource(R.string.dot_join, acc, s) }
@@ -292,27 +421,27 @@ private fun formatRuntime(minutes: Int): String =
     if (minutes >= 60) stringResource(R.string.runtime_hours_minutes, minutes / 60, minutes % 60)
     else stringResource(R.string.runtime_minutes, minutes)
 
-/** Özet 4 satıra kısaltılır; dokununca açılır/kapanır. */
+/** Yuvarlak "daha fazla" düğmesi; menüde favori ekle/çıkar (durum kalp simgesinde görünür). */
 @Composable
-private fun ExpandableText(text: String) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        maxLines = if (expanded) Int.MAX_VALUE else 4,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable { expanded = !expanded },
-    )
-}
-
-@Composable
-private fun FavoriteButton(isFavorite: Boolean, onToggle: () -> Unit) {
-    OutlinedIconButton(onClick = onToggle, modifier = Modifier.size(48.dp)) {
-        Icon(
-            imageVector = if (isFavorite) PlayIcons.HeartFilled else PlayIcons.Heart,
-            contentDescription = stringResource(if (isFavorite) R.string.detail_favorite_remove else R.string.detail_favorite_add),
-            tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-        )
+private fun MoreButton(isFavorite: Boolean, onToggleFavorite: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        OutlinedIconButton(onClick = { open = true }, modifier = Modifier.size(52.dp)) {
+            Icon(PlayIcons.More, contentDescription = stringResource(R.string.detail_more))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(if (isFavorite) R.string.detail_favorite_remove else R.string.detail_favorite_add)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (isFavorite) PlayIcons.HeartFilled else PlayIcons.Heart,
+                        contentDescription = null,
+                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                },
+                onClick = { open = false; onToggleFavorite() },
+            )
+        }
     }
 }
 
@@ -326,7 +455,7 @@ private fun SeasonPicker(
 ) {
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
-        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth().height(48.dp).focusRequester(focus)) {
+        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth().height(52.dp).focusRequester(focus)) {
             Text(
                 text = stringResource(R.string.detail_season, selected ?: seasons.firstOrNull()?.number ?: 1),
                 modifier = Modifier.weight(1f),
@@ -347,7 +476,7 @@ private fun SeasonPicker(
 }
 
 @Composable
-private fun EpisodeRow(episode: Episode, onClick: () -> Unit) {
+private fun EpisodeRow(episode: Episode, horizontalPadding: Dp, onClick: () -> Unit) {
     val title = if (episode.name.isBlank()) {
         stringResource(R.string.detail_episode_fallback, episode.number)
     } else {
@@ -357,7 +486,7 @@ private fun EpisodeRow(episode: Episode, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = horizontalPadding, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(

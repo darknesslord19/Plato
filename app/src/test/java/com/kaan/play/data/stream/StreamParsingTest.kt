@@ -64,4 +64,29 @@ class StreamParsingTest {
         assertNull(episode.copy(episode = null).contentId)
         assertNull(movie.copy(imdbId = null).contentId)
     }
+
+    @Test
+    fun languageFromFreeText() {
+        assertEquals("EN", StreamLabels.language("Movie 1080p English DTS"))
+        assertEquals("TR", StreamLabels.language("Film [TR] 720p"))
+        assertEquals("TR", StreamLabels.language("🇹🇷 Türkçe Dublaj"))
+        assertEquals("EN", StreamLabels.language("🇺🇸 Movie ENG 1080p"))
+        assertEquals("DE", StreamLabels.language("Movie (DE) 1080p"))
+        assertEquals("MULTI", StreamLabels.language("Movie MULTi 1080p"))
+        assertEquals("TR", StreamLabels.language("Turkish then English")) // ilk geçen
+        assertNull(StreamLabels.language("Movie.2020.1080p.WEB-DL"))
+        assertNull(StreamLabels.language("Engine Turbo Turing")) // sözcüğün parçası değil
+    }
+
+    @Test
+    fun parsedStreamCarriesLanguageAndSubtitles() {
+        val body = """{"streams":[
+            {"url":"https://x/a.mp4","name":"Addon 1080p","title":"Film 2.1 GB [EN]","subtitles":[{"url":"https://x/a.srt","lang":"tur"}]},
+            {"url":"https://x/b.mp4","name":"Addon 720p"}]}"""
+        val (first, second) = StreamParser.parse(StreamSource(1, "A"), body)
+        assertEquals("EN", first.language)
+        assertEquals(1, first.subtitles.size)
+        assertNull(second.language)
+        assertEquals(0, second.subtitles.size)
+    }
 }

@@ -10,6 +10,8 @@ object TmdbImages {
         Backdrop("w780"),
         BackdropLarge("w1280"),
         Still("w300"),
+        Logo("w500"),
+        Profile("w185"),
     }
 
     fun url(path: String?, size: Size): String? =

@@ -46,7 +46,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -79,7 +81,9 @@ import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.settings.SubtitlePreview
 import com.kaan.play.ui.settings.SubtitleStyleControls
 import com.kaan.play.ui.sources.SourcesSheet
+import com.kaan.play.ui.tv.focusRing
 import com.kaan.play.ui.tv.rememberInitialFocus
+import com.kaan.play.ui.tv.requestWhenAttached
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -124,6 +128,9 @@ fun PlayerScreen(
     val rootFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
     val noticeFocus = remember { FocusRequester() }
+    val barFocus = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    var barFocused by remember { mutableStateOf(false) }
     val dialogOpen = showSources || showSubtitles || showAppearance || showMenu
     val showControls = controlsVisible || ui.error != null
 
@@ -154,10 +161,14 @@ fun PlayerScreen(
         }
     }
     LaunchedEffect(ui.error) { if (ui.error != null) resumeNotice = false }
-    // Odak: kontroller açıkken (ya da hata düğmesi varken) oynat/seç düğmesinde, gizliyken kök yüzeyde
+    // Odak: kontroller açıkken ilerleme çubuğunda (hata varsa hata düğmesinde), gizliyken kök yüzeyde
     // (yön tuşları orada yakalanır).
     LaunchedEffect(controlsVisible, ui.error) {
-        runCatching { if (controlsVisible || ui.error != null) playFocus.requestFocus() else rootFocus.requestFocus() }
+        when {
+            ui.error != null -> runCatching { playFocus.requestFocus() }
+            controlsVisible -> barFocus.requestWhenAttached()
+            else -> runCatching { rootFocus.requestFocus() }
+        }
     }
     LaunchedEffect(showControls) {
         while (showControls) {
@@ -184,13 +195,15 @@ fun PlayerScreen(
                 val repeat = event.nativeKeyEvent.repeatCount
                 // Sarma sürerken (basılı tutma) kontroller açılsa da Sol/Sağ sarmaya devam eder, odağı gezdirmez.
                 val seeking = SystemClock.uptimeMillis() - lastSeekKeyAt < SEEK_HOLD_MS
-                when (PlayerKeys.actionFor(event.key, controlsVisible = showControls && !seeking)) {
+                when (PlayerKeys.actionFor(event.key, controlsVisible = showControls && (!seeking || barFocused), progressFocused = barFocused)) {
                     PlayerKeyAction.PassThrough -> false
                     PlayerKeyAction.TogglePlay -> { if (repeat == 0) controller.togglePlay(); reveal(); true }
                     PlayerKeyAction.SeekBack -> { seekByKey(-1, repeat); true }
                     PlayerKeyAction.SeekForward -> { seekByKey(1, repeat); true }
                     PlayerKeyAction.Reveal -> { reveal(); true }
                     PlayerKeyAction.OpenMenu -> { reveal(); showMenu = true; true }
+                    PlayerKeyAction.GoToButtons -> { runCatching { playFocus.requestFocus() }; true }
+                    PlayerKeyAction.LeaveBarUp -> focusManager.moveFocus(FocusDirection.Up)
                 }
             }
             // Açık focusable(): clickable dokunmatik modda odak almaz; gizli kontrollerde tuşlar buraya gelmeli.
@@ -229,6 +242,8 @@ fun PlayerScreen(
                 position = position,
                 duration = duration,
                 playFocus = playFocus,
+                barFocus = barFocus,
+                onBarFocusChange = { barFocused = it },
                 noticeFocus = if (resumeNotice) noticeFocus else null,
                 onBack = onBack,
                 onTogglePlay = { controller.togglePlay(); bump() },
@@ -373,6 +388,8 @@ private fun Controls(
     position: Long,
     duration: Long,
     playFocus: FocusRequester,
+    barFocus: FocusRequester,
+    onBarFocusChange: (Boolean) -> Unit,
     noticeFocus: FocusRequester?,
     onBack: () -> Unit,
     onTogglePlay: () -> Unit,
@@ -423,13 +440,17 @@ private fun Controls(
                 horizontalArrangement = Arrangement.spacedBy(32.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SeekButton(PlayIcons.SeekBack, stringResource(R.string.player_rewind), tint) { onSeek(-10_000L) }
+                val upToBar = Modifier.focusProperties { up = barFocus }
+                SeekButton(PlayIcons.SeekBack, stringResource(R.string.player_rewind), tint, modifier = upToBar) { onSeek(-10_000L) }
                 FilledIconButton(
                     onClick = onTogglePlay,
                     modifier = Modifier
                         .size(72.dp)
                         .focusRequester(playFocus)
-                        .focusProperties { down = noticeFocus ?: FocusRequester.Default },
+                        .focusProperties {
+                            up = barFocus
+                            down = noticeFocus ?: FocusRequester.Default
+                        },
                     colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primary),
                 ) {
                     Icon(
@@ -439,7 +460,7 @@ private fun Controls(
                         modifier = Modifier.size(36.dp),
                     )
                 }
-                SeekButton(PlayIcons.SeekForward, stringResource(R.string.player_forward), tint, iconFirst = false) { onSeek(10_000L) }
+                SeekButton(PlayIcons.SeekForward, stringResource(R.string.player_forward), tint, iconFirst = false, modifier = upToBar) { onSeek(10_000L) }
             }
 
             ProgressBar(
@@ -447,6 +468,9 @@ private fun Controls(
                 duration = duration,
                 onSeekTo = onSeekTo,
                 onInteract = onInteract,
+                focus = barFocus,
+                downFocus = playFocus,
+                onFocusChange = onBarFocusChange,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, vertical = 16.dp),
             )
         }
@@ -459,9 +483,10 @@ private fun SeekButton(
     description: String,
     tint: Color,
     iconFirst: Boolean = true,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    IconButton(onClick = onClick, modifier = Modifier.size(width = 72.dp, height = 56.dp)) {
+    IconButton(onClick = onClick, modifier = modifier.size(width = 72.dp, height = 56.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             val label = stringResource(R.string.player_seconds)
             if (!iconFirst) Text(label, style = MaterialTheme.typography.titleMedium, color = tint)
@@ -477,6 +502,9 @@ private fun ProgressBar(
     duration: Long,
     onSeekTo: (Long) -> Unit,
     onInteract: () -> Unit,
+    focus: FocusRequester,
+    downFocus: FocusRequester,
+    onFocusChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var dragging by remember { mutableStateOf(false) }
@@ -484,7 +512,11 @@ private fun ProgressBar(
     val fraction = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
     val shown = if (dragging) dragFraction else fraction
 
-    Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = modifier.fillMaxWidth().onFocusChanged { onFocusChange(it.hasFocus) }.focusRing(RoundedCornerShape(24.dp))
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(formatTime((shown * duration).toLong()), style = MaterialTheme.typography.bodyMedium, color = Color.White)
         Slider(
             value = shown,
@@ -493,13 +525,16 @@ private fun ProgressBar(
                 if (duration > 0) onSeekTo((dragFraction * duration).toLong())
                 dragging = false
             },
-            enabled = duration > 0,
             colors = SliderDefaults.colors(
                 thumbColor = MaterialTheme.colorScheme.primary,
                 activeTrackColor = MaterialTheme.colorScheme.primary,
                 inactiveTrackColor = Color.White.copy(alpha = 0.3f),
             ),
-            modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 12.dp)
+                .focusRequester(focus)
+                .focusProperties { down = downFocus },
         )
         Text(formatTime(duration), style = MaterialTheme.typography.bodyMedium, color = Color.White)
     }

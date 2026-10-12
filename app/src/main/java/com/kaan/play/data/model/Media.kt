@@ -20,6 +20,23 @@ data class MediaSummary(
     val backdropPath: String?,
     val year: Int?,
     val rating: Double?,
+    /** TMDB tür kimlikleri (listelerde gelir); adlara [com.kaan.play.data.tmdb.TmdbRepository] çevirir. */
+    val genreIds: List<Int> = emptyList(),
+)
+
+/** Ana sayfa kapak karuselinin bir sayfası: arka plan görseli olan içerik + tür adları + (varsa) başlık logosu. */
+data class HeroItem(
+    val media: MediaSummary,
+    val genres: List<String>,
+    /** TMDB başlık logosu yolu; yoksa arayüz metin başlık gösterir. */
+    val logoPath: String?,
+)
+
+data class CastMember(
+    val id: Int,
+    val name: String,
+    val role: String,
+    val profilePath: String?,
 )
 
 data class MediaDetail(
@@ -31,6 +48,15 @@ data class MediaDetail(
     val runtimeMinutes: Int?,
     /** Yalnızca diziler için; "Özel bölümler" (sezon 0) hariç. */
     val seasons: List<SeasonInfo>,
+    /** TMDB başlık logosu (arayüz diline göre, yoksa İngilizce/dilsiz); yoksa metin başlık gösterilir. */
+    val logoPath: String? = null,
+    /** Yaş sınırı (ör. "13+", "PG-13"); bulunamazsa null. */
+    val certification: String? = null,
+    val directors: List<String> = emptyList(),
+    val writers: List<String> = emptyList(),
+    /** Yalnızca diziler: yaratıcılar. */
+    val creators: List<String> = emptyList(),
+    val cast: List<CastMember> = emptyList(),
 )
 
 data class SeasonInfo(

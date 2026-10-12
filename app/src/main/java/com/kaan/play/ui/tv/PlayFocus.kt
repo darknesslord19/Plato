@@ -9,6 +9,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -175,17 +177,40 @@ fun rememberInitialFocus(enabled: Boolean = true): FocusRequester {
 }
 
 /**
+ * Metin alanı değeri + imleç konumu. `OutlinedTextField(value: String)` imleci dışarı vermez; bu sınıf Compose'un kendi
+ * String uyarlamasıyla aynı yolu izler (metin dışarıdan gelir, seçim/yazım durumu burada tutulur) ve alanın başında olup
+ * olmadığını söyler. [dpadLeavesTextField] bunu Sol tuşu için kullanır.
+ */
+@Stable
+class CursorField internal constructor(val value: TextFieldValue, val onValueChange: (TextFieldValue) -> Unit) {
+    /** İmleç metnin en başında (ve seçim yok). */
+    val atStart: Boolean get() = value.selection.collapsed && value.selection.start == 0
+}
+
+@Composable
+fun rememberCursorField(text: String, onTextChange: (String) -> Unit): CursorField {
+    var state by remember { mutableStateOf(TextFieldValue(text)) }
+    val value = state.copy(text = text)
+    return CursorField(value) { next ->
+        state = next
+        if (next.text != text) onTextChange(next.text)
+    }
+}
+
+/**
  * Kumanda: tek satırlık metin alanı Aşağı/Yukarı tuşunu yutar ve odak alandan çıkamaz. Bu değiştirici Aşağı/Yukarı'yı
- * odak hareketine çevirir (alanın altındaki sonuç ızgarasına, düğmelere geçilir); Sol/Sağ imleci taşımaya devam eder.
+ * odak hareketine çevirir (alanın altındaki sonuç ızgarasına, düğmelere geçilir). Sol/Sağ imleci taşımaya devam eder;
+ * tek istisna: [field] verilmişse ve imleç metnin başındaysa Sol odağı sola (yan menü/rail) taşır.
  */
 @Composable
-fun Modifier.dpadLeavesTextField(): Modifier {
+fun Modifier.dpadLeavesTextField(field: CursorField? = null): Modifier {
     val focusManager = LocalFocusManager.current
     return this.onPreviewKeyEvent { event ->
         if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
         when (event.key) {
             Key.DirectionDown -> focusManager.moveFocus(FocusDirection.Down)
             Key.DirectionUp -> focusManager.moveFocus(FocusDirection.Up)
+            Key.DirectionLeft -> field != null && field.atStart && focusManager.moveFocus(FocusDirection.Left)
             else -> false
         }
     }

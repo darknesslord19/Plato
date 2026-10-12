@@ -2,6 +2,11 @@ package com.kaan.play.ui.nav
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +30,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import com.kaan.play.ui.components.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +68,8 @@ import com.kaan.play.ui.addons.AddonsScreen
 import com.kaan.play.ui.addons.InstalledAddonsScreen
 import com.kaan.play.ui.addons.RepositoriesScreen
 import com.kaan.play.ui.detail.DetailScreen
+import com.kaan.play.ui.home.CategoryScreen
+import com.kaan.play.ui.home.HomeRow
 import com.kaan.play.ui.home.HomeScreen
 import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.search.SearchScreen
@@ -78,12 +88,27 @@ private const val ADDONS_INSTALLED_ROUTE = "settings/addons/installed"
 private const val PLAYER_SETTINGS_ROUTE = "settings/player"
 private const val ABOUT_ROUTE = "settings/about"
 private const val DETAIL_ROUTE = "detail/{type}/{id}"
+private const val CATEGORY_ROUTE = "home/category/{row}"
 
 /** Kaynak seçimine giden iş: hedef, başlangıç konumu ve konumun sormadan (otomatik) seçilip seçilmediği. */
 private data class PlayStart(val target: PlayTarget, val startMs: Long, val autoResumed: Boolean)
 
 private fun addonsRoute(startAdding: Boolean) = "settings/addons?add=$startAdding"
 private fun detailRoute(type: MediaType, id: Int) = "detail/${type.tmdbPath}/$id"
+private fun categoryRoute(row: HomeRow) = "home/category/${row.name}"
+
+/**
+ * Alt/yan menü etiketleri en çok 1.0 yazı ölçeğiyle çizilir: büyük yazıda sekme adları ("Kütüphane") kısalmaz ya da
+ * sekmeden taşmaz. Menü simgeli ve kısa olduğu için okunabilirlik zarar görmez; içerik büyük yazıyı korur.
+ */
+@Composable
+private fun CappedFontScale(content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(density.density, fontScale = minOf(density.fontScale, 1f)),
+        content = content,
+    )
+}
 
 enum class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector) {
     Home("home", R.string.tab_home, PlayIcons.Home),
@@ -195,24 +220,31 @@ fun PlayRoot() {
     val navColors = NavigationBarItemDefaults.colors(
         selectedIconColor = MaterialTheme.colorScheme.primary,
         selectedTextColor = MaterialTheme.colorScheme.primary,
-        indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     val railColors = NavigationRailItemDefaults.colors(
         selectedIconColor = MaterialTheme.colorScheme.primary,
         selectedTextColor = MaterialTheme.colorScheme.primary,
-        indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     fun selected(tab: Tab) = currentRoute == tab.route || currentRoute?.startsWith(tab.route + "/") == true
 
+    // Ana sayfa (kapak karuseli) ve Detay (arka plan görseli) durum çubuğunun arkasına kadar uzanır; diğer ekranlar altına girmez.
+    val bleedsUnderStatusBar = currentRoute == Tab.Home.route || currentRoute == DETAIL_ROUTE
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = if (bleedsUnderStatusBar) {
+            WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+        } else {
+            ScaffoldDefaults.contentWindowInsets
+        },
         bottomBar = {
             // Telefon (ve alçak yatay telefon): alt menü. Geniş ekranda yan menü kullanılır.
-            if (showNav && !layout.useRail) {
+            if (showNav && !layout.useRail) CappedFontScale {
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                     Tab.entries.forEach { tab ->
                         NavigationBarItem(
@@ -230,7 +262,7 @@ fun PlayRoot() {
         },
     ) { padding ->
         Row(Modifier.padding(padding)) {
-        if (showNav && layout.useRail) {
+        if (showNav && layout.useRail) CappedFontScale {
             NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
                 // Menü öğeleri dikeyde ortalanır; kumandada Yukarı/Aşağı ile gezilir, Sağ içeriğe geçer.
                 Spacer(Modifier.weight(1f))
@@ -256,9 +288,19 @@ fun PlayRoot() {
             composable(Tab.Home.route) {
                 HomeScreen(
                     onOpenDetail = ::openDetail,
+                    onOpenCategory = { navController.navigate(categoryRoute(it)) },
                     onContinue = ::continueWatching,
                     onAddAddon = { openAddons(startAdding = true) },
                 )
+            }
+            composable(
+                route = CATEGORY_ROUTE,
+                arguments = listOf(navArgument("row") { type = NavType.StringType }),
+            ) { entry ->
+                val row = HomeRow.entries.firstOrNull { it.name == entry.arguments?.getString("row") } ?: HomeRow.TrendingMovies
+                ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) {
+                    CategoryScreen(row = row, onBack = { navController.popBackStack() }, onOpenDetail = ::openDetail)
+                }
             }
             composable(Tab.Search.route) { ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { SearchScreen(onOpenDetail = ::openDetail) } }
             composable(Tab.Library.route) {

@@ -34,6 +34,7 @@ import com.kaan.play.data.web.WebSiteRepository
 import com.kaan.play.data.web.WebSiteUrl
 import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.tv.dpadLeavesTextField
+import com.kaan.play.ui.tv.rememberCursorField
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -121,29 +122,31 @@ fun AddWebSiteDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val nameField = rememberCursorField(state.name, onNameChange)
+    val addressField = rememberCursorField(state.address, onAddressChange)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.web_add_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
-                    value = state.name,
-                    onValueChange = onNameChange,
+                    value = nameField.value,
+                    onValueChange = nameField.onValueChange,
                     label = { Text(stringResource(R.string.web_add_name)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(),
+                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(nameField),
                 )
                 OutlinedTextField(
-                    value = state.address,
-                    onValueChange = onAddressChange,
+                    value = addressField.value,
+                    onValueChange = addressField.onValueChange,
                     label = { Text(stringResource(R.string.web_add_address)) },
                     placeholder = { Text(stringResource(R.string.web_add_hint)) },
                     singleLine = true,
                     isError = state.error != null,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { onConfirm() }),
-                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(),
+                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(addressField),
                 )
                 state.error?.let { kind ->
                     Text(

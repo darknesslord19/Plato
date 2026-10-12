@@ -17,7 +17,10 @@
     <string name="home_empty_message">Henüz hiçbir eklenti yok.</string>
     <string name="home_empty_action">Başlamak için bir eklenti ekle</string>
     <string name="home_row_continue">İzlemeye devam et</string>
-    <string name="home_row_trending">Bu hafta trend olanlar</string>
+    <string name="home_row_trending_movies">Trend filmler</string>
+    <string name="home_row_trending_series">Trend diziler</string>
+    <string name="home_hero_details">Detayları gör</string>
+    <string name="home_see_all">Tümünü gör</string>
     <string name="home_row_popular_movies">Popüler filmler</string>
     <string name="home_row_popular_series">Popüler diziler</string>
     <string name="continue_left_movie">%1$d dk kaldı</string>
@@ -32,6 +35,13 @@
 
     <!-- Detay -->
     <string name="detail_play">Oynat</string>
+    <string name="detail_more">Daha fazla</string>
+    <string name="detail_overview_more">Daha fazla göster</string>
+    <string name="detail_overview_less">Daha az göster</string>
+    <string name="detail_director">Yönetmen</string>
+    <string name="detail_writer">Yazar</string>
+    <string name="detail_creator">Yaratıcı</string>
+    <string name="detail_cast">Oyuncular</string>
     <string name="detail_favorite_add">Favorilere ekle</string>
     <string name="detail_favorite_remove">Favorilerden çıkar</string>
     <string name="detail_season">%1$d. Sezon</string>
@@ -45,6 +55,11 @@
     <string name="sources_empty">Kaynak bulunamadı.</string>
     <string name="sources_failed">%1$s yanıt vermedi</string>
     <string name="sources_quality_unknown">Bilinmiyor</string>
+    <string name="sources_all">Tümü</string>
+    <string name="sources_refresh">Yenile</string>
+    <string name="sources_loading">Alınıyor…</string>
+    <string name="sources_checking_more">Daha fazla eklenti kontrol ediliyor…</string>
+    <string name="sources_subtitled">Altyazılı</string>
 
     <!-- Oynatıcı -->
     <string name="player_title_episode">%1$s · S%2$d B%3$d</string>
