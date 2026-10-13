@@ -3,8 +3,14 @@
 Sade, özgün bir Android film/dizi istemcisi (Kotlin, Jetpack Compose, Material 3). Uygulama hiçbir içerik veya addon içermez; addon'lar kullanıcının girdiği manifest URL'lerinden gelir. Ayrıntılı kapsam ve kurallar: [CLAUDE.md](CLAUDE.md).
 
 ## İndirme / Download
-- **Türkçe:** Son sürümü [GitHub Releases](https://github.com/liberta09/Play/releases) sayfasından indir (`Play-vX.Y.Z.apk`). Android 7.0+ gerekir; kurmak için "bilinmeyen kaynaklardan yükleme" iznini ver.
-- **English:** Get the latest version from [GitHub Releases](https://github.com/liberta09/Play/releases) (`Play-vX.Y.Z.apk`). Requires Android 7.0+; allow "install unknown apps" to sideload.
+
+| | |
+|---|---|
+| 📥 **APK** | [GitHub Releases](https://github.com/liberta09/Play/releases) |
+| 💬 **Telegram** | [t.me/+o-RFlV4U3UY5NGU8](https://t.me/+o-RFlV4U3UY5NGU8) |
+
+- **Türkçe:** Son sürümü yukarıdaki bağlantıdan indir (`Play-vX.Y.Z.apk`). Android 7.0+ gerekir; kurmak için "bilinmeyen kaynaklardan yükleme" iznini ver. Güncellemeler ve duyurular için Telegram grubuna katıl.
+- **English:** Download the latest release from the link above (`Play-vX.Y.Z.apk`). Requires Android 7.0+; allow "install unknown apps" to sideload. Join the Telegram group for updates and announcements.
 
 Yayın derlemesi / Release build: `local.properties` içine `KEYSTORE_PASSWORD` ve `KEY_PASSWORD` ekle, anahtar dosyası `keystore/play-release.keystore` (alias `play`; git'e girmez), sonra `.\gradlew assembleRelease`. Şifreler yoksa imzasız derlenir. Sürüm notları: [CHANGELOG.md](CHANGELOG.md).
 
