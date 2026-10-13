@@ -76,6 +76,7 @@ fun AddonsScreen(
     onBack: () -> Unit,
     onOpenRepos: () -> Unit,
     onOpenInstalled: () -> Unit,
+    onOpenCsRepos: () -> Unit,
 ) {
     val vm = containerViewModel { AddonsViewModel(it.sourceInstaller, it.addons, it.pendingAddonUrl) }
     val addons by vm.addons.collectAsStateWithLifecycle()
@@ -96,6 +97,9 @@ fun AddonsScreen(
                 is AddResult.PluginRepo ->
                     if (result.skipped > 0) appContext.getString(R.string.add_done_repo_skipped, result.skipped)
                     else appContext.getString(R.string.add_done_repo)
+                is AddResult.CsRepo ->
+                    if (result.skipped > 0) appContext.getString(R.string.add_done_cs_repo_skipped, result.skipped)
+                    else appContext.getString(R.string.add_done_cs_repo)
             }
             Toast.makeText(appContext, text, Toast.LENGTH_SHORT).show()
         }
@@ -135,6 +139,14 @@ fun AddonsScreen(
                     value = addons?.let { pluralStringResource(R.plurals.addons_count, it.size, it.size) }.orEmpty(),
                     modifier = Modifier.focusMemory(focus, "installed"),
                     onClick = onOpenInstalled,
+                )
+            }
+            item {
+                SettingsRow(
+                    title = stringResource(R.string.cs_repos_title),
+                    subtitle = stringResource(R.string.cs_repos_subtitle),
+                    modifier = Modifier.focusMemory(focus, "csrepos"),
+                    onClick = onOpenCsRepos,
                 )
             }
             item {

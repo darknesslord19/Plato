@@ -255,4 +255,16 @@
     <string name="download_notifications_off">Bildirimler kapalı; ilerlemeyi durum çubuğunda görmezsin. İndirme yine de sürer.</string>
     <string name="settings_download_wifi_only">Sadece Wi-Fi\'de indir</string>
     <string name="player_error_download">Bu indirme oynatılamıyor. Silip yeniden indir.</string>
+    <!-- CloudStream .cs3 depoları (Faz 3) -->
+    <plurals name="cs_plugins_count">
+        <item quantity="one">%d eklenti</item>
+        <item quantity="other">%d eklenti</item>
+    </plurals>
+    <string name="cs_repos_title">CloudStream Depoları</string>
+    <string name="cs_repos_subtitle">.cs3 eklenti deposu ekle</string>
+    <string name="cs_repos_empty">Henüz CloudStream deposu eklenmedi.</string>
+    <string name="cs_repo_remove_title">Depoyu kaldır</string>
+    <string name="cs_repo_remove_body">"%1$s" deposu ve tüm eklentileri kaldırılsın mı?</string>
+    <string name="add_done_cs_repo">CloudStream deposu eklendi.</string>
+    <string name="add_done_cs_repo_skipped">CloudStream deposu eklendi (%1$d eklenti atlandı).</string>
 </resources>

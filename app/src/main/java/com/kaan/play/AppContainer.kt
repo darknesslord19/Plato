@@ -16,6 +16,11 @@ import com.kaan.play.data.library.ContinueWatching
 import com.kaan.play.data.library.LibraryRepository
 import com.kaan.play.data.library.NextEpisodeResolver
 import com.kaan.play.data.net.PlayJson
+import com.kaan.play.data.cloudstream.CsDexLoader
+import com.kaan.play.data.cloudstream.CsDexStore
+import com.kaan.play.data.cloudstream.CsRepository
+import com.kaan.play.data.cloudstream.CsRuntime
+import com.kaan.play.data.cloudstream.CsStreamProvider
 import com.kaan.play.data.plugin.FilePluginCodeStore
 import com.kaan.play.data.plugin.OkHttpPluginCodeFetcher
 import com.kaan.play.data.plugin.PluginRepository
@@ -118,8 +123,30 @@ class AppContainer(context: Context) {
         )
     }
 
-    /** "Eklenti ekle": adresin içeriğine bakıp addon mu eklenti deposu mu olduğunu kendisi anlar. */
-    val sourceInstaller: SourceInstaller by lazy { SourceInstaller(addons, plugins, OkHttpManifestFetcher(httpClient)) }
+    /** CloudStream .cs3 eklenti DEX dosyaları: `filesDir/cloudstream/`. */
+    val csDexStore: CsDexStore by lazy { CsDexStore(File(appContext.filesDir, "cloudstream")) }
+
+    /** CloudStream DEX yükleyicisi (PathClassLoader; tek seferde bir yükleme). */
+    val csDexLoader: CsDexLoader by lazy { CsDexLoader(appContext) }
+
+    /** CloudStream eklenti çalıştırıcısı (search → load → loadLinks akışı). */
+    val csRuntime: CsRuntime by lazy { CsRuntime() }
+
+    /** CloudStream depo yöneticisi (Faz 3). Depo satırı `addons`, eklentiler `plugins` tablosunda. */
+    val csRepos: CsRepository by lazy {
+        CsRepository(
+            context = appContext,
+            addonDao = database.addonDao(),
+            pluginDao = database.pluginDao(),
+            fetcher = OkHttpManifestFetcher(httpClient),
+            httpClient = httpClient,
+            store = csDexStore,
+            loader = csDexLoader,
+        )
+    }
+
+    /** "Eklenti ekle": adresin içeriğine bakıp addon mu eklenti deposu mu CloudStream deposu mu olduğunu kendisi anlar. */
+    val sourceInstaller: SourceInstaller by lazy { SourceInstaller(addons, plugins, csRepos, OkHttpManifestFetcher(httpClient)) }
 
     /**
      * JS kazıyıcı çalıştırıcısı (QuickJS). Gerçek TMDB anahtarı yalnızca ağ köprüsüne verilir, eklentilere yer tutucu görünür.
@@ -139,9 +166,9 @@ class AppContainer(context: Context) {
     }
 
     /**
-     * Kaynaklar tek birleşik sağlayıcıdan gelir: aktif addon'lar ([AddonStreamProvider]) ve açık eklentiler
-     * ([PluginStreamProvider]) aynı akışta, aynı listede. Zaman aşımı her ikisi için de Ayarlar'daki ortak kaynak zaman aşımıdır
-     * ve her istekte yeniden okunur.
+     * Kaynaklar tek birleşik sağlayıcıdan gelir: aktif addon'lar ([AddonStreamProvider]),
+     * açık Nuvio JS eklentileri ([PluginStreamProvider]) ve açık CS .cs3 eklentileri ([CsStreamProvider]).
+     * Zaman aşımı Ayarlar'daki ortak kaynak zaman aşımıdır; her istekte yeniden okunur.
      */
     val streams: StreamProvider by lazy {
         CompositeStreamProvider(
@@ -152,6 +179,12 @@ class AppContainer(context: Context) {
                 runner = { code, request, scraperId, timeoutMs, saved -> pluginRuntime.run(code, request, scraperId, timeoutMs, saved) },
                 settings = pluginSettings::get,
                 timeout = sourceTimeout,
+            ),
+            CsStreamProvider(
+                repository = csRepos,
+                runtime = csRuntime,
+                titleResolver = { req -> runCatching { tmdb.detail(req.type, req.tmdbId).title }.getOrNull() },
+                timeoutMs = 15_000L,
             ),
         )
     }
@@ -198,15 +231,19 @@ class AppContainer(context: Context) {
     }
 
     /**
-     * Oynatılabilecek en az bir açık kaynak (akış veren addon ya da eklenti) var mı? Yoksa Oynat "eklenti ekle"ye götürür.
-     * Yalnızca altyazı veren bir addon kaynak sayılmaz.
+     * Oynatılabilecek en az bir açık kaynak (akış veren addon, Nuvio eklentisi veya CS eklentisi) var mı?
+     * Yoksa Oynat "eklenti ekle"ye götürür. Yalnızca altyazı veren bir addon kaynak sayılmaz.
      */
     suspend fun hasEnabledSources(): Boolean =
-        addons.enabledAddons().any { it.manifest.providesStreams } || plugins.enabledPlugins().isNotEmpty()
+        addons.enabledAddons().any { it.manifest.providesStreams } ||
+            plugins.enabledPlugins().isNotEmpty() ||
+            csRepos.enabledPlugins().isNotEmpty()
 
-    /** Ana sayfa boş durumu için: hiç akış addon'u ve hiç eklenti deposu yok mu? (null: henüz yüklenmedi). */
+    /** Ana sayfa boş durumu için: hiç akış addon'u, Nuvio deposu veya CS deposu yok mu? (null: henüz yüklenmedi). */
     val hasAnySource: Flow<Boolean> by lazy {
-        combine(addons.addons, plugins.repos) { a, r -> a.any { it.manifest.providesStreams } || r.isNotEmpty() }
+        combine(addons.addons, plugins.repos, csRepos.repos) { a, r, cs ->
+            a.any { it.manifest.providesStreams } || r.isNotEmpty() || cs.isNotEmpty()
+        }
     }
 
     /**

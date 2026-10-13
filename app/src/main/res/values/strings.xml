@@ -272,4 +272,16 @@
     <string name="download_notifications_off">Notifications are off, so you won\'t see progress in the status bar. The download still continues.</string>
     <string name="settings_download_wifi_only">Download on Wi-Fi only</string>
     <string name="player_error_download">This download can\'t be played. Delete it and download it again.</string>
+    <!-- CloudStream .cs3 repos (Faz 3) -->
+    <plurals name="cs_plugins_count">
+        <item quantity="one">%d plugin</item>
+        <item quantity="other">%d plugins</item>
+    </plurals>
+    <string name="cs_repos_title">CloudStream Repos</string>
+    <string name="cs_repos_subtitle">Add .cs3 plugin repos</string>
+    <string name="cs_repos_empty">No CloudStream repos added yet.</string>
+    <string name="cs_repo_remove_title">Remove repo</string>
+    <string name="cs_repo_remove_body">Remove "%1$s" and all its plugins?</string>
+    <string name="add_done_cs_repo">CloudStream repo added.</string>
+    <string name="add_done_cs_repo_skipped">CloudStream repo added (%1$d plugins skipped).</string>
 </resources>

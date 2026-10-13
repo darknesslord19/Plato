@@ -180,9 +180,10 @@ private fun RepoRow(repo: PluginRepo, busy: Boolean, enabled: Boolean, onCheck: 
  */
 @Composable
 fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
-    val vm = containerViewModel { InstalledAddonsViewModel(it.addons, it.plugins) }
+    val vm = containerViewModel { InstalledAddonsViewModel(it.addons, it.plugins, it.csRepos) }
     val addons by vm.addons.collectAsStateWithLifecycle()
     val groups by vm.groups.collectAsStateWithLifecycle()
+    val csGroups by vm.csGroups.collectAsStateWithLifecycle()
     var toRemove by remember { mutableStateOf<Addon?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
@@ -190,9 +191,10 @@ fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
 
         val addonList = addons
         val groupList = groups
+        val csGroupList = csGroups
         when {
-            addonList == null || groupList == null -> Unit // yükleniyor: boş mesaj yanıp sönmesin
-            addonList.isEmpty() && groupList.isEmpty() -> EmptyMessage(stringResource(R.string.addons_empty))
+            addonList == null || groupList == null || csGroupList == null -> Unit // yükleniyor: boş mesaj yanıp sönmesin
+            addonList.isEmpty() && groupList.isEmpty() && csGroupList.isEmpty() -> EmptyMessage(stringResource(R.string.addons_empty))
             else -> LazyColumn(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
@@ -218,6 +220,20 @@ fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
                     }
                     items(group.plugins, key = { "p-${it.id}" }) { plugin ->
                         PluginRow(plugin = plugin, onToggle = { vm.setPluginEnabled(plugin, it) }, onOpen = { onOpenPlugin(plugin.id) })
+                    }
+                }
+                // CloudStream .cs3 eklentileri
+                csGroupList.forEach { group ->
+                    item(key = "cs-${group.repo.id}") {
+                        Text(
+                            text = group.repo.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
+                        )
+                    }
+                    items(group.plugins, key = { "csp-${it.id}" }) { plugin ->
+                        CsPluginRow(plugin = plugin, onToggle = { vm.setCsPluginEnabled(plugin, it) })
                     }
                 }
             }

@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.kaan.play.data.addon.Addon
 import com.kaan.play.data.addon.AddonException
 import com.kaan.play.data.addon.AddonRepository
+import com.kaan.play.data.cloudstream.CsRepo
+import com.kaan.play.data.cloudstream.CsRepository
+import com.kaan.play.data.cloudstream.InstalledCsPlugin
 import com.kaan.play.data.plugin.AddResult
 import com.kaan.play.data.plugin.InstalledPlugin
 import com.kaan.play.data.plugin.PluginRepo
@@ -104,8 +107,15 @@ class AddonsViewModel(
 /** Bir deponun kazıyıcıları (Yüklü eklentiler listesinde depo adı altında). */
 data class PluginGroup(val repo: PluginRepo, val plugins: List<InstalledPlugin>)
 
-/** "Yüklü eklentiler" listesi: addon'lar (aç/kapat/kaldır) ve depo kazıyıcıları (yalnızca aç/kapat; varsayılan kapalı). */
-class InstalledAddonsViewModel(private val repo: AddonRepository, plugins: PluginRepository) : ViewModel() {
+/** CloudStream deposunun eklentileri (Yüklü eklentiler listesinde CS depo adı altında). */
+data class CsPluginGroup(val repo: CsRepo, val plugins: List<InstalledCsPlugin>)
+
+/** "Yüklü eklentiler" listesi: addon'lar, Nuvio deposu kazıyıcıları ve CS eklentileri (aç/kapat; varsayılan kapalı). */
+class InstalledAddonsViewModel(
+    private val repo: AddonRepository,
+    plugins: PluginRepository,
+    private val csRepos: CsRepository,
+) : ViewModel() {
 
     private val pluginRepo = plugins
 
@@ -118,6 +128,11 @@ class InstalledAddonsViewModel(private val repo: AddonRepository, plugins: Plugi
             repos.mapNotNull { r -> all.filter { it.repoId == r.id }.takeIf { it.isNotEmpty() }?.let { PluginGroup(r, it) } }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    val csGroups: StateFlow<List<CsPluginGroup>?> =
+        combine(csRepos.repos, csRepos.plugins) { repos, all ->
+            repos.mapNotNull { r -> all.filter { it.repoId == r.id }.takeIf { it.isNotEmpty() }?.let { CsPluginGroup(r, it) } }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     fun setEnabled(addon: Addon, enabled: Boolean) {
         viewModelScope.launch { repo.setEnabled(addon.id, enabled) }
     }
@@ -126,8 +141,23 @@ class InstalledAddonsViewModel(private val repo: AddonRepository, plugins: Plugi
         viewModelScope.launch { pluginRepo.setPluginEnabled(plugin.id, enabled) }
     }
 
+    fun setCsPluginEnabled(plugin: InstalledCsPlugin, enabled: Boolean) {
+        viewModelScope.launch { csRepos.setEnabled(plugin.id, enabled) }
+    }
+
     fun remove(addon: Addon) {
         viewModelScope.launch { repo.remove(addon.id) }
+    }
+}
+
+/** CloudStream depo yönetimi: listele ve kaldır. */
+class CsReposViewModel(private val csRepos: CsRepository) : ViewModel() {
+
+    val repos: StateFlow<List<CsRepo>?> =
+        csRepos.repos.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun remove(repo: CsRepo) {
+        viewModelScope.launch { csRepos.remove(repo.id) }
     }
 }
 

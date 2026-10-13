@@ -67,6 +67,7 @@ import com.kaan.play.data.tmdb.TmdbException
 import com.kaan.play.ui.player.PlaySession
 import com.kaan.play.ui.player.formatTime
 import com.kaan.play.ui.addons.AddonsScreen
+import com.kaan.play.ui.addons.CsReposScreen
 import com.kaan.play.ui.addons.InstalledAddonsScreen
 import com.kaan.play.ui.addons.PluginSettingsScreen
 import com.kaan.play.ui.addons.RepositoriesScreen
@@ -88,6 +89,7 @@ import kotlinx.coroutines.launch
 private const val ADDONS_ROUTE = "settings/addons?add={add}"
 private const val ADDONS_REPOS_ROUTE = "settings/addons/repos"
 private const val ADDONS_INSTALLED_ROUTE = "settings/addons/installed"
+private const val CS_REPOS_ROUTE = "settings/addons/csrepos"
 private const val PLUGIN_ROUTE = "settings/addons/plugin/{id}"
 private const val PLAYER_SETTINGS_ROUTE = "settings/player"
 private const val ABOUT_ROUTE = "settings/about"
@@ -353,10 +355,12 @@ fun PlayRoot() {
                         onBack = { navController.popBackStack() },
                         onOpenRepos = { navController.navigate(ADDONS_REPOS_ROUTE) },
                         onOpenInstalled = { navController.navigate(ADDONS_INSTALLED_ROUTE) },
+                        onOpenCsRepos = { navController.navigate(CS_REPOS_ROUTE) },
                     )
                 }
             }
             composable(ADDONS_REPOS_ROUTE) { ReadableWidth { RepositoriesScreen(onBack = { navController.popBackStack() }) } }
+            composable(CS_REPOS_ROUTE) { ReadableWidth { CsReposScreen(onBack = { navController.popBackStack() }, container = rememberContainer()) } }
             composable(ADDONS_INSTALLED_ROUTE) {
                 ReadableWidth {
                     InstalledAddonsScreen(

@@ -22,6 +22,24 @@ interface PluginDao {
     @Query("SELECT * FROM plugins WHERE enabled = 1 ORDER BY repoId, name COLLATE NOCASE, id")
     suspend fun enabled(): List<PluginEntity>
 
+    /** Belirli türdeki depolara ait tüm eklentileri gözlemler (Faz 3: CLOUDSTREAM_REPO). */
+    @Query(
+        "SELECT p.* FROM plugins p " +
+            "INNER JOIN addons a ON a.id = p.repoId " +
+            "WHERE a.type = :type " +
+            "ORDER BY p.repoId, p.name COLLATE NOCASE, p.id",
+    )
+    fun observeOfType(type: AddonType): Flow<List<PluginEntity>>
+
+    /** Belirli türdeki depolara ait açık eklentiler (Faz 3: CS çalışma zamanı). */
+    @Query(
+        "SELECT p.* FROM plugins p " +
+            "INNER JOIN addons a ON a.id = p.repoId " +
+            "WHERE a.type = :type AND p.enabled = 1 " +
+            "ORDER BY p.repoId, p.name COLLATE NOCASE, p.id",
+    )
+    suspend fun enabledOfType(type: AddonType): List<PluginEntity>
+
     /** Aynı (depo, kazıyıcı kimliği) varsa eklemez ve -1 döner. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entity: PluginEntity): Long
