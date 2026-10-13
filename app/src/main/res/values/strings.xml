@@ -237,6 +237,12 @@
     <string name="subtitle_sync_value">%1$s s</string>
     <string name="subtitle_sync_hint">Minus shows the subtitles earlier, plus later.</string>
     <string name="subtitle_sync_reset">Reset</string>
+    <string name="subtitle_online">Online subtitles</string>
+    <string name="subtitle_online_none">No online subtitles found</string>
+    <string name="subtitle_add_file">Add subtitles from file</string>
+    <string name="player_audio">Audio</string>
+    <string name="player_audio_track">Track %1$d</string>
+    <string name="settings_subtitle_language">Preferred subtitle language</string>
     <string name="about_no_content">Play doesn\'t provide any content; you add your own addons.</string>
 
     <!-- Web siteleri (Eklentiler içinde) -->

@@ -16,9 +16,15 @@ import com.kaan.play.PlayApp
 import com.kaan.play.data.download.DownloadedSubtitleLoader
 import com.kaan.play.data.library.WatchRules
 import com.kaan.play.data.stream.PlayableStream
+import androidx.compose.runtime.snapshotFlow
+import com.kaan.play.data.subtitle.SubtitleDiag
+import com.kaan.play.data.subtitle.SubtitleItem
+import com.kaan.play.data.subtitle.SubtitleKind
+import com.kaan.play.data.subtitle.SubtitleLoader
 import com.kaan.play.data.subtitle.SubtitleProvider
+import com.kaan.play.data.subtitle.TrackLoader
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.emptyFlow
-import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.ui.theme.PlayTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -70,15 +76,44 @@ class PlayerActivity : AppCompatActivity() {
             scope = lifecycleScope,
             playback = controller,
             request = session.target.request,
-            // İndirilmiş kopya: altyazılar yalnızca indirilenler (yerel dosya), altyazı addon'larına sorulmaz.
-            loader = if (offline != null) DownloadedSubtitleLoader(offline.subtitleFiles) else container.subtitleLoader,
+            // İndirilmiş kopya: altyazılar yalnızca indirilenler (yerel dosya), altyazı addon'larına ve çevrimiçi aramaya
+            // sorulmaz; kullanıcının dosyadan eklediği altyazı yine okunur.
+            loader = SubtitleDiag.loader(
+                if (offline != null) {
+                    val downloaded = DownloadedSubtitleLoader(offline.subtitleFiles)
+                    TrackLoader { track ->
+                        if (SubtitleLoader.isLocal(track.url)) container.subtitleLoader.load(track) else downloaded.load(track)
+                    }
+                } else {
+                    container.subtitleLoader
+                },
+            ),
             memory = container.subtitleMemory,
-            provider = if (offline != null) SubtitleProvider { emptyFlow() } else container.subtitleProvider,
-            appLanguage = { AppLanguage.effective().iso },
+            provider = if (offline != null) SubtitleProvider { emptyFlow() } else SubtitleDiag.provider(container.subtitleProvider),
+            preferredLanguage = { container.settings.subtitleLanguage.first() },
             persist = container.appScope,
         )
         subtitles.setStream(session.stream)
         subtitles.start()
+        // Teşhis (yalnızca debug): videonun içindeki parçalar ve geçerli seçim.
+        lifecycleScope.launch {
+            snapshotFlow { subtitles.items.filterIsInstance<SubtitleItem.Embedded>().map { it.language } }
+                .collect { SubtitleDiag.d("videonun içindeki altyazılar: $it") }
+        }
+        lifecycleScope.launch {
+            snapshotFlow { subtitles.selected }.collect { item ->
+                SubtitleDiag.d(
+                    when (item) {
+                        null -> "seçim: kapalı"
+                        is SubtitleItem.Embedded -> "seçim: videonun içindeki parça ${item.index} dil=${item.language}"
+                        is SubtitleItem.External -> {
+                            val origin = if (item.track.kind == SubtitleKind.Local) "dosya" else item.track.origin
+                            "seçim: ${item.track.kind} $origin dil=${item.language}"
+                        }
+                    },
+                )
+            }
+        }
         if (offline == null) {
             controller.load(session.stream, session.startPositionMs)
         } else {

@@ -43,7 +43,10 @@ data class PlayerUiState(
 )
 
 /** Videonun içindeki (Media3'ün okuduğu) altyazı parçası; [index] parça listesindeki sıradır. */
-data class EmbeddedSubtitle(val index: Int, val language: String?, val selected: Boolean)
+data class EmbeddedSubtitle(val index: Int, val language: String?, val selected: Boolean, val label: String? = null)
+
+/** Videonun ses parçası; [index] ses parçaları listesindeki sıradır, [label] parçanın kendi adı (yoksa null). */
+data class AudioTrack(val index: Int, val language: String?, val label: String?, val selected: Boolean)
 
 /**
  * Media3 ExoPlayer'ı sarar: kaynağı yükler (proxyHeaders), durumu Compose'a açar. Başlıklar yalnızca akış isteklerine eklenir.
@@ -188,8 +191,25 @@ class PlaybackController(
     override fun embeddedSubtitles(): List<EmbeddedSubtitle> {
         val textOff = player.trackSelectionParameters.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT)
         return textGroups().mapIndexed { i, group ->
-            EmbeddedSubtitle(i, group.mediaTrackGroup.getFormat(0).language, selected = !textOff && group.isSelected)
+            val format = group.mediaTrackGroup.getFormat(0)
+            EmbeddedSubtitle(i, format.language, selected = !textOff && group.isSelected, label = format.label)
         }
+    }
+
+    private fun audioGroups(): List<Tracks.Group> =
+        player.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO && it.isSupported }
+
+    /** Videonun ses parçaları (dil etiketiyle; altyazı menüsünde birden çoksa seçilir). */
+    fun audioTracks(): List<AudioTrack> = audioGroups().mapIndexed { i, group ->
+        val format = group.mediaTrackGroup.getFormat(0)
+        AudioTrack(i, format.language, format.label, group.isSelected)
+    }
+
+    fun selectAudio(index: Int) {
+        val group = audioGroups().getOrNull(index) ?: return
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, 0))
+            .build()
     }
 
     /** Videonun içindeki parçayı açar (Media3 çizer). */

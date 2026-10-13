@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -41,6 +42,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import com.kaan.play.R
 import com.kaan.play.data.subtitle.SubtitleGroup
 import com.kaan.play.data.subtitle.SubtitleItem
+import com.kaan.play.data.subtitle.SubtitleKind
 import com.kaan.play.data.subtitle.SubtitleLanguages
 import com.kaan.play.data.subtitle.SubtitleOffset
 import com.kaan.play.data.subtitle.SubtitleSelection
@@ -52,13 +54,21 @@ import com.kaan.play.ui.tv.rememberInitialFocus
 import java.util.Locale
 
 /**
- * Oynatıcının altyazı menüsü: "Kapalı", dile göre gruplu seçenekler (satırda kaynağın / addon'un adı), "Görünüm" ve (harici
+ * Oynatıcının altyazı menüsü: "Kapalı", dile göre gruplu seçenekler (videonun içindekiler, akışın, dosyadan eklenenler ve
+ * addon'lar; satırda kaynağın adı), "Çevrimiçi altyazılar" (tercih edilen dil, sonra İngilizce), "Dosyadan altyazı ekle",
+ * birden çok ses parçası varsa "Ses", "Görünüm" ve (harici
  * bir altyazı açıkken) "Senkron". Grup başlığına dokunmak/Tamam açar-kapatır; uygulama dilinin grubu ve seçili olanın grubu
  * açık başlar (yüzlerce satırlık listelerde kumandayla gezmek için).
  */
 @Composable
 fun SubtitleMenu(
     subtitles: SubtitleController,
+    /** Videonun ses parçaları; birden çoksa menüde "Ses" bölümü çıkar. */
+    audio: List<AudioTrack>,
+    onAudio: (Int) -> Unit,
+    /** Çevrimiçi arama yapılıyor mu (indirilmiş kopyada yapılmaz, bölüm gizlenir). */
+    online: Boolean,
+    onAddFile: () -> Unit,
     onAppearance: () -> Unit,
     onSync: () -> Unit,
     onDismiss: () -> Unit,
@@ -66,16 +76,25 @@ fun SubtitleMenu(
     val uiLanguage = AppLanguage.effective().iso
     val otherName = stringResource(R.string.subtitle_language_other)
     val selected = subtitles.selected
-    val groups = remember(subtitles.items, uiLanguage, otherName) {
+    val preferred = subtitles.menuLanguages.ifEmpty { listOf(uiLanguage, "en").distinct() }
+    val onlineItems = remember(subtitles.items) {
+        subtitles.items.filter { it is SubtitleItem.External && it.track.kind == SubtitleKind.Online }
+    }
+    val groups = remember(subtitles.items, preferred, uiLanguage, otherName) {
         SubtitleSelection.groups(
-            items = subtitles.items,
-            preferred = listOf(uiLanguage, "en").distinct(),
+            items = subtitles.items.filter { it !in onlineItems },
+            preferred = preferred,
             nameOf = { SubtitleLanguages.displayName(it, uiLanguage) },
             unknownName = otherName,
         )
     }
     // Varsayılan açık gruplar; kullanıcının açıp kapattıkları bunun tersine çevrilir.
-    val defaultOpen = setOfNotNull(groups.firstOrNull()?.key(), selected?.let { it.language ?: UNKNOWN_KEY })
+    val selectedOnline = selected != null && selected in onlineItems
+    val defaultOpen = setOfNotNull(
+        groups.firstOrNull()?.key(),
+        selected?.takeIf { !selectedOnline }?.let { it.language ?: UNKNOWN_KEY },
+        ONLINE_KEY,
+    )
     var flipped by remember { mutableStateOf(emptySet<String>()) }
     val focus = rememberInitialFocus()
     val canSync = selected is SubtitleItem.External && subtitles.status == SubtitleStatus.Idle
@@ -119,6 +138,56 @@ fun SubtitleMenu(
                 }
                 subtitles.failedSources.forEach { SoftLine(stringResource(R.string.sources_failed, it.addonName)) }
 
+                if (online) {
+                    val open = (ONLINE_KEY in defaultOpen) != (ONLINE_KEY in flipped)
+                    GroupHeader(
+                        name = stringResource(R.string.subtitle_online),
+                        count = onlineItems.size,
+                        open = open,
+                        highlighted = selectedOnline,
+                        onClick = { flipped = if (ONLINE_KEY in flipped) flipped - ONLINE_KEY else flipped + ONLINE_KEY },
+                    )
+                    if (open) {
+                        if (onlineItems.isEmpty() && !subtitles.searching) SoftLine(stringResource(R.string.subtitle_online_none))
+                        onlineItems.forEach { item ->
+                            val track = (item as SubtitleItem.External).track
+                            val language = track.language?.let { SubtitleLanguages.displayName(it, uiLanguage) } ?: otherName
+                            OptionRow(
+                                selected = item == selected,
+                                label = track.label?.let { stringResource(R.string.dot_join, language, it) } ?: language,
+                                indented = true,
+                                modifier = if (item == selected) Modifier.focusRequester(focus) else Modifier,
+                                onClick = { subtitles.choose(item); onDismiss() },
+                            )
+                        }
+                    }
+                }
+                ActionRow(stringResource(R.string.subtitle_add_file), onAddFile)
+
+                if (audio.size > 1) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(vertical = 4.dp))
+                    Text(
+                        text = stringResource(R.string.player_audio),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 10.dp),
+                    )
+                    audio.forEach { track ->
+                        val name = track.language?.let(SubtitleLanguages::normalize)?.let { SubtitleLanguages.displayName(it, uiLanguage) }
+                        val label = listOfNotNull(name, track.label?.takeIf(String::isNotBlank)).distinct()
+                        OptionRow(
+                            selected = track.selected,
+                            label = when (label.size) {
+                                0 -> stringResource(R.string.player_audio_track, track.index + 1)
+                                1 -> label[0]
+                                else -> stringResource(R.string.dot_join, label[0], label[1])
+                            },
+                            indented = true,
+                            modifier = Modifier,
+                            onClick = { onAudio(track.index); onDismiss() },
+                        )
+                    }
+                }
+
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(vertical = 4.dp))
                 ActionRow(stringResource(R.string.player_subtitle_appearance), onAppearance)
                 if (canSync) ActionRow(stringResource(R.string.subtitle_sync), onSync, trailing = offsetText(subtitles.offsetMs).takeIf { subtitles.offsetMs != 0L })
@@ -129,16 +198,25 @@ fun SubtitleMenu(
 }
 
 private const val UNKNOWN_KEY = "?"
+private const val ONLINE_KEY = "online"
 
 private fun SubtitleGroup.key(): String = language ?: UNKNOWN_KEY
 
-/** Satır adları: videonun içindekiler "Videonun içinde", diğerleri kaynak adı; aynı kaynaktan birden çoksa "Ad · 2". */
+/**
+ * Satır adları: videonun içindekiler "Videonun içinde" (parçanın kendi adı varsa "Videonun içinde · Forced"), diğerleri kaynak
+ * adı; aynı addan birden çoksa "Ad · 2".
+ */
 @Composable
 private fun rowLabels(group: SubtitleGroup): List<String> {
     val seen = HashMap<String, Int>()
     val embedded = stringResource(R.string.subtitle_embedded)
     val joined = R.string.dot_join
-    val bases = group.items.map { if (it is SubtitleItem.External) it.track.origin else embedded }
+    val bases = group.items.map {
+        when (it) {
+            is SubtitleItem.External -> it.track.origin
+            is SubtitleItem.Embedded -> it.label?.let { label -> stringResource(joined, embedded, label) } ?: embedded
+        }
+    }
     return bases.map { base ->
         val n = (seen[base] ?: 0) + 1
         seen[base] = n
@@ -156,7 +234,13 @@ private fun OptionRow(selected: Boolean, label: String, indented: Boolean, modif
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = null)
-        Text(text = label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 12.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 12.dp),
+        )
     }
 }
 

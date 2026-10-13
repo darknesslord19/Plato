@@ -9,6 +9,8 @@ import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.stream.StreamSource
 import com.kaan.play.data.stream.StreamSubtitle
 import com.kaan.play.data.subtitle.FakeSubtitleDao
+import com.kaan.play.data.subtitle.OnlineSubtitleProvider
+import com.kaan.play.data.subtitle.SubtitleKind
 import com.kaan.play.data.subtitle.SubtitleCue
 import com.kaan.play.data.subtitle.SubtitleItem
 import com.kaan.play.data.subtitle.SubtitleLoad
@@ -81,7 +83,7 @@ class SubtitleControllerTest {
             loader = loader,
             memory = memory,
             provider = SubtitleProvider { incoming.receiveAsFlow() },
-            appLanguage = { app },
+            preferredLanguage = { app },
             persist = scope.backgroundScope,
         ).also { it.attach { cues -> shown = cues } }
 
@@ -388,5 +390,70 @@ class SubtitleControllerTest {
         runCurrent()
         assertEquals(listOf(StreamSource(5, "Ölü Addon")), env.controller.failedSources)
         assertTrue(!env.controller.searching)
+    }
+
+    @Test
+    fun onlineTurkishIsPickedAutomaticallyButEmbeddedTurkishComesFirstInItsGroup() = runTest {
+        val env = Env(this)
+        env.loader.results["https://os/tr.srt"] = loaded(hello)
+        env.controller.start()
+        env.incoming.trySend(
+            SubtitleResult.Found(
+                OnlineSubtitleProvider.SOURCE,
+                listOf(
+                    SubtitleTrack("https://os/tr.srt", "tr", "OpenSubtitles", SubtitleKind.Online),
+                    SubtitleTrack("https://os/en.srt", "en", "OpenSubtitles", SubtitleKind.Online),
+                ),
+            ),
+        )
+        runCurrent()
+        assertEquals("https://os/tr.srt", env.selectedUrl())
+
+        // Videonun içinde Türkçe parça sonradan görünürse listede önce o gelir; aynı dilde otomatik seçim değişmez.
+        env.host.embedded = listOf(EmbeddedSubtitle(0, "tur", selected = false, label = "Forced"))
+        env.controller.onTracksChanged()
+        runCurrent()
+        assertEquals(SubtitleItem.Embedded(0, "tr", "Forced"), env.controller.items.first())
+        assertEquals("https://os/tr.srt", env.selectedUrl())
+    }
+
+    @Test
+    fun englishPreferenceSelectsEnglishOverTurkish() = runTest {
+        val env = Env(this, app = "en")
+        env.loader.results["https://s/en.srt"] = loaded(hello)
+        env.controller.setStream(stream("https://s/tr.srt" to "tur", "https://s/en.srt" to "eng"))
+        env.controller.start()
+        runCurrent()
+        assertEquals("https://s/en.srt", env.selectedUrl())
+        assertEquals(listOf("en"), env.controller.menuLanguages)
+    }
+
+    @Test
+    fun fileFromDiskIsAddedSelectedAndItsLanguageGuessedFromTheName() = runTest {
+        val env = Env(this)
+        env.loader.results["content://docs/1"] = loaded(hello)
+        env.controller.start()
+        runCurrent()
+        env.controller.addLocal("content://docs/1", "Film.2020.tr.srt")
+        runCurrent()
+
+        val track = (env.controller.selected as SubtitleItem.External).track
+        assertEquals(SubtitleKind.Local, track.kind)
+        assertEquals("tr", track.language)
+        assertEquals("Film.2020.tr.srt", track.origin)
+        env.host.position = 1_500
+        advanceTimeBy(100)
+        assertEquals(listOf(hello), env.shown)
+        env.controller.adjustOffset(500) // senkron dosyadan eklenen altyazıda da çalışır
+        assertEquals(500L, env.controller.offsetMs)
+    }
+
+    @Test
+    fun languageFromFileName() {
+        assertEquals("tr", SubtitleController.languageFromFileName("Film.2020.tr.srt"))
+        assertEquals("tr", SubtitleController.languageFromFileName("Film Turkish.srt"))
+        assertEquals("en", SubtitleController.languageFromFileName("film_eng.ass"))
+        assertEquals(null, SubtitleController.languageFromFileName("Breaking.Bad.S01E01.srt"))
+        assertEquals(null, SubtitleController.languageFromFileName("film.1080p.srt"))
     }
 }

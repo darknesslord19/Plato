@@ -219,6 +219,12 @@
     <string name="subtitle_sync_value">%1$s sn</string>
     <string name="subtitle_sync_hint">Eksi altyazıyı öne alır, artı geciktirir.</string>
     <string name="subtitle_sync_reset">Sıfırla</string>
+    <string name="subtitle_online">Çevrimiçi altyazılar</string>
+    <string name="subtitle_online_none">Çevrimiçi altyazı bulunamadı</string>
+    <string name="subtitle_add_file">Dosyadan altyazı ekle</string>
+    <string name="player_audio">Ses</string>
+    <string name="player_audio_track">Parça %1$d</string>
+    <string name="settings_subtitle_language">Tercih edilen altyazı dili</string>
     <string name="about_no_content">Play hiçbir içerik sağlamaz; kullanıcı kendi eklentilerini ekler.</string>
     <string name="about_tmdb_attribution">Bu ürün TMDB API\'sini kullanır ancak TMDB tarafından onaylanmamıştır veya sertifikalandırılmamıştır.</string>
 

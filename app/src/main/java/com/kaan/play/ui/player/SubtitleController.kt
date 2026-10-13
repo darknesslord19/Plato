@@ -9,6 +9,7 @@ import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.stream.StreamSource
 import com.kaan.play.data.subtitle.SubtitleCue
 import com.kaan.play.data.subtitle.SubtitleItem
+import com.kaan.play.data.subtitle.SubtitleKind
 import com.kaan.play.data.subtitle.SubtitleLanguages
 import com.kaan.play.data.subtitle.SubtitleLoad
 import com.kaan.play.data.subtitle.TrackLoader
@@ -60,8 +61,8 @@ class SubtitleController(
     private val loader: TrackLoader,
     private val memory: SubtitleMemory,
     private val provider: SubtitleProvider,
-    /** Uygulama dili, iki harfli (`tr`/`en`). */
-    private val appLanguage: () -> String,
+    /** Tercih edilen altyazı dili, iki harfli (Ayarlar > Oynatıcı; varsayılan `tr`). */
+    private val preferredLanguage: suspend () -> String,
     /** Etkinlik kapansa da tamamlanması gereken yazmalar (kalıcı hafıza) için uygulama kapsamı. */
     private val persist: CoroutineScope,
 ) {
@@ -85,6 +86,10 @@ class SubtitleController(
     var searching by mutableStateOf(true)
         private set
 
+    /** Menü sırası için dil tercihi: tercih edilen dil, sonra İngilizce (otomatik seçimden bağımsız, hatırlanan dil girmez). */
+    var menuLanguages by mutableStateOf<List<String>>(emptyList())
+        private set
+
     /** Cevap vermeyen altyazı addon'ları. */
     var failedSources by mutableStateOf<List<StreamSource>>(emptyList())
         private set
@@ -92,6 +97,7 @@ class SubtitleController(
     private var embedded: List<SubtitleItem.Embedded> = emptyList()
     private var streamTracks: List<SubtitleTrack> = emptyList()
     private var addonTracks: List<SubtitleTrack> = emptyList()
+    private var localTracks: List<SubtitleTrack> = emptyList()
     private val badUrls = HashSet<String>()
 
     private var preferred: List<String> = emptyList()
@@ -117,7 +123,9 @@ class SubtitleController(
     fun start() {
         scope.launch {
             val remembered = memory.language(request)
-            preferred = SubtitleSelection.preferredLanguages(remembered, appLanguage())
+            val language = preferredLanguage()
+            menuLanguages = listOf(language, "en").distinct()
+            preferred = SubtitleSelection.preferredLanguages(remembered, language)
             ready = true
             autoSelect()
         }
@@ -152,7 +160,9 @@ class SubtitleController(
 
     /** Videonun içindeki parçalar değişti (Media3 parça listesi güncellendi). */
     fun onTracksChanged() {
-        val next = playback.embeddedSubtitles().map { SubtitleItem.Embedded(it.index, SubtitleLanguages.normalize(it.language)) }
+        val next = playback.embeddedSubtitles().map {
+            SubtitleItem.Embedded(it.index, SubtitleLanguages.normalize(it.language), it.label?.takeIf(String::isNotBlank))
+        }
         if (next == embedded) return
         embedded = next
         rebuild()
@@ -172,6 +182,17 @@ class SubtitleController(
             is SubtitleItem.Embedded -> remember(item.language)
             is SubtitleItem.External -> if (alreadyLoaded) remember(item.language)
         }
+    }
+
+    /**
+     * Kullanıcı dosyadan altyazı seçti ([uri]: `content://`, [name]: görünen dosya adı). Listeye eklenir ve hemen açılır;
+     * dil dosya adından (`film.tr.srt`) tahmin edilir, bulunamazsa "Diğer" grubunda durur.
+     */
+    fun addLocal(uri: String, name: String) {
+        val track = SubtitleTrack(uri, languageFromFileName(name), name, SubtitleKind.Local)
+        if (localTracks.none { it.url == uri }) localTracks = localTracks + track
+        rebuild()
+        choose(SubtitleItem.External(track))
     }
 
     private fun remember(language: String?) {
@@ -198,7 +219,9 @@ class SubtitleController(
     // ---- iç işler ----
 
     private fun rebuild() {
-        val all = embedded + streamTracks.map(SubtitleItem::External) + addonTracks.map(SubtitleItem::External)
+        // Sıra: videonun içindekiler, akışın, kullanıcının dosyası, addon'lar, en sonda çevrimiçi arama (aynı dilde öndeki seçilir).
+        val (online, fromAddons) = addonTracks.partition { it.kind == SubtitleKind.Online }
+        val all = embedded + (streamTracks + localTracks + fromAddons + online).map(SubtitleItem::External)
         items = SubtitleSelection.dedupe(all)
         // Açık videonun-içi parça artık yoksa (kaynak değişti), seçim düşer ve otomatik seçim yeniden değerlendirilir.
         val current = selected
@@ -297,8 +320,16 @@ class SubtitleController(
         sink(active)
     }
 
-    private companion object {
-        const val TICK_MS = 50L
-        const val SAVE_DEBOUNCE_MS = 300L
+    companion object {
+        private const val TICK_MS = 50L
+
+        /** `film.tr.srt` / `Film.Turkish.srt` -> `tr`; uzantıdan önceki parça dil değilse null. */
+        fun languageFromFileName(name: String): String? {
+            val stem = name.substringBeforeLast('.')
+            val last = stem.split('.', '_', '-', ' ').lastOrNull { it.isNotBlank() } ?: return null
+            if (last.length < 2 || last.any { !it.isLetter() }) return null
+            return SubtitleLanguages.normalize(last)
+        }
+        private const val SAVE_DEBOUNCE_MS = 300L
     }
 }

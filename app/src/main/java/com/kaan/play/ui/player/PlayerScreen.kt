@@ -1,7 +1,12 @@
 package com.kaan.play.ui.player
 
 import android.graphics.Color as AndroidColor
+import android.content.Context
+import android.net.Uri
 import android.os.SystemClock
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
@@ -48,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -136,6 +142,14 @@ fun PlayerScreen(
     val barFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     var barFocused by remember { mutableStateOf(false) }
+    // "Dosyadan altyazı ekle": sistem dosya seçicisi (.srt / .vtt / .ass); seçilen dosya hemen açılır, oynatma sürdürülür.
+    val context = LocalContext.current
+    var resumeAfterPick by remember { mutableStateOf(false) }
+    val pickSubtitle = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) subtitles.addLocal(uri.toString(), displayName(context, uri))
+        if (resumeAfterPick) controller.player.play()
+        resumeAfterPick = false
+    }
     val dialogOpen = showSources || showSubtitles || showAppearance || showMenu || showSync
     // Senkron paneli açıkken kontroller gizlenir: altyazı (altta) ilerleme çubuğunun altında kalmasın.
     val showControls = (controlsVisible && !showSync) || ui.error != null
@@ -319,8 +333,17 @@ fun PlayerScreen(
     }
 
     if (showSubtitles) {
+        val audio = remember(ui.tracksVersion) { controller.audioTracks() }
         SubtitleMenu(
             subtitles = subtitles,
+            audio = audio,
+            onAudio = controller::selectAudio,
+            online = canSwitchSource,
+            onAddFile = {
+                showSubtitles = false
+                resumeAfterPick = controller.player.isPlaying
+                runCatching { pickSubtitle.launch(arrayOf("*/*")) }
+            },
             onAppearance = { showSubtitles = false; showAppearance = true },
             onSync = { showSubtitles = false; showSync = true },
             onDismiss = { showSubtitles = false },
@@ -357,6 +380,16 @@ fun PlayerScreen(
             onPicked = { showSources = false; resumeNotice = false; onSourcePicked(it) },
         )
     }
+}
+
+/** Seçilen dosyanın görünen adı (`film.tr.srt`); okunamazsa adresin son parçası. */
+private fun displayName(context: Context, uri: Uri): String {
+    val name = runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    }.getOrNull()
+    return name?.takeIf { it.isNotBlank() } ?: uri.lastPathSegment?.substringAfterLast('/').orEmpty()
 }
 
 /** Altyazı yükleniyor / yüklenemedi: tek satırlık, sade bildirim. */

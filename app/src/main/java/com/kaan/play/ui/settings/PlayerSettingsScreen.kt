@@ -1,5 +1,6 @@
 package com.kaan.play.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +30,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.R
 import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.settings.SubtitleStyle
+import com.kaan.play.data.subtitle.SubtitleLanguages
+import com.kaan.play.i18n.AppLanguage
+import com.kaan.play.ui.components.ChoiceDialog
 import com.kaan.play.ui.components.ScreenHeader
 import com.kaan.play.ui.rememberContainer
 import kotlinx.coroutines.launch
@@ -44,6 +51,10 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
 
     val downloadWifiOnly by container.settings.downloadWifiOnly
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_DOWNLOAD_WIFI_ONLY)
+    val subtitleLanguage by container.settings.subtitleLanguage
+        .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_SUBTITLE_LANGUAGE)
+    var pickLanguage by remember { mutableStateOf(false) }
+    val uiLanguage = AppLanguage.effective().iso
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenHeader(title = stringResource(R.string.settings_player), onBack = onBack)
@@ -53,6 +64,12 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
         ) {
             SubtitlePreview(style)
             SubtitleStyleControls(style) { transform -> scope.launch { container.settings.updateSubtitleStyle(transform) } }
+            // Otomatik seçim ve çevrimiçi altyazı araması bu dile göre yapılır (sonra İngilizce).
+            ValueRow(
+                label = stringResource(R.string.settings_subtitle_language),
+                value = SubtitleLanguages.displayName(subtitleLanguage, uiLanguage),
+                onClick = { pickLanguage = true },
+            )
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             SwitchRow(stringResource(R.string.settings_always_resume), alwaysResume) {
                 scope.launch { container.settings.setAlwaysResume(it) }
@@ -62,6 +79,34 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
                 scope.launch { container.settings.setDownloadWifiOnly(it) }
             }
         }
+    }
+
+    if (pickLanguage) {
+        ChoiceDialog(
+            title = stringResource(R.string.settings_subtitle_language),
+            options = SettingsRepository.SUBTITLE_LANGUAGES,
+            selected = subtitleLanguage,
+            label = { SubtitleLanguages.displayName(it, uiLanguage) },
+            onSelect = { scope.launch { container.settings.setSubtitleLanguage(it) }; pickLanguage = false },
+            onDismiss = { pickLanguage = false },
+        )
+    }
+}
+
+/** Tek satırlık seçim: solda ad, sağda geçerli değer; satırın tamamı dokunulur ve kumandayla odaklanır. */
+@Composable
+private fun ValueRow(label: String, value: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 16.dp),
+        )
     }
 }
 
