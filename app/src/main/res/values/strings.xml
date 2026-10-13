@@ -78,6 +78,9 @@
     <string name="player_subtitles">Subtitles</string>
     <string name="player_subtitles_off">Off</string>
     <string name="player_sources">Change source</string>
+    <string name="player_volume">Volume</string>
+    <string name="player_brightness">Brightness</string>
+    <string name="player_level_percent" translatable="false">%1$d%%</string>
     <string name="player_seconds" translatable="false">10</string>
     <string name="player_time" translatable="false">%1$s / %2$s</string>
     <string name="player_error_network">Couldn\'t reach this source. Check your connection.</string>

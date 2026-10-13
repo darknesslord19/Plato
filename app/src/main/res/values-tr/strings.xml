@@ -70,6 +70,8 @@
     <string name="player_subtitles">Altyazı</string>
     <string name="player_subtitles_off">Kapalı</string>
     <string name="player_sources">Kaynağı değiştir</string>
+    <string name="player_volume">Ses</string>
+    <string name="player_brightness">Parlaklık</string>
     <string name="player_error_network">Bu kaynağa ulaşılamadı. Bağlantını kontrol et.</string>
     <string name="player_error_unavailable">Bu kaynak şu an kullanılamıyor.</string>
     <string name="player_error_format">Bu kaynak bu cihazda oynatılamıyor.</string>

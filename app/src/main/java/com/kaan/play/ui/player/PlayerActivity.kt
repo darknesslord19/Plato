@@ -1,5 +1,6 @@
 package com.kaan.play.ui.player
 
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -39,6 +40,9 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var controller: PlaybackController
     private lateinit var subtitles: SubtitleController
 
+    /** Dikey kaydırmayla ses/parlaklık; dokunmatik olmayan cihazlarda (TV/kumanda) null. */
+    private var levels: DeviceLevels? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val parsed = PlaySession.from(intent)
@@ -50,6 +54,10 @@ class PlayerActivity : AppCompatActivity() {
         val container = (application as PlayApp).container
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        volumeControlStream = AudioManager.STREAM_MUSIC
+        if (DeviceLevels.supportsTouch(this)) {
+            levels = DeviceLevels(window, getSystemService(AUDIO_SERVICE) as AudioManager, contentResolver)
+        }
         enterImmersive()
 
         val offline = session.offline
@@ -131,6 +139,7 @@ class PlayerActivity : AppCompatActivity() {
                     target = session.target,
                     showResumeNotice = session.autoResumed && session.startPositionMs > 0,
                     canSwitchSource = offline == null,
+                    levels = levels,
                     onBack = ::finish,
                     onSourcePicked = ::switchSource,
                 )
@@ -162,8 +171,15 @@ class PlayerActivity : AppCompatActivity() {
         subtitles.flush()
     }
 
+    /** Çıkışta pencere parlaklığı bırakılır; sistem değeri geçerli olur. */
+    override fun finish() {
+        levels?.restoreBrightness()
+        super.finish()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        levels?.restoreBrightness()
         if (::controller.isInitialized) {
             controller.release()
             (application as PlayApp).container.torrentEngine.release()

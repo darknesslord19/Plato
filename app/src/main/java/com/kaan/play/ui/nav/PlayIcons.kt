@@ -159,6 +159,34 @@ object PlayIcons {
         }
     }
 
+    /** Hoparlör ve iki ses dalgası: ses düzeyi göstergesi. */
+    val Volume: ImageVector by lazy {
+        icon("Volume") {
+            line {
+                moveTo(4f, 9.5f); horizontalLineTo(7f); lineTo(11f, 5.5f); verticalLineTo(18.5f); lineTo(7f, 14.5f); horizontalLineTo(4f); close()
+                moveTo(14.5f, 9f); arcToRelative(4f, 4f, 0f, false, true, 0f, 6f)
+                moveTo(17.5f, 6.5f); arcToRelative(7.5f, 7.5f, 0f, false, true, 0f, 11f)
+            }
+        }
+    }
+
+    /** Daire ve sekiz ışın: parlaklık göstergesi. */
+    val Brightness: ImageVector by lazy {
+        icon("Brightness") {
+            line {
+                moveTo(8.2f, 12f); arcToRelative(3.8f, 3.8f, 0f, true, true, 7.6f, 0f); arcToRelative(3.8f, 3.8f, 0f, true, true, -7.6f, 0f)
+                moveTo(18.5f, 12f); lineTo(20.5f, 12f)
+                moveTo(16.6f, 16.6f); lineTo(18f, 18f)
+                moveTo(12f, 18.5f); lineTo(12f, 20.5f)
+                moveTo(7.4f, 16.6f); lineTo(6f, 18f)
+                moveTo(5.5f, 12f); lineTo(3.5f, 12f)
+                moveTo(7.4f, 7.4f); lineTo(6f, 6f)
+                moveTo(12f, 5.5f); lineTo(12f, 3.5f)
+                moveTo(16.6f, 7.4f); lineTo(18f, 6f)
+            }
+        }
+    }
+
     /** Karşılıklı iki ok: kaynağı değiştir. */
     val SwitchSource: ImageVector by lazy {
         icon("SwitchSource") {

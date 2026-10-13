@@ -115,6 +115,8 @@ fun PlayerScreen(
     showResumeNotice: Boolean,
     /** false: indirilmiş kopya oynuyor, internetten başka kaynak seçilemez (düğme ve menü satırı yok). */
     canSwitchSource: Boolean = true,
+    /** Dikey kaydırmayla ses/parlaklık; null: jest yok (TV/kumanda). */
+    levels: DeviceLevels? = null,
     onBack: () -> Unit,
     onSourcePicked: (PlayableStream) -> Unit,
 ) {
@@ -136,6 +138,8 @@ fun PlayerScreen(
     // "Kaldığın yerden devam ediliyor · Baştan başla": ~5 sn; düğmede odak varken (kumanda) süre işlemez.
     var resumeNotice by remember { mutableStateOf(showResumeNotice) }
     var noticeFocused by remember { mutableStateOf(false) }
+    val zones = remember { GestureZones() }
+    val levelIndicator = remember { LevelIndicatorState() }
     val rootFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
     val noticeFocus = remember { FocusRequester() }
@@ -239,7 +243,9 @@ fun PlayerScreen(
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 controlsVisible = !controlsVisible
                 bump()
-            },
+            }
+            // clickable'dan sonra: eşik aşılınca olayı tüketir, dokunuş tıklama sayılmaz.
+            .levelGestures(levels, zones, levelIndicator),
     ) {
         AndroidView(
             factory = { ctx ->
@@ -268,6 +274,8 @@ fun PlayerScreen(
             )
         }
 
+        LevelIndicator(levelIndicator)
+
         if (ui.buffering && ui.error == null) {
             CircularProgressIndicator(Modifier.align(Alignment.Center).size(40.dp), color = Color.White)
         }
@@ -279,6 +287,7 @@ fun PlayerScreen(
                 hasError = ui.error != null,
                 position = position,
                 duration = duration,
+                zones = zones,
                 playFocus = playFocus,
                 barFocus = barFocus,
                 onBarFocusChange = { barFocused = it },
@@ -299,13 +308,14 @@ fun PlayerScreen(
                 focus = noticeFocus,
                 upFocus = playFocus,
                 onFocusChange = { noticeFocused = it },
-                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 96.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 96.dp)
+                    .gestureZone(zones, "notice"),
             )
         }
 
         ui.error?.let { error ->
             Column(
-                modifier = Modifier.align(Alignment.Center).padding(32.dp),
+                modifier = Modifier.align(Alignment.Center).gestureZone(zones, "error").padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
@@ -446,6 +456,7 @@ private fun Controls(
     hasError: Boolean,
     position: Long,
     duration: Long,
+    zones: GestureZones,
     playFocus: FocusRequester,
     barFocus: FocusRequester,
     onBarFocusChange: (Boolean) -> Unit,
@@ -469,7 +480,7 @@ private fun Controls(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().gestureZone(zones, "top").statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
@@ -497,7 +508,7 @@ private fun Controls(
 
         if (!hasError) {
             Row(
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier.align(Alignment.Center).gestureZone(zones, "center"),
                 horizontalArrangement = Arrangement.spacedBy(32.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -532,7 +543,7 @@ private fun Controls(
                 focus = barFocus,
                 downFocus = playFocus,
                 onFocusChange = onBarFocusChange,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, vertical = 16.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).gestureZone(zones, "bar").padding(horizontal = 24.dp, vertical = 16.dp),
             )
         }
     }
