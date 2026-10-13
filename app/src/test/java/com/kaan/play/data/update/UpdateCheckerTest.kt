@@ -136,6 +136,28 @@ class UpdateCheckerTest {
     }
 
     @Test
+    fun `release varlklarindan cihaza uyan apk secilir`() = runTest {
+        val base = "https://github.com/liberta09/Play/releases/download/v1.0.1"
+        reply(
+            release(
+                extra = ""","x":0""",
+            ).replace(
+                """[{"name":"a.apk"}]""",
+                """[{"name":"Play-1.0.1-arm64-v8a.apk","browser_download_url":"$base/Play-1.0.1-arm64-v8a.apk","size":13000000},
+                   {"name":"Play-1.0.1-x86_64.apk","browser_download_url":"$base/Play-1.0.1-x86_64.apk","size":12000000},
+                   {"name":"Play-1.0.1-SHA256.txt","browser_download_url":"$base/Play-1.0.1-SHA256.txt","size":200}]""",
+            ),
+        )
+        val info = UpdateChecker(
+            OkHttpClient(), PlayJson, "1.0.0", server.url("/r").toString(), abis = listOf("x86_64", "arm64-v8a"),
+        ).fetch()
+        assertEquals("Play-1.0.1-x86_64.apk", info?.apk?.name)
+        assertEquals("$base/Play-1.0.1-SHA256.txt", info?.apk?.sha256Url)
+        reply(release()) // apk varlığı yok: eski yöntem (apk=null)
+        assertNull(checker().fetch()?.apk)
+    }
+
+    @Test
     fun `istek dogru yola Accept ve User-Agent basligiyla gider`() = runTest {
         reply(release())
         checker().fetch()

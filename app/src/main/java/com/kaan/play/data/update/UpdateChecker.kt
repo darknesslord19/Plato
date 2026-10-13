@@ -16,12 +16,16 @@ import okhttp3.Request
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Yeni sürüm bilgisi. [tag] ekranda gösterilen etiket ("v1.0.1"), [pageUrl] tarayıcıda açılan release sayfası. */
-data class UpdateInfo(val tag: String, val pageUrl: String)
+/**
+ * Yeni sürüm bilgisi. [tag] ekranda gösterilen etiket ("v1.0.1"), [pageUrl] tarayıcıda açılan release sayfası.
+ * [apk]: bu cihazın işlemci türüne uyan, SHA-256 dosyası da olan APK; yoksa (eşleşme yok) eski tarayıcı yöntemi kullanılır.
+ */
+data class UpdateInfo(val tag: String, val pageUrl: String, val apk: UpdateApk? = null)
 
 /**
  * Uygulama içi güncelleme kontrolü: GitHub `releases/latest` API'sinden son sürüm etiketi alınır, yüklü sürümle
- * karşılaştırılır. Yalnızca haber verir; APK'yı kendisi indirmez/kurmaz (kullanıcı release sayfasını tarayıcıda açar).
+ * karşılaştırılır ve release'teki cihaza uygun APK seçilir. Yalnızca haber verir; indirme/kurma [UpdateFlow]'dadır
+ * (uygun APK yoksa kullanıcı release sayfasını tarayıcıda açar).
  *
  * Kurallar: oturum (süreç) başına en çok bir kontrol; hata/zaman aşımı sessizce geçilir; kullanıcı "Sonra" derse
  * aynı oturumda bir daha gösterilmez. Hiçbir ayar/kimlik/cihaz bilgisi gönderilmez (yalnızca herkese açık bir GET).
@@ -32,16 +36,32 @@ class UpdateChecker(
     private val installedVersion: String,
     private val endpoint: String = DEFAULT_ENDPOINT,
     private val timeoutSeconds: Long = 8,
+    /** Cihazın işlemci türleri, tercih sırasıyla (`Build.SUPPORTED_ABIS`). */
+    private val abis: List<String> = emptyList(),
 ) {
     private val started = AtomicBoolean(false)
+
+    /**
+     * Yalnızca debug derlemede, sahte release sunucusuyla denemek için: bu ana bilgisayar https şartı olmadan da kabul edilir.
+     * Yayın derlemesinde hiçbir zaman ayarlanmaz.
+     */
+    @Volatile
+    var debugHost: String? = null
+        private set
+    @Volatile
+    private var endpointOverride: String? = null
     private val _available = MutableStateFlow<UpdateInfo?>(null)
 
     /** Kullanıcıya gösterilecek güncelleme; yoksa (ya da kapatıldıysa) null. */
     val available: StateFlow<UpdateInfo?> = _available.asStateFlow()
 
     /** Oturumda yalnızca ilk çağrı ağa gider; sonrakiler (ekran döndürme, yeniden oluşturma) hiçbir şey yapmaz. */
-    fun checkOnce(scope: CoroutineScope) {
+    fun checkOnce(scope: CoroutineScope, debugEndpoint: String? = null) {
         if (!started.compareAndSet(false, true)) return
+        if (debugEndpoint != null) {
+            endpointOverride = debugEndpoint
+            debugHost = debugEndpoint.toHttpUrlOrNull()?.host
+        }
         scope.launch {
             _available.value = try {
                 fetch()
@@ -61,7 +81,7 @@ class UpdateChecker(
     /** Son sürüm yüklüden yeniyse bilgisini, aksi halde (ya da herhangi bir sorunda) null döner. */
     internal suspend fun fetch(): UpdateInfo? {
         val request = Request.Builder()
-            .url(endpoint.toHttpUrlOrNull() ?: return null)
+            .url((endpointOverride ?: endpoint).toHttpUrlOrNull() ?: return null)
             .header("Accept", "application/vnd.github+json")
             .header("User-Agent", "Play-Android-UpdateCheck")
             .build()
@@ -78,7 +98,8 @@ class UpdateChecker(
         val page = release.htmlUrl.orEmpty()
         if (release.draft || release.prerelease) return null
         if (!UpdateRules.isNewer(tag, installedVersion) || !UpdateRules.isSafePage(page)) return null
-        return UpdateInfo(tag, page)
+        val assets = release.assets.map { ReleaseAsset(it.name.orEmpty(), it.url.orEmpty(), it.size) }
+        return UpdateInfo(tag, page, UpdateApkRules.pick(tag, assets, abis, debugHost))
     }
 
     @Serializable
@@ -87,6 +108,14 @@ class UpdateChecker(
         @SerialName("html_url") val htmlUrl: String? = null,
         val draft: Boolean = false,
         val prerelease: Boolean = false,
+        val assets: List<Asset> = emptyList(),
+    )
+
+    @Serializable
+    private data class Asset(
+        val name: String? = null,
+        @SerialName("browser_download_url") val url: String? = null,
+        val size: Long = 0,
     )
 
     companion object {

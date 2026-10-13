@@ -2,6 +2,7 @@ package com.kaan.play
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
@@ -47,7 +48,10 @@ import com.kaan.play.data.torrent.TorrentHttpServer
 import com.kaan.play.data.web.WebSiteRepository
 import com.kaan.play.ui.web.AndroidWebDataCleaner
 import com.kaan.play.i18n.AppLanguage
+import com.kaan.play.data.update.AndroidInstallPlatform
 import com.kaan.play.data.update.UpdateChecker
+import com.kaan.play.data.update.UpdateDownloader
+import com.kaan.play.data.update.UpdateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -310,5 +314,18 @@ class AppContainer(context: Context) {
     val deepLinks: DeepLinkHandler by lazy { DeepLinkHandler(sourceInstaller, appScope) }
 
     /** Uygulama içi güncelleme kontrolü (GitHub releases/latest); oturumda bir kez, etkinlik yeniden oluşsa da tekrarlanmaz. */
-    val updateChecker: UpdateChecker by lazy { UpdateChecker(httpClient, json, BuildConfig.VERSION_NAME) }
+    val updateChecker: UpdateChecker by lazy {
+        UpdateChecker(httpClient, json, BuildConfig.VERSION_NAME, abis = Build.SUPPORTED_ABIS.toList())
+    }
+
+    /** Uygulama içi güncelleme akışı: indir, SHA-256 doğrula, sistem kurulum ekranını aç (bkz. UpdateFlow). */
+    val updateFlow: UpdateFlow by lazy {
+        UpdateFlow(
+            checker = updateChecker,
+            downloader = UpdateDownloader(httpClient) { updateChecker.debugHost },
+            platform = AndroidInstallPlatform(appContext),
+            dir = File(appContext.cacheDir, "updates"),
+            scope = appScope,
+        )
+    }
 }

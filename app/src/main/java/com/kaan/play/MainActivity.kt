@@ -30,7 +30,9 @@ class MainActivity : AppCompatActivity() {
         val container = (application as PlayApp).container
         val settings = container.settings
         // Arka planda, oturumda bir kez; hata/zaman aşımı sessiz (bkz. UpdateChecker).
-        container.updateChecker.checkOnce(container.appScope)
+        // Yalnızca debug derlemede, sahte release sunucusuyla denemek için: --es play_update_endpoint <adres>.
+        val debugEndpoint = if (BuildConfig.DEBUG) intent.getStringExtra("play_update_endpoint") else null
+        container.updateChecker.checkOnce(container.appScope, debugEndpoint)
         // Açılışta tek seferlik okuma (milisaniyeler): kayıtlı tema ilk karede doğru çıksın, yanıp sönmesin.
         val initialTheme = runBlocking { settings.themeMode.first() }
 
@@ -58,7 +60,7 @@ class MainActivity : AppCompatActivity() {
                 Box {
                     PlayRoot()
                     SplashOverlay()
-                    UpdateDialog(container.updateChecker)
+                    UpdateDialog(container.updateFlow)
                     DeepLinkHost(container.deepLinks)
                 }
             }
