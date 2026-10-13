@@ -32,12 +32,15 @@ import com.kaan.play.data.plugin.runtime.PluginRuntime
 import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.stream.AddonStreamProvider
 import com.kaan.play.data.stream.CompositeStreamProvider
+import com.kaan.play.data.stream.TorrentStreamProvider
 import com.kaan.play.data.stream.StreamProvider
 import com.kaan.play.data.subtitle.AddonSubtitleProvider
 import com.kaan.play.data.subtitle.SubtitleLoader
 import com.kaan.play.data.subtitle.SubtitleMemory
 import com.kaan.play.data.subtitle.SubtitleProvider
 import com.kaan.play.data.tmdb.TmdbRepository
+import com.kaan.play.data.torrent.TorrentEngine
+import com.kaan.play.data.torrent.TorrentHttpServer
 import com.kaan.play.data.web.WebSiteRepository
 import com.kaan.play.ui.web.AndroidWebDataCleaner
 import com.kaan.play.i18n.AppLanguage
@@ -177,6 +180,21 @@ class AppContainer(context: Context) {
      * Zaman aşımı Ayarlar'daki ortak kaynak zaman aşımıdır; her istekte yeniden okunur.
      */
     val streams: StreamProvider by lazy {
+        TorrentStreamProvider(rawStreams, server = { settings.torrentServer.first() }, onBuiltIn = torrentEngine::warmUp)
+    }
+
+    /**
+     * Yerleşik torrent motoru (libtorrent4j): `magnet:`/infoHash kaynakları, kullanıcı torrent sunucusu girmediyse bununla oynar.
+     * Geçici veriler uygulamaya özel önbellek dizininde durur ve son oynatıcı kapanınca silinir.
+     */
+    val torrentEngine: TorrentEngine by lazy {
+        TorrentEngine(File(appContext.externalCacheDir ?: appContext.cacheDir, "torrents"))
+    }
+
+    /** Torrent dosyasını oynatıcıya `127.0.0.1` üzerinden http olarak veren yerel sunucu. */
+    val torrentServer: TorrentHttpServer by lazy { TorrentHttpServer(torrentEngine) }
+
+    private val rawStreams: StreamProvider by lazy {
         CompositeStreamProvider(
             AddonStreamProvider(addons = addons::enabledAddons, client = httpClient, timeout = sourceTimeout),
             PluginStreamProvider(

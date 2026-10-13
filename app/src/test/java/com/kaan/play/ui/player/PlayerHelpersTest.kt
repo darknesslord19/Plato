@@ -29,7 +29,17 @@ class PlayerHelpersTest {
         assertEquals(MimeTypes.APPLICATION_M3U8, PlaybackController.streamMimeType("https://h/x/master.m3u8"))
         assertEquals(MimeTypes.APPLICATION_M3U8, PlaybackController.streamMimeType("https://h/play?file=a.M3U8&t=1"))
         assertEquals(MimeTypes.APPLICATION_MPD, PlaybackController.streamMimeType("https://h/a.mpd"))
-        assertNull(PlaybackController.streamMimeType("https://h/movie.mp4"))
+        assertNull(PlaybackController.streamMimeType("https://h/movie"))
+        assertNull(PlaybackController.streamMimeType("https://pixeldrain.dev/api/file/abc?download"))
+    }
+
+    @Test
+    fun streamMimeTypeIsInferredForPlainFilesFromPathExtension() {
+        assertEquals(MimeTypes.VIDEO_MATROSKA, PlaybackController.streamMimeType("https://h/a/Movie.MKV"))
+        assertEquals(MimeTypes.VIDEO_MATROSKA, PlaybackController.streamMimeType("https://h/a.mkv?token=x.mp4#t"))
+        assertEquals(MimeTypes.VIDEO_MP4, PlaybackController.streamMimeType("https://h/movie.mp4"))
+        assertEquals(MimeTypes.VIDEO_AVI, PlaybackController.streamMimeType("https://h/movie.avi"))
+        assertEquals(MimeTypes.VIDEO_WEBM, PlaybackController.streamMimeType("https://h/movie.webm"))
     }
 
     @Test

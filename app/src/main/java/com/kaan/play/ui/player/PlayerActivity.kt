@@ -47,7 +47,13 @@ class PlayerActivity : AppCompatActivity() {
         enterImmersive()
 
         val offline = session.offline
-        controller = PlaybackController(this, container.httpClient, offlineCache = offline?.let { container.downloads.cache })
+        // Torrent motoru bu oynatıcı kapanana dek açık kalır (kapanınca geçici dosyalar silinir).
+        container.torrentEngine.retain()
+        controller = PlaybackController(
+            this, container.httpClient,
+            offlineCache = offline?.let { container.downloads.cache },
+            torrentUrl = container.torrentServer::urlFor,
+        )
         controller.player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (!isPlaying) saveProgress() // duraklatma
@@ -123,7 +129,10 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::controller.isInitialized) controller.release()
+        if (::controller.isInitialized) {
+            controller.release()
+            (application as PlayApp).container.torrentEngine.release()
+        }
     }
 
     private fun switchSource(stream: PlayableStream) {

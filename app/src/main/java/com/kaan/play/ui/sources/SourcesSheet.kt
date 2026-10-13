@@ -63,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kaan.play.R
 import com.kaan.play.data.stream.PlayableStream
+import com.kaan.play.data.stream.TorrentLinks
 
 import com.kaan.play.ui.components.FilterPill
 import com.kaan.play.ui.components.IconButton
@@ -311,7 +312,8 @@ private fun SourceRow(
         if (isRecommended) {
             Icon(PlayIcons.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         }
-        DownloadButton(badge, downloadFraction, onDownload)
+        // Torrent kaynağı yalnızca izlenir (yerleşik motor geçici indirir); çevrimdışı indirme yok.
+        if (!TorrentLinks.isMagnet(stream.url)) DownloadButton(badge, downloadFraction, onDownload)
     }
 }
 

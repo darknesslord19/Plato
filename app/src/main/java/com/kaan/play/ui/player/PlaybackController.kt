@@ -13,6 +13,9 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.HttpDataSource
+import com.kaan.play.data.torrent.TorrentDiag
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSource
@@ -21,8 +24,10 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamLog
+import com.kaan.play.data.stream.TorrentLinks
 import okhttp3.OkHttpClient
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 /** Oynatma hatasının kullanıcıya gösterilen üç sınıfı. */
 enum class PlaybackError { Network, Unavailable, Format }
@@ -46,9 +51,22 @@ data class EmbeddedSubtitle(val index: Int, val language: String?, val selected:
  * kendisi gösterir (kaydırma anında uygulansın diye). Burada yalnızca videonun kendi altyazı parçaları seçilir.
  */
 @OptIn(UnstableApi::class)
-class PlaybackController(context: Context, client: OkHttpClient, offlineCache: Cache? = null) : SubtitleHost {
+class PlaybackController(
+    context: Context,
+    client: OkHttpClient,
+    offlineCache: Cache? = null,
+    /** `magnet:` kaynağın yerleşik torrent motorundaki yerel http adresi (magnet, dosya sırası). */
+    private val torrentUrl: (String, Int?) -> String = { _, _ -> throw IllegalStateException("no torrent engine") },
+) : SubtitleHost {
 
     @Volatile private var headers: Map<String, String> = emptyMap()
+    @Volatile private var torrent = false
+
+    // Yerel torrent sunucusu üst bilgi ve ilk parçalar gelene dek yanıtı bekletir: okuma zaman aşımı uzun tutulur.
+    private val torrentSource = OkHttpDataSource.Factory(client.newBuilder().readTimeout(TORRENT_READ_TIMEOUT_S, TimeUnit.SECONDS).build())
+    private val onlineSource = ResolvingDataSource.Factory(OkHttpDataSource.Factory(client)) { spec ->
+        if (headers.isEmpty()) spec else spec.withAdditionalHeaders(headers)
+    }
 
     val player: ExoPlayer = ExoPlayer.Builder(context)
         .setMediaSourceFactory(
@@ -57,9 +75,7 @@ class PlaybackController(context: Context, client: OkHttpClient, offlineCache: C
                     // İndirilmiş kopya: yalnızca önbellekten okunur (üst akış yok); internet hiç kullanılmaz.
                     CacheDataSource.Factory().setCache(offlineCache).setCacheWriteDataSinkFactory(null)
                 } else {
-                    ResolvingDataSource.Factory(OkHttpDataSource.Factory(client)) { spec ->
-                        if (headers.isEmpty()) spec else spec.withAdditionalHeaders(headers)
-                    }
+                    DataSource.Factory { if (torrent) torrentSource.createDataSource() else onlineSource.createDataSource() }
                 },
             ),
         )
@@ -85,6 +101,13 @@ class PlaybackController(context: Context, client: OkHttpClient, offlineCache: C
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                val http = generateSequence<Throwable>(error) { it.cause }
+                    .filterIsInstance<HttpDataSource.InvalidResponseCodeException>().firstOrNull()
+                TorrentDiag.e(
+                    "ExoPlayer hata: ${error.errorCodeName} (${error.errorCode}) → ${errorOf(error)}" +
+                        (http?.let { " http=${it.responseCode} ctype=${it.headerFields["Content-Type"]}" } ?: ""),
+                    error,
+                )
                 ui = ui.copy(error = errorOf(error), buffering = false)
             }
 
@@ -97,11 +120,19 @@ class PlaybackController(context: Context, client: OkHttpClient, offlineCache: C
     /** [startMs] konumundan oynatmaya başlar. Önceki hata temizlenir. */
     fun load(stream: PlayableStream, startMs: Long) {
         headers = stream.headers
+        torrent = TorrentLinks.isMagnet(stream.url)
+        // Magnet: yerleşik motorun yerel adresi; tür içerikten çıkarılır (dosya adı üst bilgi gelince belli olur).
+        val uri = if (torrent) torrentUrl(stream.url, stream.torrentFileIdx) else stream.url
 
-        val mime = stream.mimeType ?: streamMimeType(stream.url)
+        val mime = if (torrent) null else stream.mimeType ?: streamMimeType(stream.url)
         StreamLog.opening(stream.url, mime)
+        // Yalnızca şema/host/uzantı: tam adres, magnet ve yerel sunucu belirteci loglanmaz.
+        TorrentDiag.d(
+            "oynatıcıya veriliyor: kaynak=${stream.source.addonName} ${StreamLog.describe(stream.url)} torrent=$torrent " +
+                "fileIdx=${stream.torrentFileIdx} başlıklar=${stream.headers.keys} mime=$mime",
+        )
         val item = MediaItem.Builder()
-            .setUri(stream.url)
+            .setUri(uri)
             .apply { mime?.let(::setMimeType) }
             .build()
 
@@ -172,12 +203,26 @@ class PlaybackController(context: Context, client: OkHttpClient, offlineCache: C
     fun release() = player.release()
 
     companion object {
+        private const val TORRENT_READ_TIMEOUT_S = 120L
+
         /** `https://x/y.m3u8?token` gibi adreslerde ya da uzantısız HLS/DASH'te Media3 türü kendi çıkaramaz. */
         internal fun streamMimeType(url: String): String? {
             val lower = url.lowercase(Locale.ROOT)
             return when {
                 ".m3u8" in lower -> MimeTypes.APPLICATION_M3U8
                 ".mpd" in lower -> MimeTypes.APPLICATION_MPD
+                else -> fileMimeType(lower)
+            }
+        }
+
+        /** Sorgu/parça atıldıktan sonra yolun uzantısına göre düz dosya türü; uzantı yoksa/bilinmiyorsa null (Media3 içerikten çıkarır). */
+        private fun fileMimeType(lowerUrl: String): String? {
+            val path = lowerUrl.substringBefore('#').substringBefore('?')
+            return when (path.substringAfterLast('/').substringAfterLast('.', "")) {
+                "mkv" -> MimeTypes.VIDEO_MATROSKA
+                "webm" -> MimeTypes.VIDEO_WEBM
+                "mp4", "m4v" -> MimeTypes.VIDEO_MP4
+                "avi" -> MimeTypes.VIDEO_AVI
                 else -> null
             }
         }

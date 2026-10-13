@@ -17,6 +17,7 @@ media3 = "1.11.1"
 quickjs = "1.0.15"
 jsoup = "1.23.2"
 jackson = "2.17.2"
+libtorrent4j = "2.1.0-39"
 coil = "3.6.3"
 room = "2.8.5"
 datastore = "1.2.1"
@@ -51,6 +52,12 @@ quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjs" }
 quickjs-kt-jvm = { module = "io.github.dokar3:quickjs-kt-jvm", version.ref = "quickjs" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
+
+libtorrent4j = { module = "org.libtorrent4j:libtorrent4j", version.ref = "libtorrent4j" }
+libtorrent4j-android-arm64 = { module = "org.libtorrent4j:libtorrent4j-android-arm64", version.ref = "libtorrent4j" }
+libtorrent4j-android-arm = { module = "org.libtorrent4j:libtorrent4j-android-arm", version.ref = "libtorrent4j" }
+libtorrent4j-android-x86 = { module = "org.libtorrent4j:libtorrent4j-android-x86", version.ref = "libtorrent4j" }
+libtorrent4j-android-x64 = { module = "org.libtorrent4j:libtorrent4j-android-x86_64", version.ref = "libtorrent4j" }
 
 androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
 androidx-media3-exoplayer-hls = { module = "androidx.media3:media3-exoplayer-hls", version.ref = "media3" }

@@ -72,6 +72,11 @@ android {
         localeFilters += listOf("en", "tr")
     }
 
+    // Yerel kütüphaneler APK içinde sıkıştırılır (libtorrent işlemci başına ~16 MB; sıkıştırılmadan APK çok büyür).
+    packaging {
+        jniLibs.useLegacyPackaging = true
+    }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
@@ -101,6 +106,13 @@ dependencies {
     // tutamaz, bu yüzden eklenti uyumluluğu için gerçek Jackson çalışma zamanda bulunur.
     implementation(libs.jackson.databind)
     implementation(libs.jackson.module.kotlin)
+
+    // Yerleşik torrent motoru: Java API + işlemci başına yerel kütüphane (.so).
+    implementation(libs.libtorrent4j)
+    implementation(libs.libtorrent4j.android.arm64)
+    implementation(libs.libtorrent4j.android.arm)
+    implementation(libs.libtorrent4j.android.x86)
+    implementation(libs.libtorrent4j.android.x64)
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
