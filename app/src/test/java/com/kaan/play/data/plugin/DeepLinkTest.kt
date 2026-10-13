@@ -37,4 +37,19 @@ class DeepLinkTest {
         assertNull(DeepLink.target("https", "add", repoUrl, null))
         assertNull(DeepLink.target("play", "other", repoUrl, null))
     }
+
+    @Test
+    fun `nuvio_plugin nuvio ile ayni sekilde calisir`() {
+        val url = "https://example.com/manifest.json"
+        assertEquals(url, DeepLink.target("play", "add", null, DeepLink.nuvioParam(null, url)))
+        assertEquals(url, DeepLink.nuvioParam(url, "https://baska.example/x.json"))
+    }
+
+    @Test
+    fun `bos nuvio parametresi nuvio_plugin degerine duser`() {
+        val url = "https://example.com/manifest.json"
+        assertEquals(url, DeepLink.nuvioParam("", url))
+        assertEquals(url, DeepLink.nuvioParam("  ", url))
+        assertNull(DeepLink.nuvioParam("", null))
+    }
 }

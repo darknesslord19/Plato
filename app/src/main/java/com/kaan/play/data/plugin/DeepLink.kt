@@ -23,6 +23,10 @@ object DeepLink {
     const val SCHEME = "play"
     const val HOST = "add"
 
+    /** `nuvio` ile `nuvio_plugin` eşanlamlıdır; boş/boşluk değer ötekine düşer (getQueryParameter boşta "" döndürür). */
+    fun nuvioParam(nuvio: String?, nuvioPlugin: String?): String? =
+        listOf(nuvio, nuvioPlugin).firstOrNull { !it.isNullOrBlank() }
+
     /**
      * Eklenecek adres; bağlantı `play://add` değilse, `repo`/`nuvio` yoksa ya da değer http(s) adresi değilse null.
      * Tür (addon / Nuvio deposu / CloudStream deposu) parametre adından değil, adresin içeriğinden anlaşılır.
