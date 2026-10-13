@@ -111,6 +111,8 @@
     <string name="language_english" translatable="false">English</string>
     <string name="language_turkish" translatable="false">Türkçe</string>
     <string name="about_version">Version %1$s</string>
+    <string name="about_telegram">Telegram community</string>
+    <string name="about_telegram_url" translatable="false">https://t.me/+o-RFlV4U3UY5NGU8</string>
     <!-- TMDB'nin zorunlu atıf metni; olduğu gibi (İngilizce) gösterilir. -->
     <string name="about_tmdb_attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
 

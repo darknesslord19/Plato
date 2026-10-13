@@ -1,7 +1,10 @@
 package com.kaan.play.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -25,10 +29,12 @@ import androidx.compose.ui.unit.dp
 import com.kaan.play.BuildConfig
 import com.kaan.play.R
 import com.kaan.play.ui.components.ScreenHeader
+import com.kaan.play.ui.tv.focusRing
 
-/** Hakkında: uygulama adı, sürüm, "içerik sağlamaz" notu ve TMDB'nin zorunlu atıf metni (iki dilde). */
+/** Hakkında: uygulama adı, sürüm, Telegram bağlantısı, "içerik sağlamaz" notu ve TMDB'nin zorunlu atıf metni. */
 @Composable
 fun AboutScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenHeader(title = stringResource(R.string.settings_about), onBack = onBack)
         // Tam logo üstte ortalı. Logonun yazısı açık renkli olduğu için açık temada da okunsun diye koyu bir zemin üstünde durur.
@@ -53,6 +59,20 @@ fun AboutScreen(onBack: () -> Unit) {
                 stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            // Telegram bağlantısı
+            val telegramUrl = stringResource(R.string.about_telegram_url)
+            Text(
+                text = stringResource(R.string.about_telegram) + "  →",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .focusRing()
+                    .clickable {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(telegramUrl)))
+                    }
+                    .padding(vertical = 4.dp),
             )
             Text(
                 stringResource(R.string.about_no_content),

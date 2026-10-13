@@ -96,6 +96,8 @@
     <string name="theme_dark">Koyu</string>
     <string name="theme_light">Açık</string>
     <string name="about_version">Sürüm %1$s</string>
+    <string name="about_telegram">Telegram topluluğu</string>
+    <string name="about_telegram_url" translatable="false">https://t.me/+o-RFlV4U3UY5NGU8</string>
 
     <!-- Eklentiler -->
     <string name="addons_title">Eklentiler</string>
