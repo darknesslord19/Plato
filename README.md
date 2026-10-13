@@ -3,8 +3,8 @@
 Sade, özgün bir Android film/dizi istemcisi (Kotlin, Jetpack Compose, Material 3). Uygulama hiçbir içerik veya addon içermez; addon'lar kullanıcının girdiği manifest URL'lerinden gelir. Ayrıntılı kapsam ve kurallar: [CLAUDE.md](CLAUDE.md).
 
 ## İndirme / Download
-- **Türkçe:** Son sürümü [GitHub Releases](https://github.com/<kullanici>/Play/releases) sayfasından indir (`Play-vX.Y.Z.apk`). Android 7.0+ gerekir; kurmak için "bilinmeyen kaynaklardan yükleme" iznini ver.
-- **English:** Get the latest version from [GitHub Releases](https://github.com/<user>/Play/releases) (`Play-vX.Y.Z.apk`). Requires Android 7.0+; allow "install unknown apps" to sideload.
+- **Türkçe:** Son sürümü [GitHub Releases](https://github.com/liberta09/Play/releases) sayfasından indir (`Play-vX.Y.Z.apk`). Android 7.0+ gerekir; kurmak için "bilinmeyen kaynaklardan yükleme" iznini ver.
+- **English:** Get the latest version from [GitHub Releases](https://github.com/liberta09/Play/releases) (`Play-vX.Y.Z.apk`). Requires Android 7.0+; allow "install unknown apps" to sideload.
 
 Yayın derlemesi / Release build: `local.properties` içine `KEYSTORE_PASSWORD` ve `KEY_PASSWORD` ekle, anahtar dosyası `keystore/play-release.keystore` (alias `play`; git'e girmez), sonra `.\gradlew assembleRelease`. Şifreler yoksa imzasız derlenir. Sürüm notları: [CHANGELOG.md](CHANGELOG.md).
 
