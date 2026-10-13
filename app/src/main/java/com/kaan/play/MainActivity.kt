@@ -13,9 +13,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.data.settings.ThemeMode
+import com.kaan.play.data.plugin.DeepLink
 import com.kaan.play.ui.components.SplashOverlay
 import com.kaan.play.ui.nav.PlayRoot
 import com.kaan.play.ui.theme.PlayTheme
+import com.kaan.play.ui.addons.DeepLinkHost
 import com.kaan.play.ui.update.UpdateDialog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -57,6 +59,7 @@ class MainActivity : AppCompatActivity() {
                     PlayRoot()
                     SplashOverlay()
                     UpdateDialog(container.updateChecker)
+                    DeepLinkHost(container.deepLinks)
                 }
             }
         }
@@ -67,10 +70,22 @@ class MainActivity : AppCompatActivity() {
         handleLink(intent)
     }
 
-    /** Tarayıcıdan/başka uygulamadan gelen https manifest bağlantısı "eklenti ekle" akışını başlatır. */
+    /**
+     * Tarayıcıdan/başka uygulamadan gelen bağlantı: https manifest bağlantısı "eklenti ekle" akışını başlatır,
+     * `play://add?repo=` / `play://add?nuvio=` önce onay penceresi açar, onaylanırsa ekler (sonuç Snackbar ile).
+     */
     private fun handleLink(intent: Intent?) {
         val uri = intent?.data ?: return
-        if (intent.action != Intent.ACTION_VIEW || uri.scheme != "https") return
-        (application as PlayApp).container.pendingAddonUrl.value = uri.toString()
+        if (intent.action != Intent.ACTION_VIEW) return
+        val container = (application as PlayApp).container
+        when (uri.scheme) {
+            "https" -> container.pendingAddonUrl.value = uri.toString()
+            DeepLink.SCHEME -> {
+                // Opak ya da hiyerarşik olmayan bağlantıda (play:add?...) getQueryParameter fırlatır.
+                val repo = if (uri.isHierarchical) uri.getQueryParameter("repo") else null
+                val nuvio = if (uri.isHierarchical) uri.getQueryParameter("nuvio") else null
+                container.deepLinks.handle(uri.scheme, uri.host, repo, nuvio)
+            }
+        }
     }
 }

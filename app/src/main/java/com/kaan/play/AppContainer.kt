@@ -26,6 +26,7 @@ import com.kaan.play.data.plugin.OkHttpPluginCodeFetcher
 import com.kaan.play.data.plugin.PluginRepository
 import com.kaan.play.data.plugin.PluginSettingsRepository
 import com.kaan.play.data.plugin.PluginStreamProvider
+import com.kaan.play.data.plugin.DeepLinkHandler
 import com.kaan.play.data.plugin.SourceInstaller
 import com.kaan.play.data.plugin.runtime.PluginRuntime
 import com.kaan.play.data.settings.SettingsRepository
@@ -256,6 +257,9 @@ class AppContainer(context: Context) {
      * [com.kaan.play.ui.addons.AddonsViewModel] alıp sıfırlar.
      */
     val pendingAddonUrl = MutableStateFlow<String?>(null)
+
+    /** `play://add?repo=` / `play://add?nuvio=` bağlantıları: mevcut [sourceInstaller] ile ekler, sonucu Snackbar'a iletir. */
+    val deepLinks: DeepLinkHandler by lazy { DeepLinkHandler(sourceInstaller, appScope) }
 
     /** Uygulama içi güncelleme kontrolü (GitHub releases/latest); oturumda bir kez, etkinlik yeniden oluşsa da tekrarlanmaz. */
     val updateChecker: UpdateChecker by lazy { UpdateChecker(httpClient, json, BuildConfig.VERSION_NAME) }

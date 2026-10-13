@@ -68,6 +68,9 @@ Ayrıntı, test sonuçları ve bilinen sınırlar README "İndirme — Faz 4 / B
 - **Kütüphane:** üçüncü bölüm "İndirilenler" (afiş + ad + "S1 B3" + boyut + ilerleme çubuğu; satır eylemleri duraklat/sürdür, iptal, sil; "Hepsini sil"; boş durum metni); kumandayla gezilir. Yeni indirme özelliği eklemeden önce kural 5 (bu olmadan çalışır mı?) sorulur.
 - **Logo/ikon ✅** (README "Logo ve ikon"): kendi turkuaz işaretimiz + "Play" yazısı, PNG olarak launcher/açılış/Hakkında/TV banner'ında. **Sıradaki adım:** yayın hazırlığı; kullanıcı onayı beklenir, kendiliğinden başlanmaz.
 
+## Deep link
+`play://add?repo=<adres>` ve `play://add?nuvio=<adres>` (`data/plugin/DeepLink.kt`, `MainActivity.handleLink`): adres http(s) olmalı; tür parametre adından değil içeriğinden anlaşılır (mevcut `SourceInstaller`, yeni ekleme kodu yok). **Önce onay penceresi açılır (adres görünür, "Ekle"/"Vazgeç"); onay olmadan hiçbir şey eklenmez.** Sonuç Snackbar ile bildirilir (`ui/addons/DeepLinkHost.kt`: "Depo eklendi" / "Eklenti eklendi" / hata iletisi / "Geçersiz bağlantı"). Eklenen eklentiler yine varsayılan KAPALI gelir.
+
 ## Kapsam dışı
 Aniyomi, ayrı Stremio ekosistemi, manga, IPTV, Telegram, tracker, profil/kilit, ayrı bir Android TV arayüzü (Compose for TV / Leanback ekranları; mevcut ekranlar kumandayla da kullanılır), torrent motoru, toplu indirme (sezonu/diziyi tek dokunuşla indirme; bölüm başına indirme Faz 4/B'de vardır).
 

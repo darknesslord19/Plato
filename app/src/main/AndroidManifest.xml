@@ -50,6 +50,14 @@
                 <data android:host="*" />
                 <data android:pathPattern=".*/manifest\\.json" />
             </intent-filter>
+
+            <!-- play://add?repo=<adres> ve play://add?nuvio=<adres>: depo/eklenti ekleme bağlantısı. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="play" android:host="add" />
+            </intent-filter>
         </activity>
 
         <!-- Tam ekran yatay oynatıcı; kaynak seçiminden PlaySession ile açılır. -->
