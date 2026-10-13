@@ -1,5 +1,7 @@
 package com.lagradost.cloudstream3
 
+import com.lagradost.cloudstream3.utils.ExtractorLink
+
 /** CloudStream yük yanıtı temel arayüzü (detay sayfası içeriği). */
 interface LoadResponse {
     val name: String

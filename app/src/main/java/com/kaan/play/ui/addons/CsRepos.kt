@@ -105,7 +105,7 @@ private fun CsRepoRow(repo: CsRepo, onRemove: () -> Unit) {
         }
         IconButton(
             icon = PlayIcons.Delete,
-            contentDescription = stringResource(R.string.remove),
+            contentDescription = stringResource(R.string.repos_remove),
             modifier = Modifier.focusRing(),
         ) { confirmDelete = true }
     }
@@ -117,13 +117,13 @@ private fun CsRepoRow(repo: CsRepo, onRemove: () -> Unit) {
             text = { Text(stringResource(R.string.cs_repo_remove_body, repo.name)) },
             confirmButton = {
                 com.kaan.play.ui.components.TextButton(
-                    text = stringResource(R.string.remove),
+                    text = stringResource(R.string.addons_remove),
                     onClick = { confirmDelete = false; onRemove() },
                 )
             },
             dismissButton = {
                 com.kaan.play.ui.components.TextButton(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(R.string.common_cancel),
                     onClick = { confirmDelete = false },
                 )
             },
