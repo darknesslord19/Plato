@@ -7,6 +7,9 @@ build/
 local.properties
 *.jks
 *.keystore
+# Keystore dizini repoda; yalnızca .keystore dosyası hariç
+keystore/*.keystore
+keystore/*.jks
 
 # IDE
 .idea/

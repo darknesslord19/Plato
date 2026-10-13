@@ -23,9 +23,11 @@ TMDB_API_KEY=<tmdb v3 anahtarı>
 
 ## Yol haritası
 - **Faz 1 tamamlandı** (1–10): 8. adım web sitesi ekle (reklamsız web görünümü), 9. adım TV, tablet ve kumanda desteği, 10. adım görünüm cilası. Faz 2'ye kendiliğinden başlanmaz; sıradaki adım için onay bekleniyor.
-- **Faz 2 (Nuvio plugin'leri / JS kazıyıcılar) tamam** (1. tur: eklenti deposu yönetimi + QuickJS çalıştırıcı; 2. tur: kaynak listesine bağlama, eklenti ayarları, sonuç önbelleği, gerçek depo denemesi). Faz 3 (CloudStream `.cs3`) araştırıldı ([docs/cloudstream-plugin-research.md](docs/cloudstream-plugin-research.md)) ve **şimdilik ertelendi**; kendiliğinden başlanmaz.
+- **Faz 2 (Nuvio plugin'leri / JS kazıyıcılar) tamam** (1. tur: eklenti deposu yönetimi + QuickJS çalıştırıcı; 2. tur: kaynak listesine bağlama, eklenti ayarları, sonuç önbelleği, gerçek depo denemesi).
+- **Faz 3 (CloudStream `.cs3` eklenti depoları) tamam:** `com.lagradost.cloudstream3` stub'ları, DEX yükleme (`CsDexLoader`/`CsDexStore`), çalışma zamanı (`CsRuntime`), depo yönetimi (`CsRepository`), kaynak listesine bağlama (`CsStreamProvider`); Ayarlar > Eklentiler > "CloudStream Depoları". Ayrıntılar ve bilinen sınırlar CLAUDE.md "Faz 3" bölümünde.
 - **Faz 4 / A (altyazı) tamam:** altyazı addon'ları, tek altyazı seçici (dil grupları, varsayılan seçim, dizide hatırlama), karakter kodlaması (windows-1254 dahil) ve elle senkron; ayrıntı aşağıda "Altyazı — Faz 4 / A". Otomatik altyazı üretme/senkron en sona ertelendi.
-- **Faz 4 / B (indirme, çevrimdışı izleme) tamam:** kaynak listesinde satır sonunda indir simgesi, Media3 `DownloadManager` + ön plan servisi, Kütüphane > İndirilenler, çevrimdışı oynatma (altyazılarıyla); ayrıntı ve bilinen sınırlar aşağıda "İndirme — Faz 4 / B". Logo/ikon entegrasyonu tamam (aşağıda "Logo ve ikon"); yayın hazırlığı için onay bekleniyor, kendiliğinden başlanmaz.
+- **Faz 4 / B (indirme, çevrimdışı izleme) tamam:** kaynak listesinde satır sonunda indir simgesi, Media3 `DownloadManager` + ön plan servisi, Kütüphane > İndirilenler, çevrimdışı oynatma (altyazılarıyla); ayrıntı ve bilinen sınırlar aşağıda "İndirme — Faz 4 / B". Logo/ikon entegrasyonu tamam (aşağıda "Logo ve ikon").
+- **Yayın hazırlığı devam ediyor:** ProGuard kuralları tamamlandı, keystore dizini hazır; keystore üretimi ve Play Store gönderimi için aşağıdaki "Yayın Hazırlığı" bölümüne bak.
 - TV ve tablet desteği 9. adımda yapıldı (leanback girişi + banner, kumanda odağı, yan menü, iki sütunlu Detay); sınırları ve kurallar aşağıda "TV, tablet ve kumanda (9. adım)" notunda. Hava (air) kumanda imleci için ekstra bir şey yapılmadı.
 
 ## Tasarım notları (belirsiz kararlarda seçilen en sade yol)
@@ -179,3 +181,67 @@ Logo, Play'in kendi turkuaz işareti (yuvarlatılmış oynat üçgeni + ilerleme
 - **Açılış:** `ui/components/SplashOverlay` (Compose `Image`, tam logo `drawable-nodpi/logo.png`, genişliğin %60'ı, ortada, ~0,7 sn sonra solar; yeniden oluşturmada tekrar çıkmaz). Android 12+ sistem açılış penceresi launcher ikonunu kendisi gösterir, ona dokunulmadı.
 - **Hakkında:** başlığın altında tam logo, ortalı; yazı açık renkli olduğu için açık temada da okunsun diye koyu zeminli yuvarlak kutuda.
 - **TV:** `drawable-xhdpi/tv_banner.png` (640×360 = 320×180dp), manifestte `android:banner`.
+
+## Yayın Hazırlığı
+
+### 1. Keystore oluşturma (bir kez; şifreler git'e girmez)
+
+```powershell
+# Windows — JDK 17 keytool (JDK kuruluysa PATH'te)
+keytool -genkeypair `
+  -v `
+  -keystore keystore\play-release.keystore `
+  -alias play `
+  -keyalg RSA `
+  -keysize 2048 `
+  -validity 10000 `
+  -storepass GüçlüDepoBiçimi1! `
+  -keypass  GüçlüAnahtarParolası1! `
+  -dname "CN=Play, OU=Play, O=Play, L=Istanbul, S=Istanbul, C=TR"
+```
+
+Şifreleri `local.properties`'e ekle (git'e girmez):
+```
+KEYSTORE_PASSWORD=GüçlüDepoBiçimi1!
+KEY_PASSWORD=GüçlüAnahtarParolası1!
+```
+
+Keystore dosyasını güvenli bir yerde yedekle — **kaybolursa Play Store'da uygulama güncellemesi yapılamaz**.
+
+### 2. Release APK / AAB derle
+
+```powershell
+# APK (yan yükleme / doğrudan dağıtım)
+.\gradlew assembleRelease
+
+# AAB (Play Store yüklemesi için önerilen)
+.\gradlew bundleRelease
+```
+
+Çıktılar:
+- `app\build\outputs\apk\release\app-release.apk`
+- `app\build\outputs\bundle\release\app-release.aab`
+
+### 3. APK/AAB imzasını doğrula
+
+```powershell
+# APK
+.\gradlew signingReport
+# veya
+keytool -printcert -jarfile app\build\outputs\apk\release\app-release.apk
+```
+
+### 4. GitHub Release (opsiyonel)
+
+```powershell
+gh release create v1.0.0 `
+  app\build\outputs\apk\release\app-release.apk `
+  --title "Play v1.0.0" `
+  --notes "İlk yayın."
+```
+
+### 5. Play Store (opsiyonel)
+
+- Google Play Console'da uygulama oluştur (`com.kaan.play`)
+- AAB'yi yükle; içerik derecelendirmesi, gizlilik politikası ve ekran görüntüleri gerekir
+- Play Store imzalama açıksa keystore'un **ilk yükleme** sırasında kaydedilmesi gerekir
