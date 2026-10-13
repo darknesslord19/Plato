@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import com.kaan.play.BuildConfig
 import com.kaan.play.R
 import com.kaan.play.ui.components.ScreenHeader
-import com.kaan.play.ui.tv.focusRing
 
 /** Hakkında: uygulama adı, sürüm, Telegram bağlantısı, "içerik sağlamaz" notu ve TMDB'nin zorunlu atıf metni. */
 @Composable
@@ -68,7 +67,6 @@ fun AboutScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .padding(top = 4.dp)
-                    .focusRing()
                     .clickable {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(telegramUrl)))
                     }
