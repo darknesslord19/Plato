@@ -8,7 +8,7 @@ object AddonUrl {
 
     /**
      * Kullanıcının girdiği metni kanonik manifest adresine çevirir:
-     * şema yoksa `https://` eklenir; yol `manifest.json` ile bitmiyorsa eklenir; `#` kısmı atılır.
+     * şema yoksa `https://` eklenir; yol bir `.json` dosyasıyla bitmiyorsa `manifest.json` eklenir; `#` kısmı atılır.
      * Yalnızca http/https kabul edilir. `?` parametreli adresler reddedilir: akış adresleri
      * taban yola eklenerek kurulduğu için sorgu dizesi korunamaz.
      */
@@ -22,7 +22,10 @@ object AddonUrl {
 
         val segments = url.pathSegments.toMutableList()
         if (segments.last().isEmpty()) segments.removeAt(segments.lastIndex)
-        if (segments.lastOrNull() != MANIFEST) segments += MANIFEST
+        // Son parça zaten bir .json dosyasıysa (manifest.json, CloudStream repo.json vb.) olduğu gibi kalır;
+        // yalnızca klasör gibi görünen adreslere manifest.json eklenir.
+        val last = segments.lastOrNull()
+        if (last == null || !last.endsWith(".json", ignoreCase = true)) segments += MANIFEST
 
         return url.newBuilder()
             .fragment(null)

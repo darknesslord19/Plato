@@ -60,4 +60,13 @@ class AddonUrlTest {
         assertEquals("https://a.example.com", AddonUrl.baseOf("https://a.example.com/manifest.json"))
         assertEquals("https://a.example.com/x/y", AddonUrl.baseOf("https://a.example.com/x/y/manifest.json"))
     }
+
+    @Test
+    fun `baska bir json dosyasi olan adrese manifest eklenmez`() {
+        assertEquals(
+            "https://raw.example.com/u/r/main/repo.json",
+            norm("https://raw.example.com/u/r/main/repo.json"),
+        )
+        assertEquals("https://a.example.com/plugins.JSON", norm("a.example.com/plugins.JSON"))
+    }
 }
