@@ -293,4 +293,8 @@
     <string name="cs_repo_remove_body">Remove "%1$s" and all its plugins?</string>
     <string name="add_done_cs_repo">CloudStream repo added.</string>
     <string name="add_done_cs_repo_skipped">CloudStream repo added (%1$d plugins skipped).</string>
+    <string name="update_title">Update available</string>
+    <string name="update_message">Version %1$s is out. Download it?</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
 </resources>

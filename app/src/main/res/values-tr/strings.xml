@@ -276,4 +276,8 @@
     <string name="cs_repo_remove_body">"%1$s" deposu ve tüm eklentileri kaldırılsın mı?</string>
     <string name="add_done_cs_repo">CloudStream deposu eklendi.</string>
     <string name="add_done_cs_repo_skipped">CloudStream deposu eklendi (%1$d eklenti atlandı).</string>
+    <string name="update_title">Güncelleme mevcut</string>
+    <string name="update_message">%1$s sürümü çıktı. İndirmek ister misin?</string>
+    <string name="update_download">İndir</string>
+    <string name="update_later">Sonra</string>
 </resources>

@@ -40,6 +40,7 @@ import com.kaan.play.data.tmdb.TmdbRepository
 import com.kaan.play.data.web.WebSiteRepository
 import com.kaan.play.ui.web.AndroidWebDataCleaner
 import com.kaan.play.i18n.AppLanguage
+import com.kaan.play.data.update.UpdateChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -255,4 +256,7 @@ class AppContainer(context: Context) {
      * [com.kaan.play.ui.addons.AddonsViewModel] alıp sıfırlar.
      */
     val pendingAddonUrl = MutableStateFlow<String?>(null)
+
+    /** Uygulama içi güncelleme kontrolü (GitHub releases/latest); oturumda bir kez, etkinlik yeniden oluşsa da tekrarlanmaz. */
+    val updateChecker: UpdateChecker by lazy { UpdateChecker(httpClient, json, BuildConfig.VERSION_NAME) }
 }

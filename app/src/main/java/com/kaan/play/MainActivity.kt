@@ -16,6 +16,7 @@ import com.kaan.play.data.settings.ThemeMode
 import com.kaan.play.ui.components.SplashOverlay
 import com.kaan.play.ui.nav.PlayRoot
 import com.kaan.play.ui.theme.PlayTheme
+import com.kaan.play.ui.update.UpdateDialog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -24,7 +25,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val settings = (application as PlayApp).container.settings
+        val container = (application as PlayApp).container
+        val settings = container.settings
+        // Arka planda, oturumda bir kez; hata/zaman aşımı sessiz (bkz. UpdateChecker).
+        container.updateChecker.checkOnce(container.appScope)
         // Açılışta tek seferlik okuma (milisaniyeler): kayıtlı tema ilk karede doğru çıksın, yanıp sönmesin.
         val initialTheme = runBlocking { settings.themeMode.first() }
 
@@ -52,6 +56,7 @@ class MainActivity : AppCompatActivity() {
                 Box {
                     PlayRoot()
                     SplashOverlay()
+                    UpdateDialog(container.updateChecker)
                 }
             }
         }
