@@ -151,6 +151,28 @@ Kaynak listesinden bir film ya da dizi bölümü indirilir, Kütüphane'de yöne
   6. Alan denetimi **yalnızca başlarken** yapılır (aynı anda iki büyük indirme payı aşabilir, sürdürürken yeniden bakılmaz); "yalnızca Wi-Fi" **ölçümsüz** ağ demektir (ölçülü işaretli Wi-Fi mobil veri sayılır). Bildirimde yalnızca ilerleme vardır ("tamamlandı" bildirimi yok); bildirim metinleri Media3'ün ve servis bağlamının dilindedir (uygulama dili cihaz dilinden farklıysa bildirim cihaz dilinde çıkar).
   7. Eşzamanlılık en çok 2; sıradakiler "Sırada" bekler. `SimpleCache` silinen içeriğin boş klasörlerini bırakabilir (bayt kalmaz). Gerçek bir Android TV'de denenmedi (kumanda yolu 9. adımdaki kurallarla kodlandı: satırlar ve düğmeler odaklanır).
 
+## Önerilen altyazı addon'ları
+
+Play'in altyazı sistemi tamamen addon tabanlıdır; varsayılan altyazı kaynağı gömülmez. Manifest'inde `subtitles` kaynağı olan her Stremio/Nuvio uyumlu addon, Play'e doğrudan eklenebilir (Eklentiler > Eklenti ekle; IMDb `tt` öneki desteklenmelidir). Kurulum sonrası kaynak listesi oynatıcı içinde de seçilebilir; altyazı addon'u kaynak listesinde görünmez.
+
+| Addon | Adres | Diller | Notlar |
+|---|---|---|---|
+| **AltyaziDB Subtitles** | `https://altyazidb.online/manifest.json` | Türkçe | Yapılandırma gerekmez; `tt` ve `tmdb` öneki; doğrudan eklenebilir. Altyazı kaynağı: altyazidb.com. |
+| **SubPool by Diavelin** | `https://subpool-diavelin.vercel.app/configure` → kişisel URL | 105+ dil | Yapılandırma gerekir (özgür kaynaklar API anahtarsız; OpenSubtitles/SubDL isteğe bağlı API anahtarı); Türkçe için AltyazıDB ve AniSub dahil; ZIP/RAR açar, windows-1254 bozukluklarını düzeltir. Configure sayfasından kişisel manifest URL'si alınır. |
+| **Subtitle Translator** | `https://translatoraddon.duckdns.org/configure` → kişisel URL | Çok dilli (AI çeviri) | OpenSubtitles v3 (API anahtarsız); seçilen hedef dile otomatik AI çevirisi (OpenRouter veya Cursor; ücretli). Stremio ve NuvioTV uyumlu olduğu belirtilmiştir. |
+
+**Kurulum adımları (AltyaziDB örneği — yapılandırma gerektirmez):**
+1. Play > Eklentiler > Eklenti ekle
+2. `https://altyazidb.online/manifest.json` yapıştır
+3. "Eklenti eklendi (addon)" onayı çıkar
+4. Oynatıcı > altyazı menüsü'nde Türkçe parçalar otomatik listelenir; Play `tur` kodunu tanır ve uygulama dili Türkçeyse otomatik seçilir
+
+**Notlar:**
+- SubPool ve Translator Addon için configure sayfasından alınan kişisel manifest URL'sini (örn. `https://subpool-diavelin.vercel.app/abc123/manifest.json`) Play'e ekle.
+- `?` parametreli adresler Play tarafından reddedilir (bkz. Tasarım notları); configure sayfasının parametresiz bir URL ürettiği doğrulandı.
+- Altyazı addon'ları Play'in kaynak listesinde görünmez; yalnızca oynatıcının altyazı menüsünde parça olarak çıkar.
+- Tüm yanıt formatları `{"subtitles":[{"id","url","lang"}]}` olarak doğrulandı (`AddonSubtitleProvider.parse` ile uyumlu).
+
 ## Logo ve ikon
 Logo, Play'in kendi turkuaz işareti (yuvarlatılmış oynat üçgeni + ilerleme çizgisi) ve çizgi stilinde "Play" yazısıdır; `tasarim/logo.png` projede hiç olmadığı için kullanıcı onayıyla bu işaret logo sayıldı (neon mavi-mor/film şeridi/bulutlu bir logo yoktur). Görseller PNG olarak üretilip commit edildi (vektör dönüşümü yok); zemin `#0E1116`.
 - **Launcher:** `mipmap-{m,h,xh,xxh,xxxh}dpi/ic_launcher_foreground.png` (işaret, adaptif güvenli alanda) + `@color/ic_launcher_background`; `mipmap-anydpi-v26/ic_launcher(_round).xml` (tek renk katmanı dahil), API 24-25 için `mipmap-anydpi/ic_launcher(_round).xml`; manifestte `icon` ve `roundIcon`.
