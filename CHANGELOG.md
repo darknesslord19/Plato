@@ -1,5 +1,17 @@
 # Changelog / Değişiklik günlüğü
 
+## [1.0.3] — 2026-10-14
+
+### Türkçe
+- **Uygulama içi güncelleme:** yeni sürüm çıkınca "Güncelle" APK'yı uygulama içinde indirir (ilerleme çubuğuyla), cihazın işlemci türüne uyan dosyayı kendisi seçer (arm64-v8a, armeabi-v7a, x86_64), release'teki SHA-256 dosyasıyla doğrular ve sistem kurulum ekranını açar. Artık hangi APK'yı indireceğini seçmen gerekmez.
+- "Bilinmeyen uygulamaları yükle" izni yoksa ilgili ayar sayfasına yönlendirir; geri dönünce kurulum kaldığı yerden sürer.
+- İndirme hatasında, ağ kesilmesinde ve özet uyuşmazlığında uygulama çökmez; dosya kurulmaz ve "Tarayıcıda aç" ile release sayfasına gidilebilir. Uygun APK bulunamazsa eski yöntem (tarayıcı) sürer.
+
+### English
+- **In-app updates:** when a new version is out, "Update" downloads the APK inside the app (with a progress bar), picks the file that matches your device's CPU type (arm64-v8a, armeabi-v7a, x86_64), verifies it against the release's SHA-256 file and opens the system installer. You no longer have to pick an APK.
+- If the "Install unknown apps" permission is off, it sends you to the right settings page and carries on when you come back.
+- A failed download, a dropped connection or a checksum mismatch never crashes the app; the file isn't installed and "Open in browser" takes you to the release page. If no matching APK is found, the old browser method is used.
+
 ## [1.0.2] — 2026-10-14
 
 ### Türkçe
