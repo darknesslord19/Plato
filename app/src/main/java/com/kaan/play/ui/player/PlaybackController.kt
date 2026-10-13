@@ -108,6 +108,14 @@ class PlaybackController(
                         (http?.let { " http=${it.responseCode} ctype=${it.headerFields["Content-Type"]}" } ?: ""),
                     error,
                 )
+                // Eklentinin verdiği başlıklar (Referer / tarayıcı User-Agent) bazı CDN'lerde tam tersine reddedilir
+                // (ör. 428/429). Başlıklı istek 4xx alırsa aynı konumdan bir kez başlıksız denenir.
+                if (retryWithoutHeaders(http?.responseCode, headersSent = headers.isNotEmpty())) {
+                    TorrentDiag.d("başlıklı istek ${http?.responseCode} aldı: başlıksız yeniden deneniyor")
+                    headers = emptyMap()
+                    player.prepare()
+                    return
+                }
                 ui = ui.copy(error = errorOf(error), buffering = false)
             }
 
@@ -204,6 +212,10 @@ class PlaybackController(
 
     companion object {
         private const val TORRENT_READ_TIMEOUT_S = 120L
+
+        /** Kaynağın başlıklarıyla gönderilen istek 4xx aldıysa başlıksız bir kez daha denenir (başlıksız istek yeniden denenmez). */
+        internal fun retryWithoutHeaders(responseCode: Int?, headersSent: Boolean): Boolean =
+            headersSent && responseCode != null && responseCode in 400..499
 
         /** `https://x/y.m3u8?token` gibi adreslerde ya da uzantısız HLS/DASH'te Media3 türü kendi çıkaramaz. */
         internal fun streamMimeType(url: String): String? {

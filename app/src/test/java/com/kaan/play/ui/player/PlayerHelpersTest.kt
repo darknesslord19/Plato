@@ -34,6 +34,16 @@ class PlayerHelpersTest {
     }
 
     @Test
+    fun rejectedRequestWithSourceHeadersIsRetriedOnceWithoutThem() {
+        // CDN tarayıcı Referer/User-Agent'ını 429/428 ile reddediyor; başlıksız istek 206 dönüyor.
+        assertEquals(true, PlaybackController.retryWithoutHeaders(429, headersSent = true))
+        assertEquals(true, PlaybackController.retryWithoutHeaders(403, headersSent = true))
+        assertEquals(false, PlaybackController.retryWithoutHeaders(429, headersSent = false)) // zaten başlıksız
+        assertEquals(false, PlaybackController.retryWithoutHeaders(503, headersSent = true))
+        assertEquals(false, PlaybackController.retryWithoutHeaders(null, headersSent = true)) // http hatası değil
+    }
+
+    @Test
     fun streamMimeTypeIsInferredForPlainFilesFromPathExtension() {
         assertEquals(MimeTypes.VIDEO_MATROSKA, PlaybackController.streamMimeType("https://h/a/Movie.MKV"))
         assertEquals(MimeTypes.VIDEO_MATROSKA, PlaybackController.streamMimeType("https://h/a.mkv?token=x.mp4#t"))
