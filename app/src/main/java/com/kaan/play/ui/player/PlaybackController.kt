@@ -20,6 +20,7 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.kaan.play.data.stream.PlayableStream
+import com.kaan.play.data.stream.StreamLog
 import okhttp3.OkHttpClient
 import java.util.Locale
 
@@ -97,9 +98,11 @@ class PlaybackController(context: Context, client: OkHttpClient, offlineCache: C
     fun load(stream: PlayableStream, startMs: Long) {
         headers = stream.headers
 
+        val mime = stream.mimeType ?: streamMimeType(stream.url)
+        StreamLog.opening(stream.url, mime)
         val item = MediaItem.Builder()
             .setUri(stream.url)
-            .apply { (stream.mimeType ?: streamMimeType(stream.url))?.let(::setMimeType) }
+            .apply { mime?.let(::setMimeType) }
             .build()
 
         ui = ui.copy(error = null, ended = false, buffering = true)

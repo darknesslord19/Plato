@@ -3,6 +3,7 @@ package com.kaan.play.data.plugin.runtime
 import com.kaan.play.data.stream.FailureReason
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamLabels
+import com.kaan.play.data.stream.StreamLog
 import com.kaan.play.data.stream.StreamResult
 import com.kaan.play.data.stream.StreamSource
 import com.kaan.play.data.stream.StreamSubtitle
@@ -37,7 +38,10 @@ data class PluginStream(
                 is JsonObject -> (u["url"] as? JsonPrimitive)?.contentOrNull
                 else -> null
             }?.trim() ?: return null
-            if (rawUrl.contains("[object") || !isHttp(rawUrl)) return null
+            if (rawUrl.contains("[object") || !isHttp(rawUrl)) {
+                StreamLog.rejected("eklenti", rawUrl)
+                return null
+            }
 
             return PluginStream(
                 url = rawUrl,

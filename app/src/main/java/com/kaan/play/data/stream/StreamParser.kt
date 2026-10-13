@@ -35,7 +35,10 @@ object StreamParser {
 
     private fun StreamDto.toPlayable(source: StreamSource): PlayableStream? {
         val link = url?.trim()?.takeIf { it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true) }
-            ?: return null
+            ?: run {
+                url?.let { StreamLog.rejected("addon", it) }
+                return null
+            }
         val text = listOfNotNull(name, title, description, behaviorHints?.filename).joinToString(" ")
         return PlayableStream(
             source = source,
