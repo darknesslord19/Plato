@@ -140,6 +140,14 @@
     <string name="addons_timeout">Source timeout: %1$d s</string>
     <string name="addons_timeout_title">Source timeout</string>
     <string name="addons_timeout_option">%1$d seconds</string>
+    <string name="torrent_server_row">Torrent server: %1$s</string>
+    <string name="torrent_server_none">built-in</string>
+    <string name="torrent_server_title">Torrent server</string>
+    <string name="torrent_server_message">Torrent sources play with Play\'s built-in engine. If you run your own server (TorrServer compatible), enter its address; leave empty to use the built-in engine.</string>
+    <string name="torrent_server_field">Server address</string>
+    <string name="torrent_server_hint">192.168.1.20:8090</string>
+    <string name="torrent_server_invalid">Enter an address like 192.168.1.20:8090</string>
+    <string name="torrent_server_save">Save</string>
 
     <string name="addon_error_invalid_url">Enter the addon\'s web address (http or https), usually ending in manifest.json, without anything after a “?”.</string>
     <string name="addon_error_already_added">This addon is already added.</string>

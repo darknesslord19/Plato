@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.kaan.play.data.stream.TorrentLinks
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -33,6 +34,16 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     /** Açıkken indirmeler yalnızca ölçümsüz (Wi-Fi/ethernet) ağda sürer. Varsayılan açık (mobil veri sessizce harcanmasın). */
     val downloadWifiOnly: Flow<Boolean> = store.data.map { it[DOWNLOAD_WIFI_ONLY] ?: DEFAULT_DOWNLOAD_WIFI_ONLY }.distinctUntilChanged()
+
+    /** Kullanıcının torrent sunucusu (TorrServer uyumlu) adresi, `http(s)://host[:port]`; yoksa null ve torrent kaynakları görünmez. */
+    val torrentServer: Flow<String?> = store.data.map { prefs -> TorrentLinks.normalizeServer(prefs[TORRENT_SERVER]) }.distinctUntilChanged()
+
+    /** Geçersiz/boş adres ayarı siler. Kaydedilen değer (ya da null) döner. */
+    suspend fun setTorrentServer(input: String?): String? {
+        val normalized = TorrentLinks.normalizeServer(input)
+        store.edit { if (normalized == null) it.remove(TORRENT_SERVER) else it[TORRENT_SERVER] = normalized }
+        return normalized
+    }
 
     suspend fun setDownloadWifiOnly(enabled: Boolean) {
         store.edit { it[DOWNLOAD_WIFI_ONLY] = enabled }
@@ -84,6 +95,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         private val THEME = stringPreferencesKey("theme_mode")
         private val TIMEOUT = intPreferencesKey("source_timeout_seconds")
         private val ALWAYS_RESUME = booleanPreferencesKey("always_resume")
+        private val TORRENT_SERVER = stringPreferencesKey("torrent_server")
         private val DOWNLOAD_WIFI_ONLY = booleanPreferencesKey("download_wifi_only")
         private val SUB_SIZE = stringPreferencesKey("subtitle_size")
         private val SUB_BOLD = booleanPreferencesKey("subtitle_bold")

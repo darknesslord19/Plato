@@ -122,6 +122,14 @@
     <string name="addons_timeout">Kaynak zaman aşımı: %1$d sn</string>
     <string name="addons_timeout_title">Kaynak zaman aşımı</string>
     <string name="addons_timeout_option">%1$d saniye</string>
+    <string name="torrent_server_row">Torrent sunucusu: %1$s</string>
+    <string name="torrent_server_none">yerleşik</string>
+    <string name="torrent_server_title">Torrent sunucusu</string>
+    <string name="torrent_server_message">Torrent kaynakları Play\'in yerleşik motoruyla oynar. Kendi sunucunuz (TorrServer uyumlu) varsa adresini girin; boş bırakırsanız yerleşik motor kullanılır.</string>
+    <string name="torrent_server_field">Sunucu adresi</string>
+    <string name="torrent_server_hint">192.168.1.20:8090</string>
+    <string name="torrent_server_invalid">192.168.1.20:8090 gibi bir adres girin</string>
+    <string name="torrent_server_save">Kaydet</string>
 
     <string name="addon_error_invalid_url">Eklentinin web adresini gir (http veya https). Genellikle manifest.json ile biter ve “?” işaretinden sonra bir şey içermez.</string>
     <string name="addon_error_already_added">Bu eklenti zaten ekli.</string>

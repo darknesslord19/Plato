@@ -59,6 +59,7 @@ import com.kaan.play.ui.components.SettingsRow
 import com.kaan.play.ui.containerViewModel
 import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.rememberContainer
+import com.kaan.play.data.stream.TorrentLinks
 import com.kaan.play.ui.tv.dpadLeavesTextField
 import com.kaan.play.ui.tv.rememberCursorField
 import com.kaan.play.ui.tv.focusMemory
@@ -86,6 +87,8 @@ fun AddonsScreen(
     val timeout by container.settings.sourceTimeoutSeconds
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_TIMEOUT_SECONDS)
     var showTimeout by remember { mutableStateOf(false) }
+    val torrentServer by container.settings.torrentServer.collectAsStateWithLifecycle(initialValue = null)
+    var showTorrentServer by remember { mutableStateOf(false) }
     val focus = rememberFocusMemory()
 
     // Sade bildirim: "Eklenti eklendi (addon)" ya da "Eklenti deposu eklendi" (atlanan dosya varsa sayısıyla).
@@ -178,13 +181,25 @@ fun AddonsScreen(
             }
         }
 
-        // İkincil ayar: altta, küçük ve soluk.
+        // İkincil ayarlar: altta, küçük ve soluk.
         TextButton(
             onClick = { showTimeout = true },
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+            modifier = Modifier.align(Alignment.CenterHorizontally),
         ) {
             Text(
                 stringResource(R.string.addons_timeout, timeout),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TextButton(
+            onClick = { showTorrentServer = true },
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+        ) {
+            Text(
+                stringResource(
+                    R.string.torrent_server_row,
+                    torrentServer?.substringAfter("://") ?: stringResource(R.string.torrent_server_none),
+                ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -213,6 +228,19 @@ fun AddonsScreen(
             dismissButton = {
                 TextButton(onClick = { siteToRemove = null }) { Text(stringResource(R.string.common_cancel)) }
             },
+        )
+    }
+
+    if (showTorrentServer) {
+        TorrentServerDialog(
+            current = torrentServer,
+            onSave = { input ->
+                scope.launch {
+                    val saved = container.settings.setTorrentServer(input)
+                    if (input.isBlank() || saved != null) showTorrentServer = false
+                }
+            },
+            onDismiss = { showTorrentServer = false },
         )
     }
 
@@ -286,6 +314,43 @@ internal fun AddonRow(addon: Addon, onToggle: (Boolean) -> Unit, onRemove: () ->
             )
         }
     }
+}
+
+@Composable
+private fun TorrentServerDialog(current: String?, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var input by remember { mutableStateOf(current?.substringAfter("://").orEmpty()) }
+    var invalid by remember { mutableStateOf(false) }
+    val field = rememberCursorField(input) { input = it; invalid = false }
+    val submit = {
+        if (input.isBlank() || TorrentLinks.normalizeServer(input) != null) onSave(input) else invalid = true
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.torrent_server_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.torrent_server_message), style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = field.value,
+                    onValueChange = field.onValueChange,
+                    label = { Text(stringResource(R.string.torrent_server_field)) },
+                    placeholder = { Text(stringResource(R.string.torrent_server_hint)) },
+                    singleLine = true,
+                    isError = invalid,
+                    supportingText = if (invalid) ({ Text(stringResource(R.string.torrent_server_invalid)) }) else null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { submit() }),
+                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(field),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = submit) {
+                Text(stringResource(R.string.torrent_server_save))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
+    )
 }
 
 @Composable
