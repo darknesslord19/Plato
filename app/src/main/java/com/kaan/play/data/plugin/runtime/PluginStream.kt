@@ -7,9 +7,11 @@ import com.kaan.play.data.stream.StreamLog
 import com.kaan.play.data.stream.StreamResult
 import com.kaan.play.data.stream.StreamSource
 import com.kaan.play.data.stream.StreamSubtitle
+import com.kaan.play.data.stream.TorrentLinks
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 
 /** Eklentinin döndürdüğü tek akış (docs/nuvio-plugin-format.md §2.2). Alanların çoğu isteğe bağlı ve serbest metindir. */
 data class PluginStream(
@@ -22,6 +24,8 @@ data class PluginStream(
     val language: String?,
     val headers: Map<String, String>,
     val subtitles: List<PluginSubtitle>,
+    /** Yalnızca `magnet:` akışlarda: torrent içindeki dosya (0 tabanlı). */
+    val fileIdx: Int? = null,
 ) {
     companion object {
         private const val MAX_TEXT = 500
@@ -33,12 +37,16 @@ data class PluginStream(
          * barındıranlar atılır. Bozuk tek kayıt null döner ve yalnızca kendini düşürür.
          */
         fun fromJson(obj: JsonObject): PluginStream? {
-            val rawUrl = when (val u = obj["url"]) {
+            val declared = when (val u = obj["url"]) {
                 is JsonPrimitive -> u.contentOrNull
                 is JsonObject -> (u["url"] as? JsonPrimitive)?.contentOrNull
                 else -> null
-            }?.trim() ?: return null
-            if (rawUrl.contains("[object") || !isHttp(rawUrl)) {
+            }?.trim()
+            // `url` yoksa `infoHash` varsa magnet kurulur (torrent sunucusu ayarlıysa oynar).
+            val rawUrl = declared?.takeIf { it.isNotEmpty() }
+                ?: TorrentLinks.magnet((obj["infoHash"] as? JsonPrimitive)?.contentOrNull)
+                ?: return null
+            if (rawUrl.contains("[object") || !(isHttp(rawUrl) || TorrentLinks.isMagnet(rawUrl))) {
                 StreamLog.rejected("eklenti", rawUrl)
                 return null
             }
@@ -54,6 +62,7 @@ data class PluginStream(
                 subtitles = (obj["subtitles"] as? kotlinx.serialization.json.JsonArray).orEmpty()
                     .asSequence().mapNotNull { (it as? JsonObject)?.let(PluginSubtitle::fromJson) }
                     .take(MAX_SUBTITLES).toList(),
+                fileIdx = (obj["fileIdx"] as? JsonPrimitive)?.intOrNull?.takeIf { it >= 0 && TorrentLinks.isMagnet(rawUrl) },
             )
         }
 
@@ -118,6 +127,7 @@ fun PluginStream.toPlayable(source: StreamSource): PlayableStream {
         headers = headers,
         subtitles = subtitles.map { StreamSubtitle(it.url, subtitleLanguage(it.language ?: it.name)) },
         language = language?.let { StreamLabels.language(it) } ?: StreamLabels.language(text),
+        torrentFileIdx = fileIdx,
     )
 }
 

@@ -60,6 +60,8 @@ data class PlayableStream(
     val language: String? = null,
     /** Kaynağın bildirdiği tür (HLS/DASH); adreste uzantı yoksa oynatıcı türü bundan alır. Bilinmiyorsa null. */
     val mimeType: String? = null,
+    /** Yalnızca `magnet:` kaynaklarda: torrent içindeki dosya (0 tabanlı); yerleşik motor ya da torrent sunucusu bu dosyayı oynatır. */
+    val torrentFileIdx: Int? = null,
 )
 
 /** Akışla gelen altyazı; [language] addon'un verdiği ham etiket (`eng`, `tur` ...). */

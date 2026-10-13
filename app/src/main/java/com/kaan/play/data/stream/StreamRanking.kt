@@ -8,8 +8,10 @@ fun List<PlayableStream>.ranked(): List<PlayableStream> =
     )
 
 /**
- * En uygun kaynak: 1080p'ye kadar olanların en iyisi (4K çoğu cihazda takılır ve çok yer tutar);
- * hiçbiri yoksa listenin başı. [ranked] sıralı liste bekler.
+ * En uygun kaynak: 1080p'ye kadar olanların en iyisi (4K çoğu cihazda takılır ve çok yer tutar); doğrudan bağlantı torrentten
+ * önce gelir (torrent açılışı eş bulmayı bekler). Hiçbiri yoksa listenin başı. [ranked] sıralı liste bekler.
  */
-fun List<PlayableStream>.recommended(): PlayableStream? =
-    firstOrNull { (it.resolution ?: 0) in 1..1080 } ?: firstOrNull()
+fun List<PlayableStream>.recommended(): PlayableStream? {
+    fun fits(s: PlayableStream) = (s.resolution ?: 0) in 1..1080
+    return firstOrNull { fits(it) && !TorrentLinks.isMagnet(it.url) } ?: firstOrNull(::fits) ?: firstOrNull()
+}

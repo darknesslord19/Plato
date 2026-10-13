@@ -104,7 +104,7 @@ class AddonStreamProviderTest {
         assertEquals(1, results.size)
         val found = results.single().found()
         assertEquals(StreamSource(1, "Addon A"), found.source)
-        assertEquals(2, found.streams.size) // infoHash ve ytId akışları yok sayıldı
+        assertEquals(3, found.streams.size) // ytId akışı yok sayıldı; infoHash magnet olarak alındı
 
         val first = found.streams[0]
         assertEquals("https://cdn.example.com/m.mp4", first.url)
@@ -113,7 +113,9 @@ class AddonStreamProviderTest {
         assertEquals(mapOf("Referer" to "https://ref.example.com", "User-Agent" to "X"), first.headers)
         assertEquals(listOf(StreamSubtitle("https://subs.example.com/tr.vtt", "tur")), first.subtitles) // ftp atıldı
 
-        val second = found.streams[1]
+        assertEquals("magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01", found.streams[1].url)
+
+        val second = found.streams[2]
         assertEquals(2160, second.resolution) // "4K" adından
         assertEquals(8_000_000_000L, second.sizeBytes) // videoSize ipucundan
         assertTrue(second.headers.isEmpty())

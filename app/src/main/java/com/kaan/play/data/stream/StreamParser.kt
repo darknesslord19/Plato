@@ -10,7 +10,8 @@ class InvalidStreamResponse : Exception()
 
 /**
  * Addon'un `stream/...json` cevabını [PlayableStream] listesine çevirir.
- * Yalnızca `url` alanı http(s) olan akışlar alınır (`infoHash`, `ytId`, `externalUrl` yok sayılır).
+ * `url` alanı http(s) olan akışlar alınır; `magnet:` adresi ya da `infoHash` olan akışlar magnet'e çevrilip alınır
+ * (yerleşik torrent motoru ya da kullanıcının torrent sunucusu oynatır, bkz. [TorrentStreamProvider]). `ytId`, `externalUrl` yok sayılır.
  * Tek bir bozuk akış kaydı yalnızca kendini düşürür, cevabın geri kalanı kullanılır.
  */
 object StreamParser {
@@ -34,7 +35,11 @@ object StreamParser {
     }
 
     private fun StreamDto.toPlayable(source: StreamSource): PlayableStream? {
-        val link = url?.trim()?.takeIf { it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true) }
+        val httpLink = url?.trim()?.takeIf { it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true) }
+        val trackers = sources.orEmpty().filter { it.startsWith("tracker:", ignoreCase = true) }.map { it.substringAfter(':') }
+        val link = httpLink
+            ?: url?.trim()?.takeIf(TorrentLinks::isMagnet)
+            ?: TorrentLinks.magnet(infoHash, trackers)
             ?: run {
                 url?.let { StreamLog.rejected("addon", it) }
                 return null
@@ -52,6 +57,7 @@ object StreamParser {
                 StreamSubtitle(subUrl, s.lang?.takeIf { it.isNotBlank() })
             },
             language = StreamLabels.language(text),
+            torrentFileIdx = fileIdx?.takeIf { TorrentLinks.isMagnet(link) && it >= 0 },
         )
     }
 
@@ -136,6 +142,9 @@ object StreamLabels {
 @Serializable
 private data class StreamDto(
     val url: String? = null,
+    val infoHash: String? = null,
+    val fileIdx: Int? = null,
+    val sources: List<String>? = null,
     val name: String? = null,
     val title: String? = null,
     val description: String? = null,
