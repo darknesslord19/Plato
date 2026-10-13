@@ -183,7 +183,7 @@ class AppContainer(context: Context) {
             CsStreamProvider(
                 repository = csRepos,
                 runtime = csRuntime,
-                titleResolver = { req -> runCatching { tmdb.detail(req.type, req.tmdbId).title }.getOrNull() },
+                titleResolver = { req -> runCatching { tmdb.detail(req.type, req.tmdbId).summary.title }.getOrNull() },
                 timeoutMs = 15_000L,
             ),
         )

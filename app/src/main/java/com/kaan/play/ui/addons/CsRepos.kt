@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -103,11 +104,9 @@ private fun CsRepoRow(repo: CsRepo, onRemove: () -> Unit) {
                 )
             }
         }
-        IconButton(
-            icon = PlayIcons.Delete,
-            contentDescription = stringResource(R.string.repos_remove),
-            modifier = Modifier.focusRing(),
-        ) { confirmDelete = true }
+        IconButton(onClick = { confirmDelete = true }, modifier = Modifier.focusRing()) {
+            Icon(PlayIcons.Trash, contentDescription = stringResource(R.string.repos_remove))
+        }
     }
 
     if (confirmDelete) {
@@ -116,16 +115,14 @@ private fun CsRepoRow(repo: CsRepo, onRemove: () -> Unit) {
             title = { Text(stringResource(R.string.cs_repo_remove_title)) },
             text = { Text(stringResource(R.string.cs_repo_remove_body, repo.name)) },
             confirmButton = {
-                com.kaan.play.ui.components.TextButton(
-                    text = stringResource(R.string.addons_remove),
-                    onClick = { confirmDelete = false; onRemove() },
-                )
+                com.kaan.play.ui.components.TextButton(onClick = { confirmDelete = false; onRemove() }) {
+                    Text(stringResource(R.string.addons_remove), color = MaterialTheme.colorScheme.error)
+                }
             },
             dismissButton = {
-                com.kaan.play.ui.components.TextButton(
-                    text = stringResource(R.string.common_cancel),
-                    onClick = { confirmDelete = false },
-                )
+                com.kaan.play.ui.components.TextButton(onClick = { confirmDelete = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
             },
         )
     }

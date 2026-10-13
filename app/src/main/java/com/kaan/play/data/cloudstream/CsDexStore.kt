@@ -73,7 +73,7 @@ suspend fun downloadCs3(
     val bytes: ByteArray = try {
         client.newCall(request).execute().use { resp ->
             if (!resp.isSuccessful) throw AddonException(Kind.Http, "${resp.code}")
-            val body = resp.body ?: throw AddonException(Kind.InvalidResponse)
+            val body = resp.body ?: throw AddonException(Kind.InvalidField, "empty body")
             val len = body.contentLength()
             if (len > CS3_MAX_BYTES) throw AddonException(Kind.TooLarge)
             body.bytes().also { if (it.size > CS3_MAX_BYTES) throw AddonException(Kind.TooLarge) }
@@ -85,7 +85,7 @@ suspend fun downloadCs3(
     if (expectedHash.isNotEmpty()) {
         val actual = sha256Hex(bytes)
         if (!actual.equals(expectedHash, ignoreCase = true)) {
-            throw AddonException(Kind.InvalidResponse, "hash mismatch: expected=$expectedHash actual=$actual")
+            throw AddonException(Kind.InvalidField, "hash mismatch: expected=$expectedHash actual=$actual")
         }
     }
 
@@ -116,7 +116,7 @@ private fun extractCs3(bytes: ByteArray, store: CsDexStore, id: Long): Cs3Conten
         }
     }
 
-    val dex = dexBytes ?: throw AddonException(Kind.InvalidResponse, "classes.dex not found in .cs3")
+    val dex = dexBytes ?: throw AddonException(Kind.MissingField, "classes.dex not found in .cs3")
     val manifest = manifestText ?: "{}"
 
     // DEX dosyasına yaz
