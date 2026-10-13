@@ -300,10 +300,7 @@
     <string name="deeplink_repo_added">Repository added</string>
     <string name="deeplink_plugin_added">Plugin added</string>
     <string name="deeplink_confirm_title">Add from link?</string>
-    <string name="deeplink_confirm_message">This link wants to add:
-%1$s
-
-Only add from sources you trust.</string>
+    <string name="deeplink_confirm_message">This link wants to add:\n%1$s\n\nOnly add from sources you trust.</string>
     <string name="deeplink_confirm_add">Add</string>
     <string name="deeplink_invalid">Invalid link</string>
 </resources>

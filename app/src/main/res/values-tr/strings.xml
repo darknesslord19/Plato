@@ -283,10 +283,7 @@
     <string name="deeplink_repo_added">Depo eklendi</string>
     <string name="deeplink_plugin_added">Eklenti eklendi</string>
     <string name="deeplink_confirm_title">Bağlantıdan eklensin mi?</string>
-    <string name="deeplink_confirm_message">Bu bağlantı şunu eklemek istiyor:
-%1$s
-
-Yalnızca güvendiğin kaynaklardan ekle.</string>
+    <string name="deeplink_confirm_message">Bu bağlantı şunu eklemek istiyor:\n%1$s\n\nYalnızca güvendiğin kaynaklardan ekle.</string>
     <string name="deeplink_confirm_add">Ekle</string>
     <string name="deeplink_invalid">Geçersiz bağlantı</string>
 </resources>
