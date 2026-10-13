@@ -25,14 +25,32 @@ android {
         minSdk = 24
         targetSdk = 37
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
     }
 
+    // Yayın imzası: keystore yolu repoda, şifreler yalnızca local.properties'te (ya da ortam değişkeninde).
+    signingConfigs {
+        create("release") {
+            val storePassword = localProps.getProperty("KEYSTORE_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD")
+            val keyPasswordValue = localProps.getProperty("KEY_PASSWORD") ?: System.getenv("KEY_PASSWORD")
+            if (storePassword != null && keyPasswordValue != null) {
+                storeFile = rootProject.file("keystore/play-release.keystore")
+                this.storePassword = storePassword
+                keyAlias = "play"
+                keyPassword = keyPasswordValue
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // Şifreler yoksa (ör. başka makine) imzasız derlenir; derleme kırılmaz.
+            if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
