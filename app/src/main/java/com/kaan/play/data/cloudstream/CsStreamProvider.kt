@@ -1,13 +1,16 @@
 package com.kaan.play.data.cloudstream
 
+import android.util.Log
 import com.kaan.play.data.stream.FailureReason
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamProvider
 import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.stream.StreamResult
 import com.kaan.play.data.stream.StreamSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 
 /**
@@ -29,8 +32,13 @@ class CsStreamProvider(
 ) : StreamProvider {
 
     override fun streams(request: StreamRequest): Flow<StreamResult> = channelFlow {
-        val title = titleResolver(request) ?: return@channelFlow
+        val title = titleResolver(request)
+        if (title == null) {
+            Log.d(TAG, "streams: başlık çözülemedi (TMDB), CS atlanıyor")
+            return@channelFlow
+        }
         val plugins = repository.enabledPlugins()
+        Log.d(TAG, "streams: ${plugins.size} açık CS eklentisi")
         if (plugins.isEmpty()) return@channelFlow
 
         for (plugin in plugins) {
@@ -38,6 +46,7 @@ class CsStreamProvider(
                 val source = StreamSource(addonId = plugin.id, addonName = plugin.name)
                 try {
                     val apis = repository.loadApis(plugin.id)
+                    Log.d(TAG, "${plugin.name}: ${apis.size} MainAPI yüklendi")
                     val streams: List<PlayableStream> = if (apis.isEmpty()) {
                         emptyList()
                     } else {
@@ -51,13 +60,18 @@ class CsStreamProvider(
                         )
                     }
                     send(StreamResult.Found(source, streams))
-                } catch (_: Exception) {
+                } catch (t: Throwable) {
+                    Log.d(TAG, "${plugin.name}: streams hata ${t.javaClass.simpleName}: ${t.message}")
                     send(StreamResult.Failed(source, FailureReason.Network))
                 }
             }
         }
-    }
+    }.flowOn(Dispatchers.IO) // DEX yükleme ve eklentilerin ayrıştırma işi ana iş parçacığını dondurmasın
 
     override suspend fun sources(request: StreamRequest): List<StreamSource> =
         repository.enabledPlugins().map { StreamSource(addonId = it.id, addonName = it.name) }
+
+    private companion object {
+        const val TAG = "PlayCs"
+    }
 }

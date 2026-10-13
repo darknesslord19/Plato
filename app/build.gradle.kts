@@ -96,6 +96,11 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.jsoup)
     implementation(libs.quickjs.kt)
+    // Faz 3 (CloudStream): gerçek eklentiler doğrudan Jackson bytecode'una derlenmiş durumda
+    // (`com.fasterxml.jackson...`); kendi JSON kütüphanemiz (kotlinx.serialization) bunun yerini
+    // tutamaz, bu yüzden eklenti uyumluluğu için gerçek Jackson çalışma zamanda bulunur.
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.module.kotlin)
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)

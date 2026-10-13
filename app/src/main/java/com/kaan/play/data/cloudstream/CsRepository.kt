@@ -1,6 +1,6 @@
 package com.kaan.play.data.cloudstream
 
-import android.content.Context
+import android.util.Log
 import com.lagradost.cloudstream3.MainAPI
 import com.kaan.play.data.addon.AddonException
 import com.kaan.play.data.addon.AddonException.Kind
@@ -20,9 +20,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
-import okhttp3.Request
+
+private const val TAG = "PlayCs"
 
 /** Kurulu bir CloudStream deposu özeti. */
 data class CsRepo(
@@ -55,13 +56,12 @@ data class CsRepoAdded(val repo: CsRepo, val installed: Int, val skipped: Int)
  * DEX dosyaları [CsDexStore] üzerinden `filesDir/cloudstream/` içinde saklanır.
  */
 class CsRepository(
-    private val context: Context,
     private val addonDao: AddonDao,
     private val pluginDao: PluginDao,
     private val fetcher: ManifestFetcher,
     private val httpClient: OkHttpClient,
     private val store: CsDexStore,
-    private val loader: CsDexLoader,
+    private val loader: PluginDexLoader,
     private val clock: () -> Long = System::currentTimeMillis,
     private val parallelDownloads: Int = 2,
 ) {
@@ -114,10 +114,17 @@ class CsRepository(
         // .cs3 dosyalarını paralel indir
         val downloads = downloadAll(allEntries, repoId)
         val good = downloads.filter { it.success }
+        val reasonCounts = downloads.filter { !it.success }.groupingBy { it.reason ?: "?" }.eachCount()
+        if (reasonCounts.isNotEmpty()) {
+            Log.d(TAG, "addFetched: atlanan eklentiler $reasonCounts (toplam ${downloads.size}, başarılı ${good.size})")
+        }
 
         if (good.isEmpty()) {
             addonDao.delete(repoId)
-            throw AddonException(Kind.PluginFileFailed)
+            val first = downloads.firstOrNull()
+            val detail = first?.let { "${it.entry.name}::${it.reason.orEmpty()}" }
+            Log.d(TAG, "addFetched: tüm eklentiler başarısız (${downloads.size} denendi)")
+            throw AddonException(Kind.PluginFileFailed, detail)
         }
 
         return CsRepoAdded(
@@ -154,7 +161,10 @@ class CsRepository(
         val row = pluginDao.byId(pluginRowId) ?: return emptyList()
         val dexFile = store.dexFile(pluginRowId)
         if (!dexFile.exists()) return emptyList()
-        return loader.loadPlugin(dexFile, row.pluginId) // pluginId = internalName
+        // row.pluginId = depo düzeyindeki internalName; gerçek sınıf adı manifest.json'daki
+        // pluginClassName'dir ve genelde farklıdır (bkz. resolveMainClassName).
+        val className = resolveMainClassName(store.readManifest(pluginRowId), row.pluginId)
+        return loader.loadPlugin(dexFile, className)
     }
 
     suspend fun enabledPlugins(): List<InstalledCsPlugin> =
@@ -165,19 +175,21 @@ class CsRepository(
     // ---------------------------------------------------------------------------
 
     private suspend fun fetchAllPluginLists(listUrls: List<String>, baseUrl: String): List<CsPluginEntry> =
-        withContext(Dispatchers.IO) {
-            listUrls.flatMap { listUrl ->
-                try {
-                    val raw = httpClient.newCall(Request.Builder().url(listUrl).build()).execute()
-                        .use { it.body?.string() ?: "" }
-                    CsRepoManifestParser.parsePluginList(raw, listUrl)
-                } catch (_: Exception) {
-                    emptyList()
+        listUrls.flatMap { listUrl ->
+            try {
+                val raw = fetcher.fetch(listUrl)
+                val entries = CsRepoManifestParser.parsePluginList(raw, listUrl)
+                if (entries.isEmpty()) {
+                    Log.d(TAG, "fetchAllPluginLists: boş/çözümlenemedi host=${listUrl.toHttpUrlOrNull()?.host} bytes=${raw.length}")
                 }
-            }.distinctBy { it.internalName }.take(CsRepoManifestParser.MAX_PLUGINS)
-        }
+                entries
+            } catch (e: Exception) {
+                Log.d(TAG, "fetchAllPluginLists: indirilemedi host=${listUrl.toHttpUrlOrNull()?.host} ${e.javaClass.simpleName}: ${e.message}")
+                emptyList()
+            }
+        }.distinctBy { it.internalName }.take(CsRepoManifestParser.MAX_PLUGINS)
 
-    private class Dl(val entry: CsPluginEntry, val success: Boolean)
+    private class Dl(val entry: CsPluginEntry, val success: Boolean, val reason: String? = null)
 
     private suspend fun downloadAll(entries: List<CsPluginEntry>, repoId: Long): List<Dl> {
         val gate = Semaphore(parallelDownloads)
@@ -216,7 +228,8 @@ class CsRepository(
             val rowId = pluginDao.insert(pluginEntity)
             if (rowId == -1L) {
                 store.delete(tempId)
-                return Dl(entry, false)
+                Log.d(TAG, "downloadOne: ${entry.internalName} eklenemedi (zaten var/benzersizlik ihlali)")
+                return Dl(entry, false, "db")
             }
             // Geçici dosyaları gerçek id ile yeniden adlandır
             val tmpDex = store.dexFile(tempId)
@@ -226,8 +239,20 @@ class CsRepository(
             store.setReadOnly(rowId)
 
             Dl(entry, true)
-        } catch (_: Exception) {
-            Dl(entry, false)
+        } catch (e: AddonException) {
+            Log.d(TAG, "downloadOne: ${entry.internalName} başarısız host=${entry.url.toHttpUrlOrNull()?.host} kind=${e.kind} detail=${e.detail}")
+            val reason = when (e.kind) {
+                Kind.Http -> "http:${e.detail.orEmpty()}"
+                Kind.TooLarge -> "toolarge"
+                Kind.Network -> "network"
+                Kind.InvalidField -> if (e.detail?.startsWith("hash mismatch") == true) "hash" else "invalid"
+                Kind.MissingField -> "invalid"
+                else -> "invalid"
+            }
+            Dl(entry, false, reason)
+        } catch (e: Exception) {
+            Log.d(TAG, "downloadOne: ${entry.internalName} beklenmeyen hata ${e.javaClass.simpleName}: ${e.message}")
+            Dl(entry, false, "invalid")
         }
     }
 

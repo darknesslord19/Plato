@@ -154,6 +154,13 @@
     <string name="addon_error_unsupported_types">This addon doesn\'t offer movies or series, so Play can\'t use it.</string>
     <string name="addon_error_no_plugins">This repository doesn\'t list any usable addons.</string>
     <string name="addon_error_plugin_file">“%1$s” couldn\'t be downloaded or isn\'t a valid addon file. Check the link and try again.</string>
+    <string name="addon_error_plugin_file_reason">“%1$s” couldn\'t be downloaded or isn\'t a valid addon file (%2$s). Check the link and try again.</string>
+    <string name="cs_fail_reason_network">network error</string>
+    <string name="cs_fail_reason_http">HTTP %1$s</string>
+    <string name="cs_fail_reason_too_large">file too large</string>
+    <string name="cs_fail_reason_hash">file integrity check failed</string>
+    <string name="cs_fail_reason_invalid">invalid plugin file</string>
+    <string name="cs_fail_reason_db">couldn\'t be saved</string>
 
     <!-- Eklenti deposu (Faz 2) -->
     <string name="add_done_addon">Addon added</string>

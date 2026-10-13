@@ -27,13 +27,13 @@ fun String.fixUrl(baseUrl: String): String {
  */
 fun getQualityFromString(quality: String?): Int {
     return when {
-        quality == null -> Qualities.Unknown
-        quality.contains("4K", ignoreCase = true) || quality.contains("2160") -> Qualities.P2160
-        quality.contains("1080") -> Qualities.P1080
-        quality.contains("720") -> Qualities.P720
-        quality.contains("480") -> Qualities.P480
-        quality.contains("360") -> Qualities.P360
-        else -> Qualities.Unknown
+        quality == null -> Qualities.Unknown.value
+        quality.contains("4K", ignoreCase = true) || quality.contains("2160") -> Qualities.P2160.value
+        quality.contains("1080") -> Qualities.P1080.value
+        quality.contains("720") -> Qualities.P720.value
+        quality.contains("480") -> Qualities.P480.value
+        quality.contains("360") -> Qualities.P360.value
+        else -> Qualities.Unknown.value
     }
 }
 

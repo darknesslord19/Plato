@@ -204,8 +204,12 @@ class PluginRepository(
 
     suspend fun setPluginEnabled(id: Long, enabled: Boolean) = pluginDao.setEnabled(id, enabled)
 
-    /** Açık kazıyıcılar (2. turda kaynak toplama bunları sorar). */
-    suspend fun enabledPlugins(): List<InstalledPlugin> = pluginDao.enabled().map { it.toInstalled() }
+    /**
+     * Açık JS kazıyıcılar (2. turda kaynak toplama bunları sorar). Yalnızca Nuvio depolarının satırları:
+     * CloudStream eklentileri de `plugins` tablosunda durur ama onları [com.kaan.play.data.cloudstream.CsStreamProvider] çalıştırır.
+     */
+    suspend fun enabledPlugins(): List<InstalledPlugin> =
+        pluginDao.enabledOfType(AddonType.NUVIO_PLUGIN_REPO).map { it.toInstalled() }
 
     /** Saklanan kod; dosya yoksa ya da özeti kayıttakiyle uyuşmuyorsa (bozulmuş/değişmiş) null. */
     suspend fun loadCode(pluginRowId: Long): String? {

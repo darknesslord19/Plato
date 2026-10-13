@@ -24,9 +24,21 @@
 -keep class androidx.media3.** { *; }
 -dontwarn androidx.media3.**
 
-# ── CloudStream stub'ları (dinamik DEX yükleme için yansıma gerekir) ───────────
--keep class com.lagradost.cloudstream3.** { *; }
--keepclassmembers class com.lagradost.cloudstream3.** { *; }
+# ── CloudStream eklentileri (Faz 3) ──────────────────────────────────────────────
+# .cs3 eklentileri çalışma anında yüklenen ayrı DEX'lerdir; uygulamadaki sınıflara ADLA ve İMZAYLA
+# bağlanırlar (Kotlin stdlib, coroutines, Jackson, jsoup, OkHttp dahil). R8 bunları kırpar ya da
+# yeniden adlandırırsa eklenti NoClassDefFoundError/NoSuchMethodError verir. Kökler, gerçek
+# eklentilerin dex başvurularının release APK ile karşılaştırılmasından çıkarıldı (README, Faz 3).
+-keep class com.lagradost.** { *; }
+-keep class kotlin.** { *; }
+-keep class kotlinx.coroutines.** { *; }
+-keep class com.fasterxml.jackson.** { *; }
+-keep class org.jsoup.** { *; }
+-keep class okhttp3.** { *; }
+-keep class okio.** { *; }
+-keepattributes KotlinMetadata
+-dontwarn com.fasterxml.jackson.**
+-dontwarn java.beans.**
 
 # ── QuickJS (JNI sembolleri) ────────────────────────────────────────────────────
 -keep class app.cash.quickjs.** { *; }

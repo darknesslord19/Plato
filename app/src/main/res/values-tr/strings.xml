@@ -136,6 +136,13 @@
     <string name="addon_error_unsupported_types">Bu eklenti film veya dizi sunmuyor, bu yüzden Play onu kullanamaz.</string>
     <string name="addon_error_no_plugins">Bu depoda kullanılabilir eklenti yok.</string>
     <string name="addon_error_plugin_file">“%1$s” indirilemedi ya da geçerli bir eklenti dosyası değil. Bağlantıyı kontrol edip tekrar dene.</string>
+    <string name="addon_error_plugin_file_reason">“%1$s” indirilemedi ya da geçerli bir eklenti dosyası değil (%2$s). Bağlantıyı kontrol edip tekrar dene.</string>
+    <string name="cs_fail_reason_network">ağ hatası</string>
+    <string name="cs_fail_reason_http">HTTP %1$s</string>
+    <string name="cs_fail_reason_too_large">dosya çok büyük</string>
+    <string name="cs_fail_reason_hash">dosya bütünlüğü uyuşmuyor</string>
+    <string name="cs_fail_reason_invalid">geçersiz eklenti dosyası</string>
+    <string name="cs_fail_reason_db">kaydedilemedi</string>
 
     <!-- Eklenti deposu (Faz 2) -->
     <string name="add_done_addon">Eklenti eklendi (addon)</string>

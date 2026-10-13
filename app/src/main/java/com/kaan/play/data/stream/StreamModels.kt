@@ -58,6 +58,8 @@ data class PlayableStream(
     val subtitles: List<StreamSubtitle>,
     /** Akış metninden çıkarılan ses dili ("EN", "TR", "MULTI" ...); bulunamazsa null. */
     val language: String? = null,
+    /** Kaynağın bildirdiği tür (HLS/DASH); adreste uzantı yoksa oynatıcı türü bundan alır. Bilinmiyorsa null. */
+    val mimeType: String? = null,
 )
 
 /** Akışla gelen altyazı; [language] addon'un verdiği ham etiket (`eng`, `tur` ...). */

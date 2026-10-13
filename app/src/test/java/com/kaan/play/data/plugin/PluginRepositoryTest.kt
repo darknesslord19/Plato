@@ -4,16 +4,22 @@ import com.kaan.play.data.addon.AddonException
 import com.kaan.play.data.addon.AddonException.Kind
 import com.kaan.play.data.addon.AddonRepository
 import com.kaan.play.data.addon.ManifestFetcher
+import com.kaan.play.data.cloudstream.CsDexStore
+import com.kaan.play.data.cloudstream.CsRepository
+import com.kaan.play.data.cloudstream.PluginDexLoader
 import com.kaan.play.data.db.AddonDao
 import com.kaan.play.data.db.AddonEntity
 import com.kaan.play.data.db.AddonType
 import com.kaan.play.data.db.PluginDao
 import com.kaan.play.data.db.PluginEntity
+import com.lagradost.cloudstream3.MainAPI
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
+import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -60,6 +66,15 @@ private class MemDb {
         override suspend fun ofRepo(repoId: Long) = pluginRows.value.filter { it.repoId == repoId }
         override suspend fun byId(id: Long) = pluginRows.value.firstOrNull { it.id == id }
         override suspend fun enabled() = pluginRows.value.filter { it.enabled }
+        override fun observeOfType(type: AddonType): Flow<List<PluginEntity>> =
+            combine(pluginRows, addonRows) { plugins, addons ->
+                val repoIds = addons.filter { it.type == type }.map { it.id }.toSet()
+                plugins.filter { it.repoId in repoIds }
+            }
+        override suspend fun enabledOfType(type: AddonType): List<PluginEntity> {
+            val repoIds = addonRows.value.filter { it.type == type }.map { it.id }.toSet()
+            return pluginRows.value.filter { it.enabled && it.repoId in repoIds }
+        }
         override suspend fun insert(entity: PluginEntity): Long {
             if (pluginRows.value.any { it.repoId == entity.repoId && it.pluginId == entity.pluginId }) return -1
             val id = pluginSeq++
@@ -121,7 +136,25 @@ class PluginRepositoryTest {
     }
     private val plugins = PluginRepository(db.addons, db.plugins, manifestFetcher, codeFetcher, store, clock = { clock++ })
     private val addonRepo = AddonRepository(db.addons, manifestFetcher, clock = { clock++ })
-    private val installer = SourceInstaller(addonRepo, plugins, manifestFetcher)
+
+    // CloudStream (Faz 3): plugins.json içeriği boş gelir, gerçek ağ/DEX yükleme bu testte sınanmaz
+    // (yalnızca "Eklenti ekle" yönlendirmesi sınanır; indirme/DEX CsRepository'nin kendi dosyalarında).
+    private var csPluginListJson = "[]"
+    private val csFetcher = ManifestFetcher { csPluginListJson }
+    private val csDexDir = java.io.File.createTempFile("csdex", "").also { it.delete(); it.mkdirs() }
+    private val csLoader = object : PluginDexLoader {
+        override suspend fun loadPlugin(dexFile: java.io.File, className: String): List<MainAPI> = emptyList()
+    }
+    private val csRepos = CsRepository(
+        addonDao = db.addons,
+        pluginDao = db.plugins,
+        fetcher = csFetcher,
+        httpClient = OkHttpClient(),
+        store = CsDexStore(csDexDir),
+        loader = csLoader,
+        clock = { clock++ },
+    )
+    private val installer = SourceInstaller(addonRepo, plugins, csRepos, manifestFetcher)
 
     private fun stock(vararg ids: String) = ids.forEach { code["https://example.com/repo/providers/$it.js"] = good }
 
@@ -302,8 +335,10 @@ class PluginRepositoryTest {
         try { installer.add("https://other.example/addon/manifest.json"); fail() } catch (e: AddonException) { assertEquals(Kind.AlreadyAdded, e.kind) }
         try { installer.add("example.com/repo"); fail() } catch (e: AddonException) { assertEquals(Kind.AlreadyAdded, e.kind) }
 
+        // CloudStream (External) deposu: yönlendirme CsRepository.addFetched'e gider (artık desteklenir,
+        // bkz. Faz 3); plugins.json boş geldiği için NoPlugins ile biter.
         manifestText = """{"name":"n","pluginLists":["https://x/p.json"]}"""
-        try { installer.add("https://cs.example/repo.json"); fail() } catch (e: AddonException) { assertEquals(Kind.UnsupportedKind, e.kind) }
+        try { installer.add("https://cs.example/repo.json"); fail() } catch (e: AddonException) { assertEquals(Kind.NoPlugins, e.kind) }
 
         // Tanınmayan JSON: addon ayrıştırıcısının somut hatası (eksik alan) kullanıcıya gider.
         manifestText = """{"name":"n"}"""

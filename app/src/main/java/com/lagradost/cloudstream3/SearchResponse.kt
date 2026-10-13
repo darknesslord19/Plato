@@ -1,64 +1,63 @@
 package com.lagradost.cloudstream3
 
-/** CloudStream arama yanıtı temel arayüzü. */
+/**
+ * CloudStream arama yanıtı. Derlenmiş eklentiler bu türe `invoke-interface` ile eriştiği için
+ * (örn. `SearchResponse.getUrl()`) bir **arayüz** olmalıdır; sınıf olursa çağrı
+ * `IncompatibleClassChangeError` verir. Alanlar [SearchResponseBase] içinde tutulur.
+ */
 interface SearchResponse {
     val name: String
     val url: String
     val apiName: String
-    val type: TvType?
-    val posterUrl: String?
-    val year: Int?
-    val id: Int?
-    val score: SearchQuality?
+    var type: TvType?
+    var posterUrl: String?
+    var posterHeaders: Map<String, String>?
+    var id: Int?
+    var score: Score?
 }
 
-enum class SearchQuality {
-    CamRip, HdCam, CamMicFix, HardcodedSubs, BlurredSubs, Cam, Telecine, Telesync, HD, HQ, DVD,
-    Good, True, HDTV, Unknown, SD, FourK, UHD, BluRay, WebRip,
+/** Somut arama yanıtlarının ortak alanları; eklentiler alanları builder lambda'sında `var` olarak değiştirir. */
+abstract class SearchResponseBase(
+    override var name: String,
+    override var url: String,
+    override var apiName: String,
+    override var type: TvType?,
+) : SearchResponse {
+    override var posterUrl: String? = null
+    override var posterHeaders: Map<String, String>? = null
+    override var id: Int? = null
+    override var score: Score? = null
+    var year: Int? = null
 }
 
-data class MovieSearchResponse(
-    override val name: String,
-    override val url: String,
-    override val apiName: String,
-    override val type: TvType? = TvType.Movie,
-    override val posterUrl: String? = null,
-    override val year: Int? = null,
-    override val id: Int? = null,
-    override val score: SearchQuality? = null,
-) : SearchResponse
+class MovieSearchResponse(
+    name: String,
+    url: String,
+    apiName: String,
+    type: TvType? = TvType.Movie,
+) : SearchResponseBase(name, url, apiName, type)
 
-data class TvSeriesSearchResponse(
-    override val name: String,
-    override val url: String,
-    override val apiName: String,
-    override val type: TvType? = TvType.TvSeries,
-    override val posterUrl: String? = null,
-    override val year: Int? = null,
-    override val id: Int? = null,
-    override val score: SearchQuality? = null,
-    val episodes: Int? = null,
-) : SearchResponse
+class TvSeriesSearchResponse(
+    name: String,
+    url: String,
+    apiName: String,
+    type: TvType? = TvType.TvSeries,
+) : SearchResponseBase(name, url, apiName, type) {
+    var episodes: Int? = null
+}
 
-data class AnimeSearchResponse(
-    override val name: String,
-    override val url: String,
-    override val apiName: String,
-    override val type: TvType? = TvType.Anime,
-    override val posterUrl: String? = null,
-    override val year: Int? = null,
-    override val id: Int? = null,
-    override val score: SearchQuality? = null,
-    val dubStatus: Set<String>? = null,
-) : SearchResponse
+class AnimeSearchResponse(
+    name: String,
+    url: String,
+    apiName: String,
+    type: TvType? = TvType.Anime,
+) : SearchResponseBase(name, url, apiName, type) {
+    var dubStatus: Set<String>? = null
+}
 
-data class LiveSearchResponse(
-    override val name: String,
-    override val url: String,
-    override val apiName: String,
-    override val type: TvType? = TvType.Live,
-    override val posterUrl: String? = null,
-    override val year: Int? = null,
-    override val id: Int? = null,
-    override val score: SearchQuality? = null,
-) : SearchResponse
+class LiveSearchResponse(
+    name: String,
+    url: String,
+    apiName: String,
+    type: TvType? = TvType.Live,
+) : SearchResponseBase(name, url, apiName, type)

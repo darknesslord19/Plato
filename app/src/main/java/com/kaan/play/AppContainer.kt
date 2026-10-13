@@ -72,6 +72,11 @@ class AppContainer(context: Context) {
         .followRedirects(true)
         .build()
 
+    init {
+        // CloudStream eklentileri `app.get()/post()` için bu global'i bekler (bkz. App.kt).
+        com.lagradost.cloudstream3.initApp(httpClient)
+    }
+
     /** Dil her istekte [AppLanguage.effective] ile okunur: Ayarlar'da dil değişince yeni istekler yeni dilde gider. */
     val tmdb: TmdbRepository by lazy {
         TmdbRepository(httpClient, json, BuildConfig.TMDB_API_KEY, language = AppLanguage::effective)
@@ -135,7 +140,6 @@ class AppContainer(context: Context) {
     /** CloudStream depo yöneticisi (Faz 3). Depo satırı `addons`, eklentiler `plugins` tablosunda. */
     val csRepos: CsRepository by lazy {
         CsRepository(
-            context = appContext,
             addonDao = database.addonDao(),
             pluginDao = database.pluginDao(),
             fetcher = OkHttpManifestFetcher(httpClient),

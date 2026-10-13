@@ -8,12 +8,14 @@ import android.content.Context
  * `activity` null'dır ve eklentiler null'a karşı savunmalı yazılmışsa sorun çıkmaz.
  */
 object CommonActivity {
-    /** Gerçek bir aktivite referansı değildir; bağlam için [context] kullanılır. */
-    @JvmField
+    /**
+     * Gerçek bir aktivite referansı değildir. `@JvmField` KULLANILMAZ: gerçek eklentiler
+     * `CommonActivity.activity` alanına değil `getActivity()` yöntemine derlenmiştir
+     * (Kotlin özelliği, alan değil).
+     */
     var activity: android.app.Activity? = null
 
     /** [AcraApplication.context] ile senkronizedir; CS stubs başlatılırken ayarlanır. */
-    @JvmField
     var context: Context? = null
 
     // İçerik önerisi (CS eklentileri içerik önerisini bu kanal üzerinden bildirir; Play yok sayar)

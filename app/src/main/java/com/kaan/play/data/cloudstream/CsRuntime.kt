@@ -1,14 +1,17 @@
 package com.kaan.play.data.cloudstream
 
+import android.util.Log
+import androidx.media3.common.MimeTypes
 import com.lagradost.cloudstream3.AnimeLoadResponse
 import com.lagradost.cloudstream3.LiveStreamLoadResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.SubtitleFile
+import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.stream.StreamSource
@@ -43,12 +46,17 @@ class CsRuntime {
         val source = StreamSource(addonId = pluginRowId, addonName = pluginName)
         val results = mutableListOf<PlayableStream>()
 
+        Log.d(TAG, "$pluginName: ${apis.size} MainAPI ile deneniyor (başlık=\"$title\")")
         for (api in apis) {
+            val started = System.currentTimeMillis()
             try {
                 val streams = runForApi(api, request, title, source, timeoutMs)
+                Log.d(TAG, "$pluginName/${api.name}: ${streams.size} akış (${System.currentTimeMillis() - started} ms)")
                 results += streams
                 if (results.isNotEmpty()) break
-            } catch (_: Exception) {}
+            } catch (t: Throwable) {
+                Log.d(TAG, "$pluginName/${api.name}: hata ${t.javaClass.simpleName}: ${t.message} (${System.currentTimeMillis() - started} ms)")
+            }
         }
         return results
     }
@@ -60,23 +68,36 @@ class CsRuntime {
         source: StreamSource,
         timeoutMs: Long,
     ): List<PlayableStream> {
-        // 1. Arama
-        val searchResults = withTimeout(timeoutMs) {
-            try { api.search(title) } catch (_: Exception) { null }
-        } ?: return emptyList()
+        // 1. Arama; sonuç yoksa noktalamasız başlıkla bir kez daha (bazı site aramaları ":" / "-" ile boş döner)
+        var searchResults = search(api, title, timeoutMs) ?: return emptyList()
+        val plain = normalize(title)
+        if (searchResults.isEmpty() && plain != title.lowercase()) {
+            searchResults = search(api, plain, timeoutMs) ?: return emptyList()
+        }
 
         // 2. Eşleştirme
-        val match = matchResult(searchResults, title) ?: return emptyList()
+        val match = matchResult(searchResults, title)
+        Log.d(TAG, "${api.name}: matchResult ${if (match != null) "bulundu" else "yok"}")
+        if (match == null) return emptyList()
 
         // 3. Detay yükle
         val loadResp = withTimeout(timeoutMs) {
-            try { api.load(match.url) } catch (_: Exception) { null }
-        } ?: return emptyList()
+            try { api.load(match.url) } catch (t: Throwable) {
+                Log.d(TAG, "${api.name}: load hata ${t.javaClass.simpleName}: ${t.message}", t)
+                null
+            }
+        }
+        Log.d(TAG, "${api.name}: load ${if (loadResp != null) "başarılı" else "boş"}")
+        if (loadResp == null) return emptyList()
 
         // 4. Link alma
         val links = mutableListOf<ExtractorLink>()
         val subs = mutableListOf<SubtitleFile>()
-        val data = resolveData(loadResp, request) ?: return emptyList()
+        val data = resolveData(loadResp, request)
+        if (data == null) {
+            Log.d(TAG, "${api.name}: resolveData boş (sezon/bölüm eşleşmedi)")
+            return emptyList()
+        }
 
         withTimeout(timeoutMs) {
             try {
@@ -86,8 +107,12 @@ class CsRuntime {
                     subtitleCallback = { subs += it },
                     callback = { links += it },
                 )
-            } catch (_: Exception) {}
+            } catch (t: Throwable) {
+                Log.d(TAG, "${api.name}: loadLinks hata ${t.javaClass.simpleName}: ${t.message}", t)
+            }
         }
+        Log.d(TAG, "${api.name}: loadLinks ${links.size} ExtractorLink " +
+            links.map { "${it.name}/${it.type}/${it.quality}@${runCatching { java.net.URI(it.url).host }.getOrNull()}" })
 
         // 5. PlayableStream'e çevir
         return links.map { link ->
@@ -102,18 +127,40 @@ class CsRuntime {
                 },
                 subtitles = subs.map { StreamSubtitle(url = it.url, language = it.lang) },
                 language = null,
+                mimeType = when (link.type) {
+                    ExtractorLinkType.M3U8 -> MimeTypes.APPLICATION_M3U8
+                    ExtractorLinkType.DASH -> MimeTypes.APPLICATION_MPD
+                    else -> null
+                },
             )
         }
     }
 
+    private suspend fun search(api: MainAPI, query: String, timeoutMs: Long): List<SearchResponse>? {
+        val results = withTimeout(timeoutMs) {
+            try { api.search(query) } catch (t: Throwable) {
+                Log.d(TAG, "${api.name}: search hata ${t.javaClass.simpleName}: ${t.message}", t)
+                null
+            }
+        } ?: return null
+        Log.d(TAG, "${api.name}: search \"$query\" ${results.size} sonuç ${results.take(5).map { it.name }}")
+        return results
+    }
+
+    /** Önce birebir, sonra noktalama/büyük-küçük harf yok sayılarak birebir, en son kelime sınırlı içerme. */
     private fun matchResult(results: List<SearchResponse>, title: String): SearchResponse? {
-        val lower = title.lowercase().trim()
-        return results.firstOrNull { it.name.equals(title, ignoreCase = false) }
-            ?: results.firstOrNull { it.name.lowercase().trim() == lower }
+        val plain = normalize(title)
+        return results.firstOrNull { it.name == title }
+            ?: results.firstOrNull { normalize(it.name) == plain }
             ?: results.firstOrNull {
-                it.name.lowercase().contains(lower) || lower.contains(it.name.lowercase())
+                val name = normalize(it.name)
+                name.isNotEmpty() && (" $name ".contains(" $plain ") || " $plain ".contains(" $name "))
             }
     }
+
+    /** Harf/rakam dışını boşluğa çevirir, boşlukları teke indirir; Türkçe büyük harfler (İ, I) doğru küçülür. */
+    private fun normalize(text: String): String =
+        text.lowercase(TURKISH).replace(NON_WORD, " ").trim().replace(SPACES, " ")
 
     private fun resolveData(resp: LoadResponse, request: StreamRequest): String? = when (resp) {
         is MovieLoadResponse -> resp.dataUrl
@@ -138,5 +185,12 @@ class CsRuntime {
         quality < 1080 -> 720
         quality < 2160 -> 1080
         else -> 2160
+    }
+
+    private companion object {
+        const val TAG = "PlayCs"
+        val TURKISH: java.util.Locale = java.util.Locale.forLanguageTag("tr")
+        val NON_WORD = Regex("[^\\p{L}\\p{N}]+")
+        val SPACES = Regex("\\s+")
     }
 }

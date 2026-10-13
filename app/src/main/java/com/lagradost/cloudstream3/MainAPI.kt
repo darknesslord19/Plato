@@ -1,6 +1,7 @@
 package com.lagradost.cloudstream3
 
-import com.lagradost.cloudstream3.utils.SubtitleFile
+import com.fasterxml.jackson.databind.json.JsonMapper
+import com.fasterxml.jackson.module.kotlin.jacksonMapperBuilder
 import com.lagradost.cloudstream3.utils.ExtractorLink
 
 /**
@@ -8,9 +9,9 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
  * Play bu sınıfı yükleyerek [search], [load] ve [loadLinks] işlevlerini çağırır.
  */
 abstract class MainAPI {
-    open val name: String = ""
-    open val mainUrl: String = ""
-    open val lang: String = "en"
+    open var name: String = ""
+    open var mainUrl: String = ""
+    open var lang: String = "en"
 
     /** Eklentinin desteklediği içerik türleri. */
     open val supportedTypes: Set<TvType> = setOf(TvType.Movie, TvType.TvSeries)
@@ -48,7 +49,7 @@ abstract class MainAPI {
      */
     open suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? = null
 
-    open val mainPage: List<MainPageData> get() = emptyList()
+    open val mainPage: List<MainPageRequest> get() = emptyList()
 }
 
 data class MainPageRequest(val name: String, val data: String, val horizontalImages: Boolean = false)
@@ -56,28 +57,129 @@ data class MainPageData(val name: String, val data: String, val horizontalImages
 data class HomePageResponse(val items: List<HomePageList>, val hasNext: Boolean = false)
 data class HomePageList(val name: String, val list: List<SearchResponse>, val isHorizontalImages: Boolean = false)
 
-/** `newMovieLoadResponse` ve `newTvSeriesLoadResponse` yardımcıları. Eklentiler kısayol olarak kullanır. */
-fun newMovieLoadResponse(
+/** Basit istisna türü; bazı eklentiler yükleme hatasını bununla bildirir. */
+class ErrorLoadingException(message: String? = null) : Exception(message)
+
+/**
+ * Gerçek CloudStream kütüphanesi Jackson + `jackson-module-kotlin` kullanır (kotlinx.serialization
+ * DEĞİL); derlenmiş eklentiler doğrudan Jackson bytecode'una bağlıdır, bu yüzden eklenti uyumluluğu
+ * için gerçek Jackson çalışma zamanında bulunur (Play'in kendi kodu hâlâ kotlinx.serialization kullanır).
+ */
+val mapper: JsonMapper = jacksonMapperBuilder().build()
+
+// ---------------------------------------------------------------------------
+// Ana sayfa yardımcıları — eklentiler `override val mainPage = mainPageOf(...)` biçiminde kullanır.
+// ---------------------------------------------------------------------------
+
+fun mainPageOf(vararg elements: Pair<String, String>): List<MainPageData> =
+    elements.map { (url, name) -> MainPageData(name = name, data = url) }
+
+fun mainPageOf(vararg elements: MainPageData): List<MainPageData> = elements.toList()
+
+fun mainPage(url: String, name: String, horizontalImages: Boolean = false): MainPageData =
+    MainPageData(name = name, data = url, horizontalImages = horizontalImages)
+
+fun newHomePageResponse(name: String, list: List<SearchResponse>, hasNext: Boolean? = null): HomePageResponse =
+    HomePageResponse(listOf(HomePageList(name, list)), hasNext == true)
+
+fun newHomePageResponse(request: MainPageRequest, list: List<SearchResponse>, hasNext: Boolean? = null): HomePageResponse =
+    HomePageResponse(listOf(HomePageList(request.name, list)), hasNext == true)
+
+// ---------------------------------------------------------------------------
+// Metin/URL yardımcıları
+// ---------------------------------------------------------------------------
+
+fun base64Decode(text: String): String = String(android.util.Base64.decode(text, android.util.Base64.DEFAULT))
+fun base64DecodeArray(text: String): ByteArray = android.util.Base64.decode(text, android.util.Base64.DEFAULT)
+
+/** Göreli adresleri eklentinin `mainUrl`'üne göre mutlaklaştırır. */
+fun MainAPI.fixUrl(url: String): String {
+    if (url.isBlank()) return url
+    return when {
+        url.startsWith("http://") || url.startsWith("https://") -> url
+        url.startsWith("//") -> "https:$url"
+        url.startsWith("/") -> "${mainUrl.trimEnd('/')}$url"
+        else -> "${mainUrl.trimEnd('/')}/$url"
+    }
+}
+
+fun MainAPI.fixUrlNull(url: String?): String? = url?.let { fixUrl(it) }
+
+// ---------------------------------------------------------------------------
+// Bölüm (Episode) yardımcısı
+// ---------------------------------------------------------------------------
+
+fun MainAPI.newEpisode(data: Any?, initializer: Episode.() -> Unit = {}): Episode {
+    val dataStr = when (data) {
+        is String -> data
+        null -> ""
+        else -> mapper.writeValueAsString(data)
+    }
+    return Episode(dataStr).apply(initializer)
+}
+
+// ---------------------------------------------------------------------------
+// `LoadResponse` kurucuları (suspend; eklentiler bir builder lambda'sı ile alan doldurur)
+// ---------------------------------------------------------------------------
+
+suspend fun MainAPI.newMovieLoadResponse(
     name: String,
     url: String,
     type: TvType,
-    data: String? = null,
-    posterUrl: String? = null,
-    plot: String? = null,
-    year: Int? = null,
-    rating: Int? = null,
-    tags: List<String>? = null,
-    duration: Int? = null,
-): MovieLoadResponse = MovieLoadResponse(name = name, url = url, apiName = "", type = type, dataUrl = data ?: url, posterUrl = posterUrl, plot = plot, year = year, rating = rating, tags = tags, duration = duration)
+    dataUrl: String,
+    initializer: suspend MovieLoadResponse.() -> Unit = {},
+): MovieLoadResponse {
+    val response = MovieLoadResponse(name = name, url = url, apiName = this.name, type = type, dataUrl = dataUrl)
+    response.initializer()
+    return response
+}
 
-fun newTvSeriesLoadResponse(
+suspend fun MainAPI.newTvSeriesLoadResponse(
     name: String,
     url: String,
     type: TvType,
     episodes: List<Episode>,
-    posterUrl: String? = null,
-    plot: String? = null,
-    year: Int? = null,
-    rating: Int? = null,
-    tags: List<String>? = null,
-): TvSeriesLoadResponse = TvSeriesLoadResponse(name = name, url = url, apiName = "", type = type, episodes = episodes, posterUrl = posterUrl, plot = plot, year = year, rating = rating, tags = tags)
+    initializer: suspend TvSeriesLoadResponse.() -> Unit = {},
+): TvSeriesLoadResponse {
+    val response = TvSeriesLoadResponse(name = name, url = url, apiName = this.name, type = type, episodes = episodes)
+    response.initializer()
+    return response
+}
+
+// ---------------------------------------------------------------------------
+// `SearchResponse` kurucuları (senkron; `fix` doğruysa adres `fixUrl` ile mutlaklaştırılır)
+// ---------------------------------------------------------------------------
+
+fun MainAPI.newMovieSearchResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.Movie,
+    fix: Boolean = true,
+    initializer: MovieSearchResponse.() -> Unit = {},
+): MovieSearchResponse {
+    val response = MovieSearchResponse(name = name, url = if (fix) fixUrl(url) else url, apiName = this.name, type = type)
+    response.initializer()
+    return response
+}
+
+fun MainAPI.newTvSeriesSearchResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.TvSeries,
+    fix: Boolean = true,
+    initializer: TvSeriesSearchResponse.() -> Unit = {},
+): TvSeriesSearchResponse {
+    val response = TvSeriesSearchResponse(name = name, url = if (fix) fixUrl(url) else url, apiName = this.name, type = type)
+    response.initializer()
+    return response
+}
+
+// ---------------------------------------------------------------------------
+// Altyazı kurucusu
+// ---------------------------------------------------------------------------
+
+suspend fun newSubtitleFile(lang: String, url: String, initializer: suspend SubtitleFile.() -> Unit = {}): SubtitleFile {
+    val subtitle = SubtitleFile(lang, url)
+    subtitle.initializer()
+    return subtitle
+}

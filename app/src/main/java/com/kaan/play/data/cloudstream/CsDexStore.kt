@@ -1,16 +1,20 @@
 package com.kaan.play.data.cloudstream
 
 import android.os.Build
+import android.util.Log
 import com.kaan.play.data.addon.AddonException
 import com.kaan.play.data.addon.AddonException.Kind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
+
+private const val TAG = "PlayCs"
 
 /**
  * CloudStream `.cs3` dosyalarının disk yönetimi.
@@ -69,54 +73,90 @@ suspend fun downloadCs3(
     store: CsDexStore,
     pluginId: Long,
 ): Cs3Contents = withContext(Dispatchers.IO) {
+    val host = url.toHttpUrlOrNull()?.host
     val request = Request.Builder().url(url).build()
     val bytes: ByteArray = try {
         client.newCall(request).execute().use { resp ->
-            if (!resp.isSuccessful) throw AddonException(Kind.Http, "${resp.code}")
-            val body = resp.body ?: throw AddonException(Kind.InvalidField, "empty body")
+            if (!resp.isSuccessful) {
+                Log.d(TAG, "downloadCs3: http ${resp.code} host=$host")
+                throw AddonException(Kind.Http, "${resp.code}")
+            }
+            val body = resp.body ?: run {
+                Log.d(TAG, "downloadCs3: boş gövde host=$host")
+                throw AddonException(Kind.InvalidField, "empty body")
+            }
             val len = body.contentLength()
-            if (len > CS3_MAX_BYTES) throw AddonException(Kind.TooLarge)
-            body.bytes().also { if (it.size > CS3_MAX_BYTES) throw AddonException(Kind.TooLarge) }
+            if (len > CS3_MAX_BYTES) {
+                Log.d(TAG, "downloadCs3: çok büyük (contentLength=$len) host=$host")
+                throw AddonException(Kind.TooLarge)
+            }
+            body.bytes().also {
+                if (it.size > CS3_MAX_BYTES) {
+                    Log.d(TAG, "downloadCs3: çok büyük (gerçek boyut=${it.size}) host=$host")
+                    throw AddonException(Kind.TooLarge)
+                }
+            }
         }
     } catch (e: AddonException) { throw e }
-    catch (e: Exception) { throw AddonException(Kind.Network, cause = e) }
+    catch (e: Exception) {
+        Log.d(TAG, "downloadCs3: ağ hatası host=$host ${e.javaClass.simpleName}: ${e.message}")
+        throw AddonException(Kind.Network, cause = e)
+    }
 
-    // SHA-256 doğrulama
+    // SHA-256 doğrulama. Gerçek depolarda fileHash "sha256-<hex>" biçiminde gelir (ön ek atılır).
     if (expectedHash.isNotEmpty()) {
-        val actual = sha256Hex(bytes)
-        if (!actual.equals(expectedHash, ignoreCase = true)) {
-            throw AddonException(Kind.InvalidField, "hash mismatch: expected=$expectedHash actual=$actual")
+        val normalized = normalizeSha256(expectedHash)
+        if (normalized == null) {
+            Log.d(TAG, "downloadCs3: fileHash biçimi tanınmadı (64 haneli hex değil), doğrulama atlandı host=$host rawHash=$expectedHash")
+        } else {
+            val actual = sha256Hex(bytes)
+            if (!actual.equals(normalized, ignoreCase = true)) {
+                Log.d(TAG, "downloadCs3: sha-256 uyuşmazlığı host=$host beklenen=$normalized gerçek=$actual boyut=${bytes.size}")
+                throw AddonException(Kind.InvalidField, "hash mismatch: expected=$normalized actual=$actual")
+            }
         }
     }
 
     // ZIP'ten DEX ve manifest çıkar
-    extractCs3(bytes, store, pluginId)
+    extractCs3(bytes, store, pluginId, host)
 }
 
 data class Cs3Contents(val sha256: String, val sizeBytes: Long, val pluginManifest: String)
 
-private fun extractCs3(bytes: ByteArray, store: CsDexStore, id: Long): Cs3Contents {
+private fun extractCs3(bytes: ByteArray, store: CsDexStore, id: Long, host: String?): Cs3Contents {
     var dexBytes: ByteArray? = null
     var manifestText: String? = null
+    val entryNames = mutableListOf<String>()
 
-    ZipInputStream(bytes.inputStream()).use { zip ->
-        var entry = zip.nextEntry
-        while (entry != null) {
-            val name = entry.name
-            when {
-                name == "classes.dex" || name.endsWith("/classes.dex") -> {
-                    dexBytes = zip.readBytes().also { if (it.size > CS3_MAX_BYTES) throw AddonException(Kind.TooLarge) }
+    try {
+        ZipInputStream(bytes.inputStream()).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                val name = entry.name
+                entryNames += name
+                when {
+                    name == "classes.dex" || name.endsWith("/classes.dex") -> {
+                        dexBytes = zip.readBytes().also { if (it.size > CS3_MAX_BYTES) throw AddonException(Kind.TooLarge) }
+                    }
+                    name == "manifest.json" || name.endsWith("/manifest.json") -> {
+                        manifestText = zip.readBytes().toString(Charsets.UTF_8)
+                    }
                 }
-                name == "manifest.json" || name.endsWith("/manifest.json") -> {
-                    manifestText = zip.readBytes().toString(Charsets.UTF_8)
-                }
+                zip.closeEntry()
+                entry = zip.nextEntry
             }
-            zip.closeEntry()
-            entry = zip.nextEntry
         }
+    } catch (e: AddonException) { throw e }
+    catch (e: Exception) {
+        val sniff = bytes.take(16).joinToString(" ") { "%02x".format(it) }
+        Log.d(TAG, "extractCs3: zip açılamadı host=$host boyut=${bytes.size} ilkBaytlar=$sniff ${e.javaClass.simpleName}: ${e.message}")
+        throw AddonException(Kind.InvalidField, "not a valid .cs3 zip", cause = e)
     }
 
-    val dex = dexBytes ?: throw AddonException(Kind.MissingField, "classes.dex not found in .cs3")
+    val dex = dexBytes ?: run {
+        Log.d(TAG, "extractCs3: classes.dex yok host=$host zipBoyutu=${bytes.size} girişler=$entryNames")
+        throw AddonException(Kind.MissingField, "classes.dex not found in .cs3")
+    }
     val manifest = manifestText ?: "{}"
 
     // DEX dosyasına yaz
@@ -135,3 +175,12 @@ private fun extractCs3(bytes: ByteArray, store: CsDexStore, id: Long): Cs3Conten
 
 private fun sha256Hex(bytes: ByteArray): String =
     MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+
+private val SHA256_HEX = Regex("^[0-9a-fA-F]{64}$")
+
+/** `fileHash` alanı gerçek depolarda "sha256-<64 haneli hex>" biçimindedir; öneki atar, biçimi doğrular. */
+internal fun normalizeSha256(raw: String): String? {
+    val trimmed = raw.trim()
+    val stripped = if (trimmed.startsWith("sha256-", ignoreCase = true)) trimmed.substring(7) else trimmed
+    return stripped.takeIf { SHA256_HEX.matches(it) }?.lowercase()
+}

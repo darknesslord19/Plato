@@ -1,67 +1,35 @@
 package com.lagradost.cloudstream3.utils
 
-/** Oynatılabilir bir akış bağlantısı. Eklentiler bunu `callback` ile bildirir. */
-data class ExtractorLink(
-    val source: String,
-    val name: String,
-    val url: String,
-    val referer: String,
-    val quality: Int,
-    val isM3u8: Boolean = false,
-    val isDash: Boolean = false,
-    val headers: Map<String, String> = emptyMap(),
-    val extractorData: String? = null,
-)
-
-/** Oynatıcıya iletilecek altyazı dosyası. */
-data class SubtitleFile(val lang: String, val url: String)
-
-/** Kalite sabitleri — eklentiler bunları kullanabilir. */
-object Qualities {
-    const val Unknown = -2
-    const val P360 = 360
-    const val P480 = 480
-    const val P720 = 720
-    const val P1080 = 1080
-    const val P2160 = 2160
-}
+/** Oynatıcıya iletilecek akış türü. */
+enum class ExtractorLinkType { VIDEO, M3U8, DASH, TORRENT, MAGNET }
 
 /**
- * Dışarıdan çağrılabilir `loadExtractor`: bir video host URL'sinden kaynak çıkarmayı dener.
- * Bu stub, 104 yerleşik CS çıkarıcısını UYGULAMAz; doğrudan URL'yi `callback`'e gönderir.
- * Bu URL zaten oynatılabilirdir (m3u8, mp4 vb.) ya da desteklenmeyen bir host'tur.
- *
- * İleride sık kullanılan host'lar buraya eklenebilir (Doodstream, Vidcloud vb.).
+ * Oynatılabilir bir akış bağlantısı. Eklentiler bunu `newExtractorLink { ... }` builder'ı içinde
+ * `var` alanlarla doldurup `callback` ile bildirir.
  */
-suspend fun loadExtractor(
-    url: String,
-    subtitleCallback: (SubtitleFile) -> Unit,
-    callback: (ExtractorLink) -> Unit,
-): Boolean {
-    val lower = url.lowercase()
-    val isM3u8 = lower.contains(".m3u8") || lower.contains("m3u8")
-    val isDash = lower.contains(".mpd") || lower.contains("mpd")
-    if (lower.startsWith("http://") || lower.startsWith("https://")) {
-        callback(
-            ExtractorLink(
-                source = "Direct",
-                name = "Direct",
-                url = url,
-                referer = "",
-                quality = Qualities.Unknown,
-                isM3u8 = isM3u8,
-                isDash = isDash,
-            ),
-        )
-        return true
-    }
-    return false
+class ExtractorLink(
+    val source: String,
+    val name: String,
+    var url: String,
+    var type: ExtractorLinkType = ExtractorLinkType.VIDEO,
+) {
+    var referer: String = ""
+    var quality: Int = Qualities.Unknown.value
+    var headers: Map<String, String> = emptyMap()
+    var extractorData: String? = null
+
+    val isM3u8: Boolean get() = type == ExtractorLinkType.M3U8
+    val isDash: Boolean get() = type == ExtractorLinkType.DASH
 }
 
-// Eski imzalar — eklentiler farklı overload'lar çağırabilir; hepsi aynı işe yönlendirilir.
-suspend fun loadExtractor(
-    url: String,
-    referer: String? = null,
-    subtitleCallback: (SubtitleFile) -> Unit,
-    callback: (ExtractorLink) -> Unit,
-): Boolean = loadExtractor(url, subtitleCallback, callback)
+/** Kalite sabitleri. Gerçek eklentiler bunu enum sabiti olarak kullanır (`Qualities.P720.value`). */
+enum class Qualities(val value: Int) {
+    Unknown(-2),
+    P240(240),
+    P360(360),
+    P480(480),
+    P720(720),
+    P1080(1080),
+    P1440(1440),
+    P2160(2160),
+}

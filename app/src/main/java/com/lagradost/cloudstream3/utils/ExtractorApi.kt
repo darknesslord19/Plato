@@ -1,5 +1,10 @@
 package com.lagradost.cloudstream3.utils
 
+import android.util.Log
+import com.lagradost.cloudstream3.SubtitleFile
+import java.net.URI
+import java.util.concurrent.CopyOnWriteArrayList
+
 /** Çıkarıcı temel sınıfı. Eklentiler kendi çıkarıcılarını buradan türetebilir. */
 abstract class ExtractorApi {
     abstract val name: String
@@ -16,4 +21,131 @@ abstract class ExtractorApi {
     )
 
     open fun getExtractorUrl(id: String): String = "$mainUrl/$id"
+}
+
+/**
+ * Eklentilerin `registerExtractorAPI` ile kaydettiği çıkarıcılar. Aynı sınıf yeniden kaydedilince
+ * eskisinin yerine geçer (eklentiler her kaynak isteğinde yeniden yüklenir).
+ */
+val extractorApis: MutableList<ExtractorApi> = CopyOnWriteArrayList()
+
+fun registerExtractor(extractor: ExtractorApi) {
+    extractorApis.removeAll { it.javaClass.name == extractor.javaClass.name && it.mainUrl == extractor.mainUrl }
+    extractorApis += extractor
+}
+
+private fun hostOf(url: String): String? = runCatching { URI(url.trim()).host?.lowercase()?.removePrefix("www.") }.getOrNull()
+
+/** [url]'nin sunucusu çıkarıcının `mainUrl` sunucusuyla aynı ya da onun alt alan adıysa eşleşir. */
+private fun findExtractor(url: String): ExtractorApi? {
+    val host = hostOf(url) ?: return null
+    return extractorApis.firstOrNull { api ->
+        val apiHost = hostOf(api.mainUrl) ?: return@firstOrNull false
+        host == apiHost || host.endsWith(".$apiHost")
+    }
+}
+
+/**
+ * Dışarıdan çağrılabilir `loadExtractor`: bir video host URL'sinden kaynak çıkarmayı dener.
+ * Önce eklentilerin kaydettiği çıkarıcılar ([extractorApis]) sunucu adına göre denenir.
+ * CloudStream'in yerleşik çıkarıcıları UYGULANMAZ; eşleşen çıkarıcı yoksa yalnızca adres
+ * doğrudan medya gibi görünüyorsa (m3u8, mpd, mp4 …) `callback`'e gönderilir, aksi halde
+ * oynatılamayacak bir gömme sayfası kaynak listesine girmesin diye atlanır.
+ */
+suspend fun loadExtractor(
+    url: String,
+    referer: String? = null,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+): Boolean {
+    val lower = url.lowercase()
+    if (!lower.startsWith("http://") && !lower.startsWith("https://")) return false
+    findExtractor(url)?.let { extractor ->
+        Log.d("PlayCs", "loadExtractor: ${extractor.name} ← ${hostOf(url)}")
+        extractor.getUrl(url, referer, subtitleCallback, callback)
+        return true
+    }
+    val path = lower.substringBefore('?')
+    val isM3u8 = lower.contains("m3u8")
+    val isDash = path.endsWith(".mpd")
+    val isFile = MEDIA_EXTENSIONS.any { path.endsWith(it) }
+    if (!isM3u8 && !isDash && !isFile) {
+        Log.d("PlayCs", "loadExtractor: çıkarıcı yok, atlandı ← ${hostOf(url)}")
+        return false
+    }
+    callback(
+        ExtractorLink(
+            source = "Direct",
+            name = "Direct",
+            url = url,
+            type = when { isM3u8 -> ExtractorLinkType.M3U8; isDash -> ExtractorLinkType.DASH; else -> ExtractorLinkType.VIDEO },
+        ).apply { this.referer = referer ?: "" },
+    )
+    return true
+}
+
+private val MEDIA_EXTENSIONS = listOf(".mp4", ".mkv", ".webm", ".m4v", ".mov", ".ts")
+
+/** Eski imza — eklentiler referer'sız da çağırabilir. */
+suspend fun loadExtractor(
+    url: String,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+): Boolean = loadExtractor(url, null, subtitleCallback, callback)
+
+/** `newExtractorLink { ... }` builder'ı; eklentiler `quality`/`referer`/`headers` burada ayarlar. */
+suspend fun newExtractorLink(
+    source: String,
+    name: String,
+    url: String,
+    type: ExtractorLinkType = ExtractorLinkType.VIDEO,
+    initializer: suspend ExtractorLink.() -> Unit = {},
+): ExtractorLink {
+    val link = ExtractorLink(source, name, url, type)
+    link.initializer()
+    return link
+}
+
+/** Görünen ad metninden kalite tahmini ("1080p", "HD", "CAM" vb.). */
+fun getQualityFromName(name: String?): Int = getQualityFromString(name)
+
+/**
+ * `eval(function(p,a,c,k,e,d){...})` biçimindeki paketlenmiş (Dean Edwards "packer") JS'i açar.
+ * Genel/kamuya açık bir teknik uygulanır (CloudStream'e özgü kod kopyalanmaz); eşleşme yoksa
+ * metin olduğu gibi döner.
+ */
+fun getAndUnpack(script: String): String {
+    val match = PACKER_REGEX.find(script) ?: return script
+    return try {
+        val (payload, radixRaw, countRaw, keywordsRaw) = match.destructured
+        val radix = radixRaw.toIntOrNull() ?: 36
+        val count = countRaw.toIntOrNull() ?: 0
+        val keywords = keywordsRaw.split("|")
+        var result = payload
+        for (i in count - 1 downTo 0) {
+            val word = keywords.getOrNull(i)
+            if (!word.isNullOrEmpty()) {
+                result = Regex("\\b${unbase(i, radix)}\\b").replace(result, Regex.escapeReplacement(word))
+            }
+        }
+        result
+    } catch (_: Exception) {
+        script
+    }
+}
+
+private val PACKER_REGEX = Regex(
+    """\}\('(.*)',\s*(\d+),\s*(\d+),\s*'(.*?)'\.split\('\|'\)""",
+    RegexOption.DOT_MATCHES_ALL,
+)
+
+private const val ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+private fun unbase(value: Int, base: Int): String {
+    if (value == 0) return ALPHABET[0].toString()
+    if (base in 2..36) return value.toString(base)
+    var v = value
+    val sb = StringBuilder()
+    while (v > 0) { sb.append(ALPHABET[v % base]); v /= base }
+    return sb.reverse().toString()
 }

@@ -99,7 +99,7 @@ class PlaybackController(context: Context, client: OkHttpClient, offlineCache: C
 
         val item = MediaItem.Builder()
             .setUri(stream.url)
-            .apply { streamMimeType(stream.url)?.let(::setMimeType) }
+            .apply { (stream.mimeType ?: streamMimeType(stream.url))?.let(::setMimeType) }
             .build()
 
         ui = ui.copy(error = null, ended = false, buffering = true)

@@ -9,7 +9,7 @@ package com.lagradost.cloudstream3
  */
 object APIHolder {
     /**
-     * Kayıtlı API listesi. Her yükleme öncesi [clear] çağrılır, yükleme sonrası içerik [PlayPluginManager]'a aktarılır.
+     * Kayıtlı API listesi. Her yükleme öncesi [clear] çağrılır, yükleme sonrası içerik toplanır.
      * Thread-safety: her eklenti kendi `withLock` bloğunda çalışır ([CsDexLoader]).
      */
     @JvmField

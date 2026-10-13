@@ -2,42 +2,42 @@ package com.lagradost.cloudstream3.plugins
 
 import android.content.Context
 import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.utils.ExtractorApi
+import com.lagradost.cloudstream3.utils.registerExtractor
 
 /**
  * CloudStream eklenti temel sınıfı. DEX içindeki giriş sınıfı bunu türetir.
  * Play bu sınıfı `PathClassLoader` ile yükler ve [load] çağırır.
  *
- * `load` içinde eklenti [registerMainAPI] ile [MainAPI] örneklerini kaydeder.
- * Play bu kayıtları [PlayPluginManager] üzerinden toplar.
+ * İmza gerçek CloudStream uygulama modülünden doğrulandı (`docs/cloudstream-plugin-research.md` §2.3/3.1):
+ * giriş noktası `load(context: Context)`dir (bir `PluginManager` parametresi DEĞİL); eklenti
+ * `registerMainAPI(...)`i doğrudan kendi üzerinden (miras alınan metotla) çağırır. Yanlış imza,
+ * DEX sınıf doğrulamasında [MainAPI] hiç kaydedilmeden sessizce başarısız olmasına yol açar
+ * (bkz. [com.kaan.play.data.cloudstream.CsDexLoader]).
  */
 abstract class Plugin {
     /**
      * Eklentinin enjekte ettiği bağlam. CS uygulamasında `CommonActivity.activity` üzerinden gelir;
-     * Play'de [PlayPluginManager] tarafından ayarlanır.
+     * Play'de [com.kaan.play.data.cloudstream.CsDexLoader] tarafından ayarlanır.
      */
     var __context: Context? = null
     protected val context: Context? get() = __context
 
-    /** Eklenti yüklendiğinde çağrılır. [manager] üzerinden [MainAPI] nesneleri kaydedilir. */
-    abstract fun load(manager: PluginManager)
+    /** [load] sırasında [registerMainAPI] ile biriken kayıtlar. */
+    val sourceProviders: MutableList<MainAPI> = mutableListOf()
+
+    /** Eklenti yüklendiğinde çağrılır; içinde [registerMainAPI] ile [MainAPI] örnekleri kaydedilir. */
+    abstract fun load(context: Context)
 
     /** Kaynaklar serbest bırakılırken çağrılır (opsiyonel). */
     open fun beforeUnload() {}
-}
 
-/** Play'in yakalamak için kullandığı `PluginManager` stub'ı. */
-interface PluginManager {
-    fun registerMainAPI(mainAPI: MainAPI)
-}
+    fun registerMainAPI(mainAPI: MainAPI) {
+        sourceProviders += mainAPI
+    }
 
-/**
- * Plugin yüklenirken [MainAPI] kayıtlarını toplayan uygulama.
- * Her eklenti yüklemesinde sıfırdan oluşturulur; kaydedilen API'ler [registrations]'ta tutulur.
- */
-class PlayPluginManager(private val context: Context) : PluginManager {
-    val registrations = mutableListOf<MainAPI>()
-
-    override fun registerMainAPI(mainAPI: MainAPI) {
-        registrations += mainAPI
+    /** Eklentinin kendi çıkarıcısı; `loadExtractor` bunu sunucu adına göre seçer. */
+    fun registerExtractorAPI(element: ExtractorApi) {
+        registerExtractor(element)
     }
 }
