@@ -27,7 +27,7 @@ class DownloadSubtitleFetcher(
     private val loader: SubtitleLoader,
     private val provider: SubtitleProvider,
     private val memory: SubtitleMemory,
-    private val appLanguage: () -> String,
+    private val appLanguage: suspend () -> String,
     private val files: DownloadFiles,
 ) {
 

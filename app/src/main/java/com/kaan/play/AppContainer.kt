@@ -1,6 +1,7 @@
 package com.kaan.play
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
@@ -35,6 +36,8 @@ import com.kaan.play.data.stream.CompositeStreamProvider
 import com.kaan.play.data.stream.TorrentStreamProvider
 import com.kaan.play.data.stream.StreamProvider
 import com.kaan.play.data.subtitle.AddonSubtitleProvider
+import com.kaan.play.data.subtitle.CompositeSubtitleProvider
+import com.kaan.play.data.subtitle.OnlineSubtitleProvider
 import com.kaan.play.data.subtitle.SubtitleLoader
 import com.kaan.play.data.subtitle.SubtitleMemory
 import com.kaan.play.data.subtitle.SubtitleProvider
@@ -54,6 +57,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -220,11 +224,37 @@ class AppContainer(context: Context) {
      * veren addon'lar kaynak listesinde görünmez; eklentilerin ve akışın kendi altyazıları seçilen akışla gelir.
      */
     val subtitleProvider: SubtitleProvider by lazy {
-        AddonSubtitleProvider(addons = addons::enabledAddons, client = httpClient, timeout = sourceTimeout)
+        CompositeSubtitleProvider(
+            listOf(
+                AddonSubtitleProvider(addons = addons::enabledAddons, client = httpClient, timeout = sourceTimeout),
+                // Yerleşik çevrimiçi arama (kullanıcının isteğiyle): IMDb + sezon/bölüm; tercih edilen dil, sonra İngilizce.
+                OnlineSubtitleProvider(
+                    client = httpClient,
+                    languages = { listOf(settings.subtitleLanguage.first(), "en") },
+                    imdbFor = { req -> tmdb.detail(req.type, req.tmdbId).imdbId },
+                ),
+            ),
+        )
     }
 
-    /** Altyazıyı kendimiz indirir: kodlama UTF-8'e çevrilip uygulamanın önbellek dizinine yazılır (sistem boşaltabilir). */
-    val subtitleLoader: SubtitleLoader by lazy { SubtitleLoader(httpClient, File(appContext.cacheDir, "subtitles")) }
+    /**
+     * Altyazıyı kendimiz indirir: kodlama UTF-8'e çevrilip uygulamanın önbellek dizinine yazılır (sistem boşaltabilir).
+     * Kullanıcının dosyadan eklediği altyazı (`content://`) ContentResolver ile okunur.
+     */
+    val subtitleLoader: SubtitleLoader by lazy {
+        SubtitleLoader(httpClient, File(appContext.cacheDir, "subtitles"), openLocal = { uri, limit ->
+            appContext.contentResolver.openInputStream(Uri.parse(uri))?.use { input ->
+                val out = ByteArrayOutputStream()
+                val buffer = ByteArray(16 * 1024)
+                while (out.size() < limit) {
+                    val n = input.read(buffer)
+                    if (n < 0) break
+                    out.write(buffer, 0, n)
+                }
+                out.toByteArray()
+            }
+        })
+    }
 
     /** Seçilen altyazı dili (film/dizi başına) ve elle senkron kaydırması (içerik + altyazı başına). */
     val subtitleMemory: SubtitleMemory by lazy { SubtitleMemory(database.subtitleDao()) }
@@ -246,7 +276,7 @@ class AppContainer(context: Context) {
                 loader = subtitleLoader,
                 provider = subtitleProvider,
                 memory = subtitleMemory,
-                appLanguage = { AppLanguage.effective().iso },
+                appLanguage = { settings.subtitleLanguage.first() },
                 files = files,
             ),
             scope = appScope,

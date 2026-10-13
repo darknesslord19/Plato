@@ -8,9 +8,19 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Seçilebilir tek harici altyazı. [language]: [SubtitleLanguages.normalize] ile iki harfli temel dil (bilinmiyorsa null);
  * [origin]: satırda gösterilen kaynak adı (altyazı addon'unun, eklentinin ya da akışı veren addon'un adı).
- * [url] kimliktir: aynı adres tek kez listelenir ve kaydırma değeri adrese bağlı saklanır.
+ * [url] kimliktir: aynı adres tek kez listelenir ve kaydırma değeri adrese bağlı saklanır. [kind]: menüde hangi bölümde durduğu;
+ * [label]: çevrimiçi altyazıda dosya/sürüm adı (eşleşen sürümü seçmeye yarar), yoksa null.
  */
-data class SubtitleTrack(val url: String, val language: String?, val origin: String)
+data class SubtitleTrack(
+    val url: String,
+    val language: String?,
+    val origin: String,
+    val kind: SubtitleKind = SubtitleKind.Source,
+    val label: String? = null,
+)
+
+/** [Source]: akışın, eklentinin ya da altyazı addon'unun verdiği; [Online]: yerleşik çevrimiçi arama; [Local]: kullanıcının seçtiği dosya. */
+enum class SubtitleKind { Source, Online, Local }
 
 /** Bir altyazı addon'unun cevabı: ya parçalar (boş olabilir) ya da "yanıt vermedi". */
 sealed interface SubtitleResult {

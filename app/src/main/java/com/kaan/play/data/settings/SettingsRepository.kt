@@ -29,6 +29,19 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     /** Altyazı görünümü; oynatıcı ve Ayarlar aynı akıştan okur, değişiklik anında yansır. */
     val subtitleStyle: Flow<SubtitleStyle> = store.data.map { it.toSubtitleStyle() }.distinctUntilChanged()
 
+    /**
+     * Tercih edilen altyazı dili (iki harfli). Otomatik seçim ve çevrimiçi arama buna göre yapılır (sonra İngilizce).
+     * Varsayılan Türkçe; bilinmeyen değer varsayılana düşer.
+     */
+    val subtitleLanguage: Flow<String> = store.data.map { prefs ->
+        prefs[SUB_LANGUAGE]?.takeIf { it in SUBTITLE_LANGUAGES } ?: DEFAULT_SUBTITLE_LANGUAGE
+    }.distinctUntilChanged()
+
+    suspend fun setSubtitleLanguage(language: String) {
+        require(language in SUBTITLE_LANGUAGES) { "Desteklenmeyen altyazı dili: $language" }
+        store.edit { it[SUB_LANGUAGE] = language }
+    }
+
     /** Açıkken yarım kalan içerik soru sorulmadan kaldığı yerden başlar. Varsayılan açık. */
     val alwaysResume: Flow<Boolean> = store.data.map { it[ALWAYS_RESUME] ?: DEFAULT_ALWAYS_RESUME }
 
@@ -91,6 +104,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         const val DEFAULT_ALWAYS_RESUME = true
         const val DEFAULT_DOWNLOAD_WIFI_ONLY = true
         val TIMEOUT_OPTIONS = listOf(10, 15, 30, 60)
+        const val DEFAULT_SUBTITLE_LANGUAGE = "tr"
+        val SUBTITLE_LANGUAGES = listOf("tr", "en")
 
         private val THEME = stringPreferencesKey("theme_mode")
         private val TIMEOUT = intPreferencesKey("source_timeout_seconds")
@@ -102,5 +117,6 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         private val SUB_ITALIC = booleanPreferencesKey("subtitle_italic")
         private val SUB_COLOR = stringPreferencesKey("subtitle_color")
         private val SUB_BACKGROUND = stringPreferencesKey("subtitle_background")
+        private val SUB_LANGUAGE = stringPreferencesKey("subtitle_language")
     }
 }

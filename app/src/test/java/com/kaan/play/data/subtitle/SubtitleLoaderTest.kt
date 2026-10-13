@@ -166,4 +166,26 @@ class SubtitleLoaderTest {
         }
         assertEquals(SubtitleLoader.MAX_FILES, cacheDir.listFiles { f -> f.name.endsWith(".txt") }!!.size)
     }
+
+    @Test
+    fun localFileIsReadWithoutNetworkTurkishLegacyEncodingIsDetectedAndNothingIsCached() = runTest {
+        val srt = "1\r\n00:00:01,000 --> 00:00:02,000\r\nGüneşli bir gün, ışık ğüşiöç İĞŞ\r\n"
+        val files = mapOf(
+            "content://docs/utf8" to srt.toByteArray(Charsets.UTF_8),
+            "content://docs/1254" to srt.toByteArray(Charset.forName("windows-1254")),
+        )
+        val l = SubtitleLoader(OkHttpClient(), cacheDir, openLocal = { uri, _ -> files[uri] })
+        for (uri in files.keys) {
+            val result = l.load(SubtitleTrack(uri, null, "film.srt", SubtitleKind.Local)) as SubtitleLoad.Loaded
+            assertEquals("Güneşli bir gün, ışık ğüşiöç İĞŞ", result.cues.single().text)
+        }
+        assertTrue(hits.isEmpty())
+        assertTrue(cacheDir.listFiles().isNullOrEmpty())
+        // Açılamayan / çok büyük / altyazı olmayan dosya
+        assertEquals(SubtitleLoad.Failed(SubtitleLoad.Reason.Network), l.load(SubtitleTrack("content://docs/yok", null, "x", SubtitleKind.Local)))
+        val big = SubtitleLoader(OkHttpClient(), cacheDir, maxBytes = 10, openLocal = { _, _ -> ByteArray(11) })
+        assertEquals(SubtitleLoad.Failed(SubtitleLoad.Reason.TooLarge), big.load(SubtitleTrack("content://docs/b", null, "x", SubtitleKind.Local)))
+        val junk = SubtitleLoader(OkHttpClient(), cacheDir, openLocal = { _, _ -> "merhaba".toByteArray() })
+        assertEquals(SubtitleLoad.Failed(SubtitleLoad.Reason.Invalid), junk.load(SubtitleTrack("content://docs/j", null, "x", SubtitleKind.Local)))
+    }
 }

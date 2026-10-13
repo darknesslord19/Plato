@@ -51,6 +51,11 @@ class SubtitleLoader(
     private val timeout: Duration = 15.seconds,
     private val maxBytes: Long = MAX_BYTES,
     private val clock: () -> Long = System::currentTimeMillis,
+    /**
+     * Kullanıcının seçtiği yerel dosya (`content://`, `file://`): en çok [maxBytes]+1 bayt okur; açılamazsa null.
+     * Yerel dosya önbelleğe yazılmaz (her açılışta kaynağından okunur).
+     */
+    private val openLocal: ((uri: String, limit: Long) -> ByteArray?)? = null,
 ): TrackLoader {
 
     override suspend fun load(track: SubtitleTrack): SubtitleLoad =
@@ -76,6 +81,7 @@ class SubtitleLoader(
     }
 
     private suspend fun fetch(track: SubtitleTrack): Fetched = withContext(Dispatchers.IO) {
+        if (isLocal(track.url)) return@withContext fetchLocal(track)
         val file = File(cacheDir, cacheName(track.url))
         readCached(file)?.let { (text, cues) -> return@withContext Fetched.Ok(text, cues, "UTF-8", fromCache = true) }
 
@@ -93,6 +99,20 @@ class SubtitleLoader(
 
         writeCache(file, decoded.text)
         Fetched.Ok(decoded.text, cues, decoded.charset.name(), fromCache = false)
+    }
+
+    private fun fetchLocal(track: SubtitleTrack): Fetched {
+        val open = openLocal ?: return Fetched.Err(SubtitleLoad.Reason.Network)
+        val bytes = try {
+            open(track.url, maxBytes + 1)
+        } catch (_: Exception) { // IOException, SecurityException (izin geri alındı)
+            null
+        } ?: return Fetched.Err(SubtitleLoad.Reason.Network)
+        if (bytes.size > maxBytes) return Fetched.Err(SubtitleLoad.Reason.TooLarge)
+        val decoded = SubtitleCharset.decode(bytes, track.language)
+        val cues = SubtitleParser.parse(decoded.text)
+        if (cues.isEmpty()) return Fetched.Err(SubtitleLoad.Reason.Invalid)
+        return Fetched.Ok(decoded.text, cues, decoded.charset.name(), fromCache = false)
     }
 
     private fun readCached(file: File): Pair<String, List<SubtitleCue>>? {
@@ -158,6 +178,9 @@ class SubtitleLoader(
         const val MAX_FILES = 200
         const val MAX_TOTAL_BYTES = 40L * 1024 * 1024
         const val MAX_AGE_MS = 30L * 24 * 60 * 60 * 1000
+
+        /** Kullanıcının seçtiği yerel dosya adresi mi (`content://`, `file://`)? */
+        fun isLocal(url: String): Boolean = url.startsWith("content://", true) || url.startsWith("file://", true)
 
         internal fun cacheName(url: String): String =
             MessageDigest.getInstance("SHA-256").digest(url.toByteArray()).joinToString("") { "%02x".format(it) } + ".txt"

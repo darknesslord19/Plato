@@ -8,8 +8,11 @@ sealed interface SubtitleItem {
     /** [SubtitleLanguages.normalize] ile iki harfli temel dil; bilinmiyorsa null. */
     val language: String?
 
-    /** Videonun kendi (Media3'ün okuduğu) altyazı parçası; [index] oynatıcının parça listesindeki sıradır. */
-    data class Embedded(val index: Int, override val language: String?) : SubtitleItem
+    /**
+     * Videonun kendi (Media3'ün okuduğu) altyazı parçası; [index] oynatıcının parça listesindeki sıradır, [label] parçanın
+     * kendi adı (ör. "Forced"), yoksa null.
+     */
+    data class Embedded(val index: Int, override val language: String?, val label: String? = null) : SubtitleItem
 
     /** Adresten indirilen altyazı (akışın, altyazı addon'unun ya da eklentinin verdiği). */
     data class External(val track: SubtitleTrack) : SubtitleItem {

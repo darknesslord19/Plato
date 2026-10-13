@@ -89,4 +89,11 @@ class SettingsRepositoryTest {
         assertEquals(false, repo.downloadWifiOnly.first())
         assertEquals(ThemeMode.Dark, repo.themeMode.first()) // diğer ayar etkilenmez
     }
+
+    @Test
+    fun preferredSubtitleLanguageDefaultsToTurkishAndIsStored() = runBlocking {
+        assertEquals("tr", repo.subtitleLanguage.first())
+        repo.setSubtitleLanguage("en")
+        assertEquals("en", repo.subtitleLanguage.first())
+    }
 }
