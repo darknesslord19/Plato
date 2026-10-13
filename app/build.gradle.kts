@@ -24,8 +24,8 @@ android {
         applicationId = "com.kaan.play"
         minSdk = 24
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
@@ -73,6 +73,17 @@ android {
     }
 
     // Yerel kütüphaneler APK içinde sıkıştırılır (libtorrent işlemci başına ~16 MB; sıkıştırılmadan APK çok büyür).
+    // İşlemci türüne göre ayrı APK (libtorrent her türde ~14-16 MB): her cihaz yalnızca kendi türünü indirir.
+    // AAB (Play Store) bundan etkilenmez; mağaza bölmeyi kendisi yapar.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
     packaging {
         jniLibs.useLegacyPackaging = true
     }
