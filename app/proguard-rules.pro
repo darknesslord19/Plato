@@ -53,3 +53,9 @@
 -keepattributes Signature
 -keepattributes Exceptions
 -keepattributes EnclosingMethod
+
+# ── libtorrent4j (yerleşik torrent motoru) ──────────────────────────────────────
+# SWIG JNI: yerel kod Java sınıflarına ve yöntemlerine adla bağlanır (geri çağrılar dahil).
+-keep class org.libtorrent4j.swig.** { *; }
+-keep class org.libtorrent4j.** { *; }
+-dontwarn org.libtorrent4j.**
