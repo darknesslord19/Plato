@@ -29,6 +29,13 @@ data class PlaySession(
     val autoResumed: Boolean = false,
     /** Doluysa video internetten değil, indirilmiş kopyadan oynar ve kaynak değiştirilemez. */
     val offline: OfflineSession? = null,
+    /**
+     * Otomatik sonraki bölümde [stream] açılmazsa sırayla denenecek yedek kaynaklar (kullanıcının seçtiği kaynak değil, bulunan
+     * sıra). Hepsi tükenirse oynatıcı her zamanki hata ekranını ("Başka kaynak seç") gösterir.
+     */
+    val fallbacks: List<PlayableStream> = emptyList(),
+    /** Önceki bölümden otomatik geçişle açıldı: etkinlik geçişi animasyonsuz olur (kesintisiz görünsün). */
+    val fromAutoNext: Boolean = false,
 ) {
     fun toIntent(context: Context): Intent =
         Intent(context, PlayerActivity::class.java).putExtra(EXTRA, PlayJson.encodeToString(serializer(), this))
@@ -40,7 +47,12 @@ data class PlaySession(
          * İndirilmiş kopyadan oturum. Hedef çevrimiçi oynatmayla birebir aynıdır (aynı `watch_history` satırı: kaldığı yerden
          * devam ve geçmiş ortak); akışın altyazıları indirilenler olur, böylece altyazı menüsü ağsız dolar.
          */
-        fun offline(download: DownloadEntity, startPositionMs: Long, autoResumed: Boolean): PlaySession {
+        fun offline(
+            download: DownloadEntity,
+            startPositionMs: Long,
+            autoResumed: Boolean,
+            fromAutoNext: Boolean = false,
+        ): PlaySession {
             val subtitles = DownloadCodec.decodeSubtitles(download.subtitlesJson)
             return PlaySession(
                 target = download.toTarget(),
@@ -55,6 +67,7 @@ data class PlaySession(
                 startPositionMs = startPositionMs,
                 autoResumed = autoResumed,
                 offline = OfflineSession(download.id, subtitles.associate { it.url to it.file }),
+                fromAutoNext = fromAutoNext,
             )
         }
 

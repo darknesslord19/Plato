@@ -53,7 +53,12 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_DOWNLOAD_WIFI_ONLY)
     val subtitleLanguage by container.settings.subtitleLanguage
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_SUBTITLE_LANGUAGE)
+    val autoNext by container.settings.autoNext
+        .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_AUTO_NEXT)
+    val autoNextSeconds by container.settings.autoNextSeconds
+        .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_AUTO_NEXT_SECONDS)
     var pickLanguage by remember { mutableStateOf(false) }
+    var pickCountdown by remember { mutableStateOf(false) }
     val uiLanguage = AppLanguage.effective().iso
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
@@ -74,11 +79,33 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
             SwitchRow(stringResource(R.string.settings_always_resume), alwaysResume) {
                 scope.launch { container.settings.setAlwaysResume(it) }
             }
+            // Dizide bölüm bitmeye yaklaşınca sonraki bölüm geri sayımla açılır (geri sayım yalnızca açıkken görünür).
+            SwitchRow(stringResource(R.string.settings_auto_next), autoNext) {
+                scope.launch { container.settings.setAutoNext(it) }
+            }
+            if (autoNext) {
+                ValueRow(
+                    label = stringResource(R.string.settings_auto_next_countdown),
+                    value = stringResource(R.string.settings_auto_next_seconds, autoNextSeconds),
+                    onClick = { pickCountdown = true },
+                )
+            }
             // İndirmeler (Faz 4/B): Ayarlar'a yeni ana kalem eklenmez, bu ayar Oynatıcı'nın içindedir.
             SwitchRow(stringResource(R.string.settings_download_wifi_only), downloadWifiOnly) {
                 scope.launch { container.settings.setDownloadWifiOnly(it) }
             }
         }
+    }
+
+    if (pickCountdown) {
+        ChoiceDialog(
+            title = stringResource(R.string.settings_auto_next_countdown),
+            options = SettingsRepository.AUTO_NEXT_OPTIONS,
+            selected = autoNextSeconds,
+            label = { stringResource(R.string.settings_auto_next_seconds, it) },
+            onSelect = { scope.launch { container.settings.setAutoNextSeconds(it) }; pickCountdown = false },
+            onDismiss = { pickCountdown = false },
+        )
     }
 
     if (pickLanguage) {

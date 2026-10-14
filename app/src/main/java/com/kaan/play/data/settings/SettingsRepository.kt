@@ -45,6 +45,23 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     /** Açıkken yarım kalan içerik soru sorulmadan kaldığı yerden başlar. Varsayılan açık. */
     val alwaysResume: Flow<Boolean> = store.data.map { it[ALWAYS_RESUME] ?: DEFAULT_ALWAYS_RESUME }
 
+    /** Açıkken dizide bölüm bitmeye yaklaşınca sonraki bölüm geri sayımla kendiliğinden açılır. Varsayılan açık. */
+    val autoNext: Flow<Boolean> = store.data.map { it[AUTO_NEXT] ?: DEFAULT_AUTO_NEXT }.distinctUntilChanged()
+
+    /** Sonraki bölüm geri sayımı (saniye): 5, 10 ya da 15; bilinmeyen değer varsayılana düşer. */
+    val autoNextSeconds: Flow<Int> = store.data.map { prefs ->
+        prefs[AUTO_NEXT_SECONDS]?.takeIf { it in AUTO_NEXT_OPTIONS } ?: DEFAULT_AUTO_NEXT_SECONDS
+    }.distinctUntilChanged()
+
+    suspend fun setAutoNext(enabled: Boolean) {
+        store.edit { it[AUTO_NEXT] = enabled }
+    }
+
+    suspend fun setAutoNextSeconds(seconds: Int) {
+        require(seconds in AUTO_NEXT_OPTIONS) { "Desteklenmeyen geri sayım: $seconds" }
+        store.edit { it[AUTO_NEXT_SECONDS] = seconds }
+    }
+
     /** Açıkken indirmeler yalnızca ölçümsüz (Wi-Fi/ethernet) ağda sürer. Varsayılan açık (mobil veri sessizce harcanmasın). */
     val downloadWifiOnly: Flow<Boolean> = store.data.map { it[DOWNLOAD_WIFI_ONLY] ?: DEFAULT_DOWNLOAD_WIFI_ONLY }.distinctUntilChanged()
 
@@ -103,6 +120,9 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         const val DEFAULT_TIMEOUT_SECONDS = 15
         const val DEFAULT_ALWAYS_RESUME = true
         const val DEFAULT_DOWNLOAD_WIFI_ONLY = true
+        const val DEFAULT_AUTO_NEXT = true
+        const val DEFAULT_AUTO_NEXT_SECONDS = 10
+        val AUTO_NEXT_OPTIONS = listOf(5, 10, 15)
         val TIMEOUT_OPTIONS = listOf(10, 15, 30, 60)
         const val DEFAULT_SUBTITLE_LANGUAGE = "tr"
         val SUBTITLE_LANGUAGES = listOf("tr", "en")
@@ -112,6 +132,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         private val ALWAYS_RESUME = booleanPreferencesKey("always_resume")
         private val TORRENT_SERVER = stringPreferencesKey("torrent_server")
         private val DOWNLOAD_WIFI_ONLY = booleanPreferencesKey("download_wifi_only")
+        private val AUTO_NEXT = booleanPreferencesKey("auto_next")
+        private val AUTO_NEXT_SECONDS = intPreferencesKey("auto_next_seconds")
         private val SUB_SIZE = stringPreferencesKey("subtitle_size")
         private val SUB_BOLD = booleanPreferencesKey("subtitle_bold")
         private val SUB_ITALIC = booleanPreferencesKey("subtitle_italic")

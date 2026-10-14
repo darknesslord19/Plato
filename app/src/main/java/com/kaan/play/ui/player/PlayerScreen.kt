@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -117,6 +118,10 @@ fun PlayerScreen(
     canSwitchSource: Boolean = true,
     /** Dikey kaydırmayla ses/parlaklık; null: jest yok (TV/kumanda). */
     levels: DeviceLevels? = null,
+    /** Dizide sonraki bölüm kartı ve geçişi; null: yok (film). */
+    autoNext: AutoNextController? = null,
+    /** "İptal" ya da kart açıkken Geri: kart kapanır; video bitmişse etkinlik de kapanır. */
+    onAutoNextCancel: () -> Unit = {},
     onBack: () -> Unit,
     onSourcePicked: (PlayableStream) -> Unit,
 ) {
@@ -154,7 +159,11 @@ fun PlayerScreen(
         if (resumeAfterPick) controller.player.play()
         resumeAfterPick = false
     }
-    val dialogOpen = showSources || showSubtitles || showAppearance || showMenu || showSync
+    // Sonraki bölüm kartı: kumandada odak ilk düğmededir (Tamam = "Şimdi oynat", Geri = "İptal").
+    val cardPhase = autoNext?.phase ?: AutoNextPhase.Hidden
+    val cardActive = cardPhase != AutoNextPhase.Hidden
+    val cardFocus = remember { FocusRequester() }
+    val dialogOpen = showSources || showSubtitles || showAppearance || showMenu || showSync || autoNext?.picking == true
     // Senkron paneli açıkken kontroller gizlenir: altyazı (altta) ilerleme çubuğunun altında kalmasın.
     val showControls = (controlsVisible && !showSync) || ui.error != null
 
@@ -195,9 +204,10 @@ fun PlayerScreen(
     }
     // Odak: kontroller açıkken ilerleme çubuğunda (hata varsa hata düğmesinde), gizliyken kök yüzeyde
     // (yön tuşları orada yakalanır).
-    LaunchedEffect(controlsVisible, ui.error) {
+    LaunchedEffect(controlsVisible, ui.error, cardPhase) {
         when {
             ui.error != null -> runCatching { playFocus.requestFocus() }
+            cardActive -> cardFocus.requestWhenAttached()
             controlsVisible -> barFocus.requestWhenAttached()
             else -> runCatching { rootFocus.requestFocus() }
         }
@@ -219,10 +229,13 @@ fun PlayerScreen(
                 // Geri tuşu burada ele alınır: aralıklı olarak (kontroller açıkken) görünüm ağacındaki bir öğe
                 // DOWN olayını tüketiyor ve etkinliğe hiç ulaşmıyordu; kök yakalayıcı ise olayı her zaman görür.
                 if (event.key == Key.Back) {
-                    if (event.type == KeyEventType.KeyUp) onBack()
+                    // Sonraki bölüm kartı açıkken Geri kartı iptal eder (oynatıcıyı kapatmaz).
+                    if (event.type == KeyEventType.KeyUp) { if (cardActive) onAutoNextCancel() else onBack() }
                     return@onPreviewKeyEvent true
                 }
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                // Kart açıkken yön tuşları ve Tamam kartın düğmelerine kalır (sarma/oynat-duraklat yerine).
+                if (cardActive && event.key in CARD_KEYS) return@onPreviewKeyEvent false
                 bump()
                 val repeat = event.nativeKeyEvent.repeatCount
                 // Sarma sürerken (basılı tutma) kontroller açılsa da Sol/Sağ sarmaya devam eder, odağı gezdirmez.
@@ -313,6 +326,16 @@ fun PlayerScreen(
             )
         }
 
+        if (autoNext != null && cardActive && ui.error == null) {
+            NextEpisodeCard(
+                state = autoNext,
+                primaryFocus = cardFocus,
+                onCancel = onAutoNextCancel,
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 24.dp, bottom = 96.dp)
+                    .gestureZone(zones, "next"),
+            )
+        }
+
         ui.error?.let { error ->
             Column(
                 modifier = Modifier.align(Alignment.Center).gestureZone(zones, "error").padding(32.dp),
@@ -389,6 +412,68 @@ fun PlayerScreen(
             onDismiss = { showSources = false },
             onPicked = { showSources = false; resumeNotice = false; onSourcePicked(it) },
         )
+    }
+
+    // Sonraki bölümün kaynağı hiç bulunamadıysa: kullanıcı listeden seçer, seçilen akışla bölüm açılır.
+    if (autoNext != null && autoNext.picking) {
+        SourcesSheet(target = autoNext.nextTarget(), onDismiss = autoNext::dismissPicking, onPicked = autoNext::picked)
+    }
+}
+
+/** Kart açıkken kartın düğmelerine bırakılan tuşlar (kök yakalayıcı bunları sarma/oynat için kullanmaz). */
+private val CARD_KEYS = setOf(
+    Key.DirectionCenter, Key.Enter, Key.NumPadEnter,
+    Key.DirectionLeft, Key.DirectionRight, Key.DirectionUp, Key.DirectionDown,
+)
+
+/**
+ * Köşedeki "Sonraki bölüm" kartı: geri sayım (Şimdi oynat / İptal), kaynak hazırlanırken (İptal) ya da kaynak bulunamayınca
+ * (Başka kaynak seç / İptal). [primaryFocus] aşamanın ana düğmesindedir: Tamam ona basar.
+ */
+@Composable
+private fun NextEpisodeCard(
+    state: AutoNextController,
+    primaryFocus: FocusRequester,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val season = state.season
+    val episode = state.episode
+    Column(
+        modifier = modifier
+            .widthIn(max = 340.dp)
+            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = when (state.phase) {
+                AutoNextPhase.Countdown -> stringResource(R.string.next_episode_countdown, season, episode, state.secondsLeft)
+                AutoNextPhase.NoSource -> stringResource(R.string.next_episode_no_source, season, episode)
+                else -> stringResource(R.string.next_episode_loading, season, episode)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            when (state.phase) {
+                AutoNextPhase.Countdown -> {
+                    Button(onClick = state::playNow, modifier = Modifier.focusRequester(primaryFocus)) {
+                        Text(stringResource(R.string.next_episode_play_now))
+                    }
+                    TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
+                }
+                AutoNextPhase.NoSource -> {
+                    Button(onClick = state::startPicking, modifier = Modifier.focusRequester(primaryFocus)) {
+                        Text(stringResource(R.string.next_episode_pick_source))
+                    }
+                    TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
+                }
+                else -> TextButton(onClick = onCancel, modifier = Modifier.focusRequester(primaryFocus)) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        }
     }
 }
 

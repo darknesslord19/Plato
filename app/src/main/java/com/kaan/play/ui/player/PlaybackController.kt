@@ -93,6 +93,12 @@ class PlaybackController(
     var ui by mutableStateOf(PlayerUiState())
         private set
 
+    /**
+     * Kaynak açılamayınca hata ekranından önce çağrılır; true dönerse (ör. yedek kaynağa geçildi) hata gösterilmez.
+     * Yalnızca otomatik sonraki bölümde kullanılır.
+     */
+    var onFailure: (() -> Boolean)? = null
+
     init {
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -119,6 +125,7 @@ class PlaybackController(
                     player.prepare()
                     return
                 }
+                if (onFailure?.invoke() == true) return
                 ui = ui.copy(error = errorOf(error), buffering = false)
             }
 

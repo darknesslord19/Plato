@@ -187,6 +187,21 @@ class TorrentEngine(private val dir: File) {
         }
     }
 
+    /**
+     * Sonraki bölüme geçilirken önceki torrent hemen kapatılır (dosyaları silinir, eşlere bağlantı kesilir); oturum açık kalır,
+     * yeni oynatıcı onu kullanır. Arka planda yapılır; açık torrent yoksa bir şey olmaz.
+     */
+    fun closeActive() {
+        val closing = active ?: return
+        background.execute {
+            synchronized(lock) {
+                val s = session ?: return@synchronized
+                // Arada yeni bir torrent açıldıysa (aynı anda başlayan bölüm) ona dokunulmaz.
+                if (active === closing) removeLocked(s, closing)
+            }
+        }
+    }
+
     private fun removeLocked(s: SessionManager, file: Opened) {
         active = null
         if (file.handle.isValid) s.remove(file.handle, SessionHandle.DELETE_FILES)
