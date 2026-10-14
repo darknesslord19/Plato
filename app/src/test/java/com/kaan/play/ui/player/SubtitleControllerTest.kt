@@ -393,7 +393,7 @@ class SubtitleControllerTest {
     }
 
     @Test
-    fun onlineTurkishIsPickedAutomaticallyButEmbeddedTurkishComesFirstInItsGroup() = runTest {
+    fun onlineTurkishIsPickedAutomaticallyAndLateEmbeddedTurkishTakesOver() = runTest {
         val env = Env(this)
         env.loader.results["https://os/tr.srt"] = loaded(hello)
         env.controller.start()
@@ -409,12 +409,13 @@ class SubtitleControllerTest {
         runCurrent()
         assertEquals("https://os/tr.srt", env.selectedUrl())
 
-        // Videonun içinde Türkçe parça sonradan görünürse listede önce o gelir; aynı dilde otomatik seçim değişmez.
+        // Videonun içinde Türkçe parça sonradan görünürse listede önce o gelir ve (otomatik seçimde) önceliklidir: gömülü Türkçe,
+        // çevrimiçi Türkçeden önce gelir.
         env.host.embedded = listOf(EmbeddedSubtitle(0, "tur", selected = false, label = "Forced"))
         env.controller.onTracksChanged()
         runCurrent()
         assertEquals(SubtitleItem.Embedded(0, "tr", "Forced"), env.controller.items.first())
-        assertEquals("https://os/tr.srt", env.selectedUrl())
+        assertEquals(SubtitleItem.Embedded(0, "tr", "Forced"), env.controller.selected)
     }
 
     @Test
@@ -455,5 +456,143 @@ class SubtitleControllerTest {
         assertEquals("en", SubtitleController.languageFromFileName("film_eng.ass"))
         assertEquals(null, SubtitleController.languageFromFileName("Breaking.Bad.S01E01.srt"))
         assertEquals(null, SubtitleController.languageFromFileName("film.1080p.srt"))
+    }
+
+    // ---- kaynak/altyazı paneli: dublaj, çevrimiçi sıra, "ilk kullanılabiliri yükle" ----
+
+    @Test
+    fun suppressedAutoSelectionKeepsSubtitlesOffOnADubbedSourceAndResumesLater() = runTest {
+        val env = Env(this)
+        env.loader.results["https://s/tr.srt"] = loaded(hello)
+        env.controller.suppressAuto() // dublajlı kaynak: Türkçe altyazıya gerek yok
+        env.controller.setStream(stream("https://s/tr.srt" to "tur"))
+        env.controller.start()
+        runCurrent()
+        assertNull(env.controller.selected)
+
+        env.controller.resumeAuto() // altyazılı kaynağa dönüldü
+        runCurrent()
+        assertEquals("https://s/tr.srt", env.selectedUrl())
+    }
+
+    @Test
+    fun suppressingClosesAnAutoSelectionButNotTheUsersChoice() = runTest {
+        val env = Env(this)
+        env.loader.results["https://s/tr.srt"] = loaded(hello)
+        env.loader.results["https://s/en.srt"] = loaded(hello)
+        env.controller.setStream(stream("https://s/tr.srt" to "tur", "https://s/en.srt" to "eng"))
+        env.controller.start()
+        runCurrent()
+        assertEquals("https://s/tr.srt", env.selectedUrl())
+        env.controller.suppressAuto()
+        assertNull("otomatik seçim kapanır", env.controller.selected)
+
+        val env2 = Env(this, dao = FakeSubtitleDao(), app = "tr")
+        env2.loader.results["https://s/en.srt"] = loaded(hello)
+        env2.controller.setStream(stream("https://s/en.srt" to "eng"))
+        env2.controller.start()
+        runCurrent()
+        env2.controller.choose(env2.controller.items.first())
+        runCurrent()
+        env2.controller.suppressAuto()
+        assertEquals("elle seçilene dokunulmaz", "https://s/en.srt", env2.selectedUrl())
+    }
+
+    @Test
+    fun subdlResultsComeBeforeOpenSubtitlesNoMatterWhichAnswersFirst() = runTest {
+        val env = Env(this)
+        env.loader.results["https://dl.subdl/tr.zip"] = loaded(hello)
+        env.loader.results["https://os/tr.srt"] = loaded(hello)
+        env.controller.start()
+        runCurrent()
+        // OpenSubtitles daha önce cevap verdi.
+        env.incoming.trySend(
+            SubtitleResult.Found(
+                OnlineSubtitleProvider.SOURCE,
+                listOf(SubtitleTrack("https://os/tr.srt", "tr", "OpenSubtitles", SubtitleKind.Online, "OS.rel")),
+            ),
+        )
+        runCurrent()
+        env.incoming.trySend(
+            SubtitleResult.Found(
+                StreamSource(-2, "SubDL"),
+                listOf(SubtitleTrack("https://dl.subdl/tr.zip", "tr", "SubDL", SubtitleKind.Online, "SubDL.rel")),
+            ),
+        )
+        runCurrent()
+        assertEquals(listOf("SubDL", "OpenSubtitles"), env.controller.onlineItems().map { it.track.origin })
+    }
+
+    @Test
+    fun firstUsableOnlineSkipsBrokenResultsWithoutSelectingAnything() = runTest {
+        val env = Env(this)
+        env.loader.results["https://dl/ok.zip"] = loaded(hello)
+        env.controller.start()
+        env.incoming.trySend(
+            SubtitleResult.Found(
+                StreamSource(-2, "SubDL"),
+                listOf(
+                    SubtitleTrack("https://dl/bad.zip", "tr", "SubDL", SubtitleKind.Online, "bad"),
+                    SubtitleTrack("https://dl/ok.zip", "tr", "SubDL", SubtitleKind.Online, "ok"),
+                    SubtitleTrack("https://dl/en.zip", "en", "SubDL", SubtitleKind.Online, "en"),
+                ),
+            ),
+        )
+        runCurrent()
+        env.controller.choose(null) // otomatik seçim karışmasın
+        env.loader.requested.clear()
+        val found = env.controller.firstUsableOnline("tr")
+        assertEquals("https://dl/ok.zip", found?.track?.url)
+        // Otomatik seçim bozuk olanı zaten eledi (tekrar indirilmez); çalışan bulunca durulur.
+        assertEquals(listOf("https://dl/ok.zip"), env.loader.requested)
+        assertNull("yalnızca bulur, seçmez", env.controller.selected)
+        assertNull(env.controller.firstUsableOnline("de"))
+    }
+
+    @Test
+    fun searchOnlineAsksTheProvidersAgainOnlyWhenIdle() = runTest {
+        var calls = 0
+        val controller = SubtitleController(
+            scope = backgroundScope,
+            playback = FakeHost(),
+            request = request,
+            loader = FakeLoader(),
+            memory = SubtitleMemory(FakeSubtitleDao()),
+            provider = SubtitleProvider { calls++; kotlinx.coroutines.flow.flowOf() },
+            preferredLanguage = { "tr" },
+            persist = backgroundScope,
+        )
+        controller.start()
+        runCurrent()
+        assertEquals(1, calls)
+        assertEquals(false, controller.searching)
+        controller.searchOnline()
+        runCurrent()
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun subdlUpgradesTheAutoSelectionEvenWhenOpenSubtitlesAnsweredFirst() = runTest {
+        val env = Env(this)
+        env.loader.results["https://dl.subdl/tr.zip"] = loaded(hello)
+        env.loader.results["https://os/tr.srt"] = loaded(hello)
+        env.controller.start()
+        runCurrent()
+        env.incoming.trySend(
+            SubtitleResult.Found(
+                OnlineSubtitleProvider.SOURCE,
+                listOf(SubtitleTrack("https://os/tr.srt", "tr", "OpenSubtitles", SubtitleKind.Online, "OS.rel")),
+            ),
+        )
+        runCurrent()
+        assertEquals("https://os/tr.srt", env.selectedUrl())
+        env.incoming.trySend(
+            SubtitleResult.Found(
+                StreamSource(-2, "SubDL"),
+                listOf(SubtitleTrack("https://dl.subdl/tr.zip", "tr", "SubDL", SubtitleKind.Online, "SubDL.rel")),
+            ),
+        )
+        runCurrent()
+        assertEquals("sağlayıcı sırası: SubDL önce", "https://dl.subdl/tr.zip", env.selectedUrl())
     }
 }

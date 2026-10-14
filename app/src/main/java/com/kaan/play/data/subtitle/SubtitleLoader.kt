@@ -87,10 +87,16 @@ class SubtitleLoader(
 
         val url = track.url.toHttpUrlOrNull()
             ?: return@withContext Fetched.Err(SubtitleLoad.Reason.Network)
-        val bytes = try {
+        val downloaded = try {
             download(url)
         } catch (e: LoadFailure) {
             return@withContext Fetched.Err(e.reason)
+        }
+        // Altyazı siteleri (SubDL …) zip verir: içindeki .srt/.vtt/.ass çıkarılır, kodlama çıkarılan dosyadan bulunur.
+        val bytes = if (SubtitleZip.isZip(downloaded)) {
+            SubtitleZip.extract(downloaded, maxBytes) ?: return@withContext Fetched.Err(SubtitleLoad.Reason.Invalid)
+        } else {
+            downloaded
         }
 
         val decoded = SubtitleCharset.decode(bytes, track.language)

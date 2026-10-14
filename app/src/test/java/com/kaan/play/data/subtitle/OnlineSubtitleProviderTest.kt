@@ -84,15 +84,24 @@ class OnlineSubtitleProviderTest {
     }
 
     @Test
-    fun networkErrorsAndBadAnswersGiveAnEmptyListNotAFailure() = runTest {
+    fun networkErrorsReportFailedAndBadAnswersGiveAnEmptyList() = runTest {
         routes["/subtitles/movie/tt1.json"] = { MockResponse.Builder().code(500).build() }
         routes["/subtitles/movie/tt2.json"] = { json("<html>") }
         routes["/subtitles/movie/tt3.json"] = { json(body).newBuilder().headersDelay(2, TimeUnit.SECONDS).build() }
         val p = provider()
-        for (id in listOf("tt1", "tt2", "tt3", "tt4")) {
+        // Bozuk cevap (HTML) hata değildir: boş sonuç. Ağ/HTTP hatası ve zaman aşımı "yanıt vermedi" olarak bildirilir (panelde kısa mesaj);
+        // oynatma her durumda etkilenmez.
+        assertEquals(
+            listOf(SubtitleResult.Found(OnlineSubtitleProvider.SOURCE, emptyList())),
+            p.subtitles(StreamRequest(1, "tt2", MediaType.Movie)).toList(),
+        )
+        for (id in listOf("tt1", "tt3", "tt4")) {
             val results = p.subtitles(StreamRequest(1, id, MediaType.Movie)).toList()
-            assertEquals(listOf(SubtitleResult.Found(OnlineSubtitleProvider.SOURCE, emptyList())), results)
+            assertEquals(1, results.size)
+            assertEquals(true, results.single() is SubtitleResult.Failed)
         }
+        // search() hata ve boş sonucu ayırmaz: her ikisi de boş liste.
+        assertEquals(emptyList<SubtitleTrack>(), p.search(StreamRequest(1, "tt1", MediaType.Movie)))
         // IMDb bulunamazsa hiç istek gitmez.
         paths.clear()
         assertEquals(emptyList<SubtitleTrack>(), provider(imdbFor = { throw IllegalStateException("tmdb") }).search(StreamRequest(1, null, MediaType.Movie)))

@@ -4,6 +4,7 @@ import com.kaan.play.data.stream.FailureReason
 import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.stream.StreamSource
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 /**
  * Seçilebilir tek harici altyazı. [language]: [SubtitleLanguages.normalize] ile iki harfli temel dil (bilinmiyorsa null);
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
  * [url] kimliktir: aynı adres tek kez listelenir ve kaydırma değeri adrese bağlı saklanır. [kind]: menüde hangi bölümde durduğu;
  * [label]: çevrimiçi altyazıda dosya/sürüm adı (eşleşen sürümü seçmeye yarar), yoksa null.
  */
+@Serializable
 data class SubtitleTrack(
     val url: String,
     val language: String?,
@@ -20,6 +22,7 @@ data class SubtitleTrack(
 )
 
 /** [Source]: akışın, eklentinin ya da altyazı addon'unun verdiği; [Online]: yerleşik çevrimiçi arama; [Local]: kullanıcının seçtiği dosya. */
+@Serializable
 enum class SubtitleKind { Source, Online, Local }
 
 /** Bir altyazı addon'unun cevabı: ya parçalar (boş olabilir) ya da "yanıt vermedi". */

@@ -105,6 +105,17 @@ class SubtitleController(
     private var userChose = false
     private var autoRank: Int? = null
 
+    /** Altyazıyı bu içerik için kullanıcı daha önce bir dille seçti mi (kayıtlı dil; "kapalı" değil)? Seçtiyse dublajlı kaynakta da uygulanır. */
+    private var rememberedExplicit = false
+
+    /** Dublajlı kaynakta (Türkçe ses) otomatik altyazı seçilmez; kullanıcının elle seçimine dokunulmaz. */
+    private var autoSuppressed = false
+
+    private var searchJob: Job? = null
+
+    /** Kullanıcı bu oturumda altyazıyı elle seçti/kapattı mı? (Otomatik seçim ve kaynak değişimi bunu bozmaz.) */
+    val userSelected: Boolean get() = userChose
+
     private var timeline: SubtitleTimeline? = null
     private var shown: List<SubtitleCue> = emptyList()
     private var sink: ((List<SubtitleCue>) -> Unit)? = null
@@ -123,13 +134,26 @@ class SubtitleController(
     fun start() {
         scope.launch {
             val remembered = memory.language(request)
+            rememberedExplicit = remembered != null && remembered != SubtitleSelection.REMEMBERED_OFF
             val language = preferredLanguage()
             menuLanguages = listOf(language, "en").distinct()
             preferred = SubtitleSelection.preferredLanguages(remembered, language)
             ready = true
             autoSelect()
         }
+        collectProvider()
         scope.launch {
+            while (isActive) {
+                refresh()
+                delay(TICK_MS)
+            }
+        }
+    }
+
+    private fun collectProvider() {
+        searchJob?.cancel()
+        searching = true
+        searchJob = scope.launch {
             provider.subtitles(request)
                 .onCompletion { searching = false }
                 .collect { result ->
@@ -142,12 +166,51 @@ class SubtitleController(
                     }
                 }
         }
-        scope.launch {
-            while (isActive) {
-                refresh()
-                delay(TICK_MS)
-            }
+    }
+
+    /**
+     * "İnternetten yükle": sağlayıcılara yeniden sorar (önceki arama bittiyse; sonuçlar film bazında önbellekte olduğundan ağa
+     * yalnızca hata/boş sonuçta gidilir). Zaten arıyorsa bir şey yapmaz; sonuçlar [items]'a (tür [SubtitleKind.Online]) girer.
+     */
+    fun searchOnline() {
+        if (searching) return
+        addonTracks = emptyList()
+        failedSources = emptyList()
+        rebuild()
+        collectProvider()
+    }
+
+    /** Çevrimiçi aramadan gelen parçalar (SubDL önce, sonra OpenSubtitles). */
+    fun onlineItems(): List<SubtitleItem.External> =
+        items.filterIsInstance<SubtitleItem.External>().filter { it.track.kind == SubtitleKind.Online }
+
+    /**
+     * "İlk kullanılabiliri yükle": [language] için çevrimiçi sonuçları sırayla indirip ayrıştırarak denemeyi; ilk çalışanı döner
+     * (indirilmiş olduğundan sonradan seçmek ağa gitmez). Hiçbiri çalışmazsa null.
+     */
+    suspend fun firstUsableOnline(language: String): SubtitleItem.External? {
+        for (item in onlineItems().filter { it.language == language }) {
+            if (item.track.url in badUrls) continue
+            if (loader.load(item.track) is SubtitleLoad.Loaded) return item
+            badUrls += item.track.url
         }
+        return null
+    }
+
+    /**
+     * Dublajlı kaynakta (Türkçe ses var) otomatik altyazı seçilmez; açık olan otomatik seçim kapatılır. Kullanıcının elle seçtiğine
+     * ve daha önce bu içerik için seçtiği dile dokunulmaz.
+     */
+    fun suppressAuto() {
+        autoSuppressed = true
+        if (!rememberedExplicit && !userChose && selected != null) apply(null)
+    }
+
+    /** Altyazılı kaynağa dönülünce otomatik seçim yeniden açılır. */
+    fun resumeAuto() {
+        if (!autoSuppressed) return
+        autoSuppressed = false
+        autoSelect()
     }
 
     /** Akış (yeniden) yüklendi: akışın kendi altyazıları listeye girer. */
@@ -221,7 +284,9 @@ class SubtitleController(
     private fun rebuild() {
         // Sıra: videonun içindekiler, akışın, kullanıcının dosyası, addon'lar, en sonda çevrimiçi arama (aynı dilde öndeki seçilir).
         val (online, fromAddons) = addonTracks.partition { it.kind == SubtitleKind.Online }
-        val all = embedded + (streamTracks + localTracks + fromAddons + online).map(SubtitleItem::External)
+        // Çevrimiçi sonuçlarda sağlayıcı sırası sabit: önce SubDL, sonra OpenSubtitles (cevap geliş sırası değil).
+        val onlineOrdered = online.sortedBy { onlineRank(it.origin) }
+        val all = embedded + (streamTracks + localTracks + fromAddons + onlineOrdered).map(SubtitleItem::External)
         items = SubtitleSelection.dedupe(all)
         // Açık videonun-içi parça artık yoksa (kaynak değişti), seçim düşer ve otomatik seçim yeniden değerlendirilir.
         val current = selected
@@ -234,10 +299,12 @@ class SubtitleController(
     }
 
     private fun autoSelect() {
-        if (!ready || userChose) return
+        if (!ready || userChose || (autoSuppressed && !rememberedExplicit)) return
         val candidates = items.filter { it !is SubtitleItem.External || it.track.url !in badUrls }
         val pick = SubtitleSelection.pickDefault(candidates, preferred) ?: return
-        val rank = SubtitleSelection.rank(pick.language, preferred) ?: return
+        // Sıra: önce dil, sonra (aynı dilde) kaynak türü; çevrimiçide SubDL, OpenSubtitles'tan önce. OpenSubtitles önce cevap verse de
+        // sonradan gelen SubDL sonucu (aynı dilde) otomatik seçimi yükseltir.
+        val rank = (SubtitleSelection.rank(pick.language, preferred) ?: return) * RANK_STEP + sourceRank(pick)
         val best = autoRank
         if (selected != null && best != null && rank >= best) return
         autoRank = rank
@@ -322,6 +389,19 @@ class SubtitleController(
 
     companion object {
         private const val TICK_MS = 50L
+
+        private const val RANK_STEP = 10
+
+        /** Aynı dilde kaynak sırası: videonun içindekiler/akış/addon 0, çevrimiçi 1 + sağlayıcı sırası. */
+        private fun sourceRank(item: SubtitleItem): Int =
+            if (item is SubtitleItem.External && item.track.kind == SubtitleKind.Online) 1 + onlineRank(item.track.origin) else 0
+
+        /** Çevrimiçi sağlayıcı önceliği: SubDL, OpenSubtitles, diğerleri. */
+        internal fun onlineRank(origin: String): Int = when (origin) {
+            "SubDL" -> 0
+            "OpenSubtitles" -> 1
+            else -> 2
+        }
 
         /** `film.tr.srt` / `Film.Turkish.srt` -> `tr`; uzantıdan önceki parça dil değilse null. */
         fun languageFromFileName(name: String): String? {

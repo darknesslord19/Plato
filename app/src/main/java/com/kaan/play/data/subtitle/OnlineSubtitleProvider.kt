@@ -33,14 +33,21 @@ class OnlineSubtitleProvider(
     private val imdbFor: suspend (StreamRequest) -> String? = { null },
     private val timeout: Duration = 15.seconds,
     private val baseUrl: String = BASE_URL,
+    /** Arama sonuçları film/bölüm bazında önbelleğe alınır (verilmezse her seferinde sorulur). */
+    private val cache: SubtitleSearchCache? = null,
 ) : SubtitleProvider {
 
     override fun subtitles(request: StreamRequest): Flow<SubtitleResult> = channelFlow {
-        send(SubtitleResult.Found(SOURCE, search(request)))
+        val tracks = lookup(request)
+        // Ağ hatası: kısa "yanıt vermedi" bilgisi (oynatmayı etkilemez); boş sonuç hata değildir.
+        send(if (tracks == null) SubtitleResult.Failed(SOURCE, com.kaan.play.data.stream.FailureReason.Network) else SubtitleResult.Found(SOURCE, tracks))
     }
 
     /** Bulunan parçalar (tercih sırasıyla); bulunamazsa ya da hata olursa boş. */
-    suspend fun search(request: StreamRequest): List<SubtitleTrack> {
+    suspend fun search(request: StreamRequest): List<SubtitleTrack> = lookup(request).orEmpty()
+
+    /** Arama yapılamadıysa (ağ/HTTP hatası) null; sonuç yoksa boş liste. */
+    private suspend fun lookup(request: StreamRequest): List<SubtitleTrack>? {
         val resolved = if (request.imdbId != null) request else {
             val imdb = try {
                 imdbFor(request)
@@ -52,13 +59,23 @@ class OnlineSubtitleProvider(
             request.copy(imdbId = imdb?.takeIf { it.startsWith("tt") })
         }
         val contentId = resolved.contentId ?: return emptyList()
-        val url = "$baseUrl/subtitles/${resolved.type.addonType}/$contentId.json".toHttpUrlOrNull() ?: return emptyList()
-        val body = try {
-            fetchAddonText(client, url, timeout, MAX_BYTES)
-        } catch (_: AddonFetchFailure) {
-            return emptyList()
+        val wanted = languages()
+        // Debug derlemede sahte sunucuya yönlenebilir (yayın derlemesinde DebugEndpoints boştur).
+        val base = DebugEndpoints.subsBase?.let { "$it/opensubtitles" } ?: baseUrl
+        val fetch: suspend () -> List<SubtitleTrack>? = {
+            val url = "$base/subtitles/${resolved.type.addonType}/$contentId.json".toHttpUrlOrNull()
+            if (url == null) {
+                null
+            } else {
+                try {
+                    parse(fetchAddonText(client, url, timeout, MAX_BYTES), wanted)
+                } catch (_: AddonFetchFailure) {
+                    null // hata: önbelleğe yazılmaz
+                }
+            }
         }
-        return parse(body, languages())
+        val key = searchKey("opensubtitles", resolved.type.addonType, contentId, null, null, wanted)
+        return if (cache != null) cache.getOrFetch(key, fetch) else fetch()
     }
 
     companion object {
