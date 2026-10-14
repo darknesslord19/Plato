@@ -1,0 +1,385 @@
+package com.kaan.play.ui.player
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.kaan.play.data.stream.PlayableStream
+import com.kaan.play.data.stream.RankContext
+import com.kaan.play.data.stream.SourceRanking
+import com.kaan.play.data.stream.SourcePref
+import com.kaan.play.data.stream.StartDecision
+import com.kaan.play.data.stream.StartPolicy
+import com.kaan.play.data.stream.StreamRequest
+import com.kaan.play.data.stream.StreamResult
+import com.kaan.play.data.stream.StreamSource
+import com.kaan.play.data.stream.TorrentLinks
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withTimeoutOrNull
+
+/** Oynatıcının kaynak durumu. */
+enum class SourcePhase {
+    /** Henüz başlamadı. */
+    Idle,
+
+    /** Kaynaklar aranıyor, uygun ilk kaynak (ya da dublajlı kaynak için en çok 3 sn) bekleniyor: "Kaynaklar yükleniyor". */
+    Resolving,
+
+    /** Bir kaynak oynatıcıya verildi, ilk kare bekleniyor. */
+    Starting,
+
+    /** İlk kare geldi, oynuyor. */
+    Playing,
+
+    /** Tüm kaynaklar başarısız (ya da hiç kaynak yok): "Başka kaynak seç". */
+    Failed,
+}
+
+/** Kullanıcıya kısa süre gösterilen kaynak bildirimi; [detail] ayrıntı satırıdır (hata kodu), ana ileti sade kalır. */
+sealed interface SourceNotice {
+    /** Elle seçilen kaynak açılmadı, önceki kaynağa dönüldü. */
+    data class SwitchFailed(val detail: String) : SourceNotice
+
+    /** Otomatik başlangıçta bozuk kaynak atlandı, sıradakine geçildi. */
+    data class Skipped(val detail: String) : SourceNotice
+}
+
+/**
+ * Oynatıcının kaynak seçim mantığı (Android'den bağımsız, birim testli; oynatıcıya [load] ile bağlanır).
+ *
+ * **Otomatik başlangıç** ([autoSource]): kaynaklar arka planda yüklenirken [StartPolicy] uygun ilk kaynağı seçer (Türkçe dublaj önceliği
+ * açıkken dublajlı kaynak için en çok 3 sn beklenir; dublajsızsa altyazılıyla başlanır). **Başarısızlık:** kaynak [FIRST_FRAME_TIMEOUT_MS]
+ * (torrentte [TORRENT_FIRST_FRAME_TIMEOUT_MS]) içinde ilk kareyi vermez ya da hata verirse sıradaki kaynağa geçilir; hepsi tükenirse
+ * [SourcePhase.Failed]. **Elle seçim** ([pick]): kaldığı saniyeden yeni kaynağa geçilir, açılmazsa önceki kaynağa dönülür
+ * ([SourceNotice.SwitchFailed]); seçim film/dizi için hatırlanır ([remember]) ve sonraki bölümde önce denenir.
+ * **Geç gelen dublaj:** altyazılı başlanmışsa ve sonradan dublajlı kaynak gelirse [dubSuggestion] dolar (oynatma kesilmez).
+ * Dosya boyutları ([sizeProbe]: HEAD, torrent üst bilgisi [reportSize]) bulundukça [sizes]'a girer ve sıralamada kullanılır.
+ */
+class SourceCoordinator(
+    private val scope: CoroutineScope,
+    private val request: StreamRequest,
+    private val streamsFor: (StreamRequest) -> Flow<StreamResult>,
+    private val askedFor: suspend (StreamRequest) -> List<StreamSource> = { emptyList() },
+    private val preferenceFor: suspend (StreamRequest) -> SourcePref? = { null },
+    private val remember: suspend (StreamRequest, PlayableStream) -> Unit = { _, _ -> },
+    /** Dosya boyutu (HEAD ile); bulunamazsa null. Hata fırlatmamalıdır. */
+    private val sizeProbe: suspend (PlayableStream) -> Long? = { null },
+    private val maxHeight: Int = 1080,
+    private val preferDub: Boolean = true,
+    private val autoSource: Boolean = true,
+    /** Kaynağı oynatıcıya verir: ([stream], başlangıç konumu ms). */
+    private val load: (PlayableStream, Long) -> Unit,
+    private val position: () -> Long = { 0L },
+    /** Tekdüze saat (ms); testte sanal zaman verilir. */
+    private val clock: () -> Long,
+) {
+    var phase by mutableStateOf(SourcePhase.Idle)
+        private set
+
+    /** Şu an oynatılan (ya da denenen) kaynak. */
+    var current by mutableStateOf<PlayableStream?>(null)
+        private set
+
+    /** Gelen tüm kaynaklar (geliş sırasıyla, aynı adres bir kez). Panel bunu [ranked]/[SourceRanking.sorted] ile gösterir. */
+    var streams by mutableStateOf<List<PlayableStream>>(emptyList())
+        private set
+
+    /** Sonradan bulunan dosya boyutları (adres → bayt). */
+    var sizes by mutableStateOf<Map<String, Long>>(emptyMap())
+        private set
+
+    var loading by mutableStateOf(false)
+        private set
+
+    /** Sorulan kaynaklar (cevaplardan önce bilinir) ve cevabı gelenler / yanıt vermeyenler. */
+    var asked by mutableStateOf<List<StreamSource>>(emptyList())
+        private set
+    var answered by mutableStateOf<Set<Long>>(emptySet())
+        private set
+    var failedSources by mutableStateOf<List<StreamSource>>(emptyList())
+        private set
+
+    var notice by mutableStateOf<SourceNotice?>(null)
+        private set
+
+    /** Elle kaynak değişimi sürüyor (dönen yükleme göstergesi). */
+    var switching by mutableStateOf(false)
+        private set
+
+    /** "Dublajlı kaynak bulundu, geçilsin mi?" önerisi; null: yok. */
+    var dubSuggestion by mutableStateOf<PlayableStream?>(null)
+        private set
+
+    private var preference: SourcePref? = null
+    private var userPicked = false
+    private var suggestionDismissed = false
+    private var finished = false
+    private var resolveStartedAt = 0L
+    private var collectJob: Job? = null
+    private var firstFrameJob: Job? = null
+    private var revertTo: PlayableStream? = null
+    private var revertPositionMs = 0L
+    private var lastStartMs = 0L
+    private val attempted = LinkedHashSet<String>()
+    private val queue = ArrayDeque<PlayableStream>()
+    private val probed = HashSet<String>()
+    private val probeGate = Semaphore(PROBE_PARALLEL)
+
+    val ctx: RankContext
+        get() = RankContext(maxHeight = maxHeight, preferDub = preferDub, preference = preference, sizes = sizes)
+
+    /** Önerilen sıra (başlangıç sırası). */
+    fun ranked(): List<PlayableStream> = SourceRanking.recommended(streams, ctx)
+
+    fun sizeOf(stream: PlayableStream): Long? = SourceRanking.sizeOf(stream, sizes)
+
+    // ---- başlatma ----
+
+    /**
+     * [initial] verilmişse (elle seçim ya da sonraki bölümün seçilmiş kaynağı) o oynatılır, [fallbacks] yedek olur; verilmemişse
+     * ([autoSource]) kaynaklar aranıp uygun ilki seçilir. [startMs]: kaldığı konum.
+     */
+    fun start(initial: PlayableStream?, fallbacks: List<PlayableStream>, startMs: Long) {
+        lastStartMs = startMs
+        queue.clear()
+        queue.addAll(fallbacks)
+        scope.launch {
+            preference = try {
+                preferenceFor(request)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            if (initial != null) {
+                begin(initial, startMs)
+                if (autoSource) ensureSources()
+            } else {
+                phase = SourcePhase.Resolving
+                resolveStartedAt = clock()
+                ensureSources()
+                if (preferDub) {
+                    scope.launch {
+                        delay(StartPolicy.DUB_WAIT_MS)
+                        onChange()
+                    }
+                }
+            }
+        }
+    }
+
+    /** Kaynak listesini (henüz başlamadıysa) arka planda yüklemeye başlar; panel açılınca da çağrılır. */
+    fun ensureSources() {
+        if (collectJob != null) return
+        loading = true
+        collectJob = scope.launch {
+            asked = try {
+                askedFor(request)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+            streamsFor(request)
+                .onCompletion {
+                    loading = false
+                    finished = true
+                    onChange()
+                }
+                .collect { result ->
+                    answered = answered + result.source.addonId
+                    when (result) {
+                        is StreamResult.Found -> streams = (streams + result.streams).distinctBy { it.url }
+                        is StreamResult.Failed -> failedSources = failedSources + result.source
+                    }
+                    onChange()
+                }
+        }
+    }
+
+    // ---- olaylar ----
+
+    private fun onChange() {
+        probeSizes()
+        when (phase) {
+            SourcePhase.Resolving -> {
+                // Daha önce denenip başarısız olan kaynaklar tekrar seçilmez.
+                val candidates = ranked().filter { it.url !in attempted }
+                when (val d = StartPolicy(preferDub).decide(clock() - resolveStartedAt, candidates, ctx, finished)) {
+                    is StartDecision.Start -> begin(d.stream, lastStartMs)
+                    StartDecision.NoSources -> phase = SourcePhase.Failed
+                    is StartDecision.Wait -> Unit
+                }
+            }
+            SourcePhase.Playing -> maybeSuggestDub()
+            SourcePhase.Failed, SourcePhase.Idle, SourcePhase.Starting -> Unit
+        }
+    }
+
+    private fun begin(stream: PlayableStream, startMs: Long) {
+        firstFrameJob?.cancel()
+        current = stream
+        attempted += stream.url
+        phase = SourcePhase.Starting
+        load(stream, startMs)
+        val timeout = if (TorrentLinks.isMagnet(stream.url)) TORRENT_FIRST_FRAME_TIMEOUT_MS else FIRST_FRAME_TIMEOUT_MS
+        firstFrameJob = scope.launch {
+            delay(timeout)
+            startFailed("timeout")
+        }
+    }
+
+    /** Oynatıcı ilk kareyi çizdi: kaynak çalışıyor. */
+    fun onFirstFrame() {
+        if (phase != SourcePhase.Starting) return
+        firstFrameJob?.cancel()
+        phase = SourcePhase.Playing
+        switching = false
+        revertTo = null
+        onChange()
+    }
+
+    /**
+     * Oynatıcı hata verdi. İlk kare gelmeden önceyse sıradaki kaynağa geçilir / önceki kaynağa dönülür ve true döner (hata ekranı
+     * gösterilmez); oynarken gelen hata arayüze bırakılır (false).
+     */
+    fun onFailure(detail: String): Boolean {
+        if (phase != SourcePhase.Starting) return false
+        firstFrameJob?.cancel()
+        startFailed(detail)
+        return true
+    }
+
+    private fun startFailed(detail: String) {
+        val failed = current
+        val previous = revertTo
+        if (previous != null) {
+            // Elle seçilen kaynak açılmadı: önceki kaynağa kaldığı saniyeden dön.
+            revertTo = null
+            switching = false
+            notice = SourceNotice.SwitchFailed(detail)
+            begin(previous, revertPositionMs)
+            return
+        }
+        val next = nextCandidate()
+        if (next != null) {
+            if (failed != null) notice = SourceNotice.Skipped(detail)
+            begin(next, lastStartMs)
+        } else if (!finished) {
+            // Daha kaynak gelebilir: gelince denenir.
+            phase = SourcePhase.Resolving
+            resolveStartedAt = clock() - StartPolicy.DUB_WAIT_MS
+        } else {
+            phase = SourcePhase.Failed
+            switching = false
+        }
+    }
+
+    private fun nextCandidate(): PlayableStream? {
+        while (true) {
+            val queued = queue.removeFirstOrNull() ?: break
+            if (queued.url !in attempted) return queued
+        }
+        return ranked().firstOrNull { it.url !in attempted }
+    }
+
+    // ---- kullanıcı eylemleri ----
+
+    /** Panelde "Uygula" ile seçilen kaynak: kaldığı saniyeden geçilir, açılmazsa önceki kaynağa dönülür. */
+    fun pick(stream: PlayableStream) {
+        if (stream.url == current?.url && phase == SourcePhase.Playing) return
+        userPicked = true
+        dubSuggestion = null
+        notice = null
+        scope.launch {
+            try {
+                remember(request, stream)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+            }
+        }
+        preference = SourcePref(stream.source.addonId, stream.source.addonName, null, TorrentLinks.isMagnet(stream.url))
+        val previous = current?.takeIf { phase == SourcePhase.Playing || phase == SourcePhase.Starting }
+        revertTo = previous
+        revertPositionMs = position().takeIf { it > 0 } ?: lastStartMs
+        lastStartMs = revertPositionMs
+        switching = previous != null
+        // Elle seçim yeniden denenebilsin: daha önce başarısız olduysa da bu sefer dene.
+        attempted -= stream.url
+        begin(stream, revertPositionMs)
+    }
+
+    fun acceptDubSuggestion() {
+        val s = dubSuggestion ?: return
+        pick(s)
+    }
+
+    fun dismissDubSuggestion() {
+        dubSuggestion = null
+        suggestionDismissed = true
+    }
+
+    fun clearNotice() {
+        notice = null
+    }
+
+    /** Torrent üst bilgisinden ya da başka yerden bulunan dosya boyutu (adres → bayt). */
+    fun reportSize(url: String, bytes: Long) {
+        if (bytes <= 0 || sizes[url] == bytes) return
+        sizes = sizes + (url to bytes)
+    }
+
+    // ---- iç işler ----
+
+    private fun maybeSuggestDub() {
+        if (!autoSource || !preferDub || userPicked || suggestionDismissed || dubSuggestion != null) return
+        val playing = current ?: return
+        if (playing.dubbed) return
+        dubSuggestion = ranked().firstOrNull { it.dubbed && !SourceRanking.isTooHeavy(it, ctx) && it.url != playing.url && it.url !in attempted }
+    }
+
+    private fun probeSizes() {
+        val targets = buildList {
+            current?.let { add(it) }
+            addAll(ranked())
+        }.distinctBy { it.url }.take(PROBE_LIMIT)
+        for (stream in targets) {
+            if (SourceRanking.sizeOf(stream, sizes) != null || !probed.add(stream.url)) continue
+            if (!SizeProbing.isProbeable(stream.url, stream.mimeType)) continue
+            scope.launch {
+                val bytes = probeGate.withPermit { withTimeoutOrNull(PROBE_TIMEOUT_MS) { sizeProbe(stream) } }
+                if (bytes != null) reportSize(stream.url, bytes)
+            }
+        }
+    }
+
+    companion object {
+        const val FIRST_FRAME_TIMEOUT_MS = 10_000L
+
+        /** Torrentte üst bilgi ve ilk parçalar için eş bulmak gerekir: 10 sn çoğu zaman yetmez. */
+        const val TORRENT_FIRST_FRAME_TIMEOUT_MS = 40_000L
+        const val PROBE_LIMIT = 24
+        const val PROBE_PARALLEL = 4
+        const val PROBE_TIMEOUT_MS = 6_000L
+    }
+}
+
+/** Dosya boyutu aramasının (HEAD) uygunluk kuralları (Android'den bağımsız). */
+object SizeProbing {
+    /** Düz http(s) dosyası mı? Torrent (üst bilgiden), HLS/DASH (liste, dosya değil) için HEAD anlamsızdır. */
+    fun isProbeable(url: String, mimeType: String?): Boolean {
+        val lower = url.lowercase()
+        if (!(lower.startsWith("http://") || lower.startsWith("https://"))) return false
+        if (".m3u8" in lower || ".mpd" in lower) return false
+        if (mimeType != null && (mimeType.contains("mpegurl", true) || mimeType.contains("dash", true))) return false
+        return true
+    }
+}

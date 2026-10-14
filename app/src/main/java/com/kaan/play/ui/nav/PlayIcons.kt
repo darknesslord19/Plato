@@ -298,4 +298,63 @@ object PlayIcons {
             }
         }
     }
+    /** Oynatıcı: ekranı kilitle / kilidi aç. */
+    val Lock: ImageVector by lazy {
+        icon("Lock") {
+            line {
+                moveTo(6.5f, 11f); horizontalLineTo(17.5f); verticalLineTo(19.5f); horizontalLineTo(6.5f); close()
+                moveTo(8.5f, 11f); verticalLineTo(8f)
+                arcTo(3.5f, 3.5f, 0f, false, true, 15.5f, 8f)
+                verticalLineTo(11f)
+                moveTo(12f, 14.5f); verticalLineTo(16.5f)
+            }
+        }
+    }
+
+    val Unlock: ImageVector by lazy {
+        icon("Unlock") {
+            line {
+                moveTo(6.5f, 11f); horizontalLineTo(17.5f); verticalLineTo(19.5f); horizontalLineTo(6.5f); close()
+                moveTo(8.5f, 11f); verticalLineTo(7.5f)
+                arcTo(3.5f, 3.5f, 0f, false, true, 15.5f, 7.5f)
+                moveTo(12f, 14.5f); verticalLineTo(16.5f)
+            }
+        }
+    }
+
+    /** Oynatıcı: yeniden boyutlandır (köşe işaretleri + iç dikdörtgen). */
+    val Resize: ImageVector by lazy {
+        icon("Resize") {
+            line {
+                moveTo(4f, 9f); verticalLineTo(4f); horizontalLineTo(9f)
+                moveTo(15f, 4f); horizontalLineTo(20f); verticalLineTo(9f)
+                moveTo(20f, 15f); verticalLineTo(20f); horizontalLineTo(15f)
+                moveTo(9f, 20f); horizontalLineTo(4f); verticalLineTo(15f)
+                moveTo(8.5f, 9f); horizontalLineTo(15.5f); verticalLineTo(15f); horizontalLineTo(8.5f); close()
+            }
+        }
+    }
+
+    /** Oynatıcı: altyazı senkronu (saat). */
+    val SubtitleSync: ImageVector by lazy {
+        icon("SubtitleSync") {
+            line {
+                moveTo(4f, 12f)
+                arcToRelative(8f, 8f, 0f, true, true, 16f, 0f)
+                arcToRelative(8f, 8f, 0f, true, true, -16f, 0f)
+                moveTo(12f, 7.5f); verticalLineTo(12f); lineTo(15f, 14f)
+            }
+        }
+    }
+
+    /** Oynatıcı: parçalar (video/ses seçenekleri; düzey çubukları). */
+    val Tracks: ImageVector by lazy {
+        icon("Tracks") {
+            line {
+                moveTo(6f, 11f); verticalLineTo(19f)
+                moveTo(12f, 5f); verticalLineTo(19f)
+                moveTo(18f, 8f); verticalLineTo(19f)
+            }
+        }
+    }
 }

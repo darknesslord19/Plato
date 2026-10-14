@@ -14,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.data.settings.ThemeMode
 import com.kaan.play.data.plugin.DeepLink
+import com.kaan.play.data.subtitle.DebugEndpoints
 import com.kaan.play.data.update.UpdateNotifications
 import com.kaan.play.ui.components.SplashOverlay
 import com.kaan.play.ui.nav.PlayRoot
@@ -34,6 +35,8 @@ class MainActivity : AppCompatActivity() {
         // Yalnızca debug derlemede, sahte release sunucusuyla denemek için: --es play_update_endpoint <adres>.
         val debugEndpoint = if (BuildConfig.DEBUG) intent.getStringExtra("play_update_endpoint") else null
         container.updateChecker.checkOnce(container.appScope, debugEndpoint)
+        // Yalnızca debug derlemede, sahte altyazı servisiyle denemek için: --es play_subs_endpoint http://host:port (SubDL + OpenSubtitles).
+        if (BuildConfig.DEBUG) intent.getStringExtra("play_subs_endpoint")?.let { DebugEndpoints.subsBase = it.trimEnd('/') }
         // Açılışta tek seferlik okuma (milisaniyeler): kayıtlı tema ilk karede doğru çıksın, yanıp sönmesin.
         val initialTheme = runBlocking { settings.themeMode.first() }
 

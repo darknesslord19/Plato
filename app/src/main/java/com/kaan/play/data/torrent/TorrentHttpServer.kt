@@ -26,6 +26,9 @@ class TorrentHttpServer(private val engine: TorrentEngine) {
     private val pool = Executors.newCachedThreadPool { r -> Thread(r, "torrent-http").apply { isDaemon = true } }
     private var server: ServerSocket? = null
 
+    /** Torrent açılıp dosya boyutu belli olunca (magnet, bayt); oynatıcı üst çubukta ve kaynak panelinde gösterir. Havuz iş parçacığından çağrılır. */
+    @Volatile var onOpened: ((magnet: String, size: Long) -> Unit)? = null
+
     /** Magnet'in yerel oynatma adresi. Sunucu gerekirse burada başlar (yalnızca soket açar; motor ilk istekte başlar). */
     fun urlFor(magnet: String, fileIdx: Int?): String {
         val port = ensureStarted()
@@ -79,6 +82,8 @@ class TorrentHttpServer(private val engine: TorrentEngine) {
                     else -> status(out, 404, "Not Found")
                 }
             }
+
+            onOpened?.invoke(magnet, file.size)
 
             val (start, end, code) = when (val range = TorrentRules.parseRange(headers["range"], file.size)) {
                 TorrentRules.Range.Full -> Triple(0L, file.size - 1, 200)

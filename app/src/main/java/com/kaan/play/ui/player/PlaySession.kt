@@ -23,7 +23,8 @@ data class OfflineSession(val downloadId: Long, val subtitleFiles: Map<String, S
 @Serializable
 data class PlaySession(
     val target: PlayTarget,
-    val stream: PlayableStream,
+    /** Oynatılacak kaynak; null: [autoSource] (oynatıcı kaynakları kendisi bulup seçer). */
+    val stream: PlayableStream?,
     val startPositionMs: Long,
     /** Kayıtlı konumdan sormadan devam ediliyorsa true: oynatıcı kısa bir "Baştan başla" bildirimi gösterir. */
     val autoResumed: Boolean = false,
@@ -36,6 +37,8 @@ data class PlaySession(
     val fallbacks: List<PlayableStream> = emptyList(),
     /** Önceki bölümden otomatik geçişle açıldı: etkinlik geçişi animasyonsuz olur (kesintisiz görünsün). */
     val fromAutoNext: Boolean = false,
+    /** Kaynak listesi beklenmeden açıldı: [stream] yok, oynatıcı uygun ilk kaynağı arka planda bulur. */
+    val autoSource: Boolean = false,
 ) {
     fun toIntent(context: Context): Intent =
         Intent(context, PlayerActivity::class.java).putExtra(EXTRA, PlayJson.encodeToString(serializer(), this))

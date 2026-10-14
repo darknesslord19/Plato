@@ -77,6 +77,7 @@ object AutoNextRules {
 
         val same = ranked.filter { it.source.addonId == current.source.addonId }.sortedWith(
             compareBy<PlayableStream>(
+                { it.dubbed != current.dubbed },
                 { currentHost != null && hostOf(it.url) != currentHost },
                 { TorrentLinks.isMagnet(it.url) != currentMagnet },
                 { resolutionGap(it) },
@@ -84,8 +85,9 @@ object AutoNextRules {
             ),
         )
         val sameUrls = same.mapTo(HashSet()) { it.url }
-        val others = ranked.filter { it.url !in sameUrls }
-        val best = others.recommended()
+        // Başka eklentilerde de izlenen türe (dublajlı/altyazılı) uyanlar öne alınır (sıralama kendi içinde korunur).
+        val others = ranked.filter { it.url !in sameUrls }.sortedBy { it.dubbed != current.dubbed }
+        val best = others.filter { it.dubbed == current.dubbed }.recommended() ?: others.recommended()
         val orderedOthers = if (best == null) others else listOf(best) + others.filter { it.url != best.url }
         return (same + orderedOthers).take(MAX_CANDIDATES)
     }

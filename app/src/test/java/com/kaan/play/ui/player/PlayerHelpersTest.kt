@@ -82,7 +82,7 @@ class PlayerHelpersTest {
         val back = com.kaan.play.data.net.PlayJson.decodeFromString(PlaySession.serializer(), json)
 
         assertEquals(session, back)
-        assertNotNull(back.stream.headers["Referer"])
+        assertNotNull(back.stream!!.headers["Referer"])
         assertEquals(false, back.autoResumed) // varsayılan: bildirim yok
     }
 

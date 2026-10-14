@@ -352,4 +352,53 @@
     <string name="update_notification_ready_text">Tap to install Play %1$s</string>
     <string name="update_notification_failed_text">Open Play to try again</string>
     <string name="update_retry">Try again</string>
+
+    <!-- Oynatıcı: kaynak, altyazı, ses, çözünürlük -->
+    <string name="player_btn_lock">Lock</string>
+    <string name="player_btn_unlock">Unlock</string>
+    <string name="player_btn_resize">Resize</string>
+    <string name="player_btn_sync">Subtitle sync</string>
+    <string name="player_btn_source">Source</string>
+    <string name="player_btn_tracks">Tracks</string>
+    <string name="resize_fit">Fit</string>
+    <string name="resize_fill">Fill (crop)</string>
+    <string name="resize_stretch">Stretch</string>
+    <string name="resize_16_9" translatable="false">16:9</string>
+    <string name="resize_4_3" translatable="false">4:3</string>
+    <string name="player_sources_loading">Loading sources…</string>
+    <string name="player_all_failed">None of the sources could be opened.</string>
+    <string name="player_no_sources">No sources found for this title.</string>
+    <string name="player_switch_failed">Couldn\'t open that source. Went back to the previous one.</string>
+    <string name="player_source_skipped">A source didn\'t open. Trying the next one.</string>
+    <string name="player_error_detail">Details: %1$s</string>
+    <string name="dub_suggest_title">Dubbed source found. Switch?</string>
+    <string name="dub_suggest_switch">Switch</string>
+    <string name="dub_suggest_close">Close</string>
+    <string name="tag_dubbed">Dubbed</string>
+    <string name="tag_subbed">Subtitled</string>
+    <string name="tag_dubbed_embedded">Dubbed (embedded audio)</string>
+    <string name="tag_torrent">Torrent</string>
+    <string name="tag_direct">Direct</string>
+    <string name="panel_title_sources">Source and subtitles</string>
+    <string name="panel_sources">Sources</string>
+    <string name="panel_subtitles">Subtitles</string>
+    <string name="panel_apply">Apply</string>
+    <string name="panel_playing">Playing</string>
+    <string name="sort_recommended">Recommended</string>
+    <string name="sort_size">Size</string>
+    <string name="sort_resolution">Resolution</string>
+    <string name="subs_none">No subtitles</string>
+    <string name="subs_load_file">Load from file</string>
+    <string name="subs_load_online">Load from the internet</string>
+    <string name="subs_load_first">Load first usable</string>
+    <string name="subs_search_online">Search online</string>
+    <string name="subs_online_failed">Couldn\'t reach the subtitle service.</string>
+    <string name="subs_first_none">No usable subtitle found.</string>
+    <string name="subs_embedded_row">%1$s · in the video</string>
+    <string name="tracks_title">Tracks</string>
+    <string name="tracks_video">Video</string>
+    <string name="tracks_auto">Auto</string>
+    <string name="tracks_none">No options</string>
+    <string name="settings_auto_source">Pick the source automatically</string>
+    <string name="settings_prefer_dub">Prefer Turkish dubbing</string>
 </resources>

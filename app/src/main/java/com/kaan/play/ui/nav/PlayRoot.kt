@@ -176,8 +176,17 @@ fun PlayRoot() {
                 openAddons(startAdding = true)
                 return@launch
             }
+            // "Kaynağı otomatik seç" açıkken (varsayılan) kaynak listesi beklenmez: oynatıcı kaynakları arka planda yükleyip uygun ilkiyle
+            // başlar. Kapalıyken eski davranış: önce kaynak listesi.
+            val autoSource = container.settings.autoSource.first()
             fun begin(startMs: Long, auto: Boolean) {
-                if (download != null) playOffline(download, startMs, auto) else sourcesFor = PlayStart(target, startMs, auto)
+                when {
+                    download != null -> playOffline(download, startMs, auto)
+                    autoSource -> context.startActivity(
+                        PlaySession(target, stream = null, startPositionMs = startMs, autoResumed = auto, autoSource = true).toIntent(context),
+                    )
+                    else -> sourcesFor = PlayStart(target, startMs, auto)
+                }
             }
             if (startAtMs == null) {
                 val saved = container.library.progress(target)

@@ -1,13 +1,13 @@
 package com.kaan.play.ui.player
 
-import android.graphics.Color as AndroidColor
 import android.content.Context
+import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.os.SystemClock
 import android.provider.OpenableColumns
+import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,32 +15,31 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import com.kaan.play.ui.components.Button
 import androidx.compose.material3.CircularProgressIndicator
-import com.kaan.play.ui.components.FilledIconButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import com.kaan.play.ui.components.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import com.kaan.play.ui.components.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,21 +51,24 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -78,34 +80,40 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.kaan.play.R
 import com.kaan.play.data.model.MediaType
+import com.kaan.play.data.settings.ResizeMode
 import com.kaan.play.data.settings.SubtitleStyle
 import com.kaan.play.data.stream.PlayTarget
 import com.kaan.play.data.stream.PlayableStream
+import com.kaan.play.data.stream.SizeText
+import com.kaan.play.data.subtitle.SubtitleItem
 import com.kaan.play.i18n.AppLanguage
-import com.kaan.play.ui.components.ChoiceDialog
+import com.kaan.play.ui.components.Button
+import com.kaan.play.ui.components.FilledIconButton
+import com.kaan.play.ui.components.IconButton
+import com.kaan.play.ui.components.TextButton
 import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.settings.SubtitlePreview
 import com.kaan.play.ui.settings.SubtitleStyleControls
 import com.kaan.play.ui.sources.SourcesSheet
 import com.kaan.play.ui.tv.focusRing
-import com.kaan.play.ui.tv.rememberInitialFocus
 import com.kaan.play.ui.tv.requestWhenAttached
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-private const val SEEK_STEP_MS = 10_000L
 private const val HIDE_AFTER_MS = 4_000L
 private const val RESUME_NOTICE_MS = 5_000L
 private const val SEEK_HOLD_MS = 1_200L
 private const val NOTICE_MS = 4_000L
+private const val SOURCE_NOTICE_MS = 5_000L
+private const val RESIZE_LABEL_MS = 1_500L
 
 /**
- * Tam ekran oynatıcı. Kontroller sade: geri/ileri 10 sn, oynat/duraklat, ilerleme çubuğu, altyazı, kaynak değiştir.
- * Hepsi dokunmayla ve yön tuşlarıyla (D-pad/klavye/kumanda) kullanılır: kontroller gizliyken Orta/Enter
- * kontrolleri açar, Sol/Sağ 10 sn atlar, medya tuşları doğrudan çalışır. Sürükle-bırak, çift dokunma ya da
- * uzun basma gerekmez. Altyazı menüsündeki "Görünüm" ayarları değişince altyazı oynatma kesilmeden güncellenir.
+ * Tam ekran oynatıcı. Üst çubuk: geri, çalan kaynağın adı · çözünürlüğü · dosya boyutu, altında film adı. Ortada 10 sn geri / oynat-duraklat /
+ * 10 sn ileri; altta arama çubuğu ve düğmeler: Kilitle, Yeniden boyutlandır, Altyazı senkronu (altyazı seçiliyken), Kaynak, Parçalar.
+ * Hepsi dokunmayla ve yön tuşlarıyla (D-pad/klavye/kumanda) kullanılır: kontroller gizliyken Orta/Enter oynat-duraklatır... Kaynak/altyazı
+ * ve Parçalar iki sütunlu panellerdir (Uygula / İptal). Kilitliyken dokunma ve jestler kapanır, yalnızca açma simgesi görünür.
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -114,7 +122,7 @@ fun PlayerScreen(
     subtitles: SubtitleController,
     target: PlayTarget,
     showResumeNotice: Boolean,
-    /** false: indirilmiş kopya oynuyor, internetten başka kaynak seçilemez (düğme ve menü satırı yok). */
+    /** false: indirilmiş kopya oynuyor, internetten başka kaynak seçilemez (kaynak paneli yalnızca altyazı içindir). */
     canSwitchSource: Boolean = true,
     /** Dikey kaydırmayla ses/parlaklık; null: jest yok (TV/kumanda). */
     levels: DeviceLevels? = null,
@@ -122,21 +130,31 @@ fun PlayerScreen(
     autoNext: AutoNextController? = null,
     /** "İptal" ya da kart açıkken Geri: kart kapanır; video bitmişse etkinlik de kapanır. */
     onAutoNextCancel: () -> Unit = {},
+    /** Kaynak seçimi (çevrimiçi); null: indirilmiş kopya. */
+    coordinator: SourceCoordinator? = null,
+    /** İndirilmiş kopyanın kaynak bilgisi (üst çubuk için). */
+    offlineStream: PlayableStream? = null,
+    /** Seçili ses parçası Türkçe (dosyanın içinde dublaj): "Dublajlı (gömülü ses)". */
+    embeddedDub: Boolean = false,
+    /** Kullanıcı sesi Parçalar panelinden seçti. */
+    onAudioChosen: (Int) -> Unit = {},
     onBack: () -> Unit,
-    onSourcePicked: (PlayableStream) -> Unit,
 ) {
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
     val subtitleStyle by container.settings.subtitleStyle.collectAsStateWithLifecycle(initialValue = SubtitleStyle())
+    val resize by container.settings.resizeMode.collectAsStateWithLifecycle(initialValue = ResizeMode.Fit)
+    val locale = remember { Locale.forLanguageTag(AppLanguage.effective().iso) }
 
     val ui = controller.ui
     var controlsVisible by remember { mutableStateOf(true) }
     var interaction by remember { mutableIntStateOf(0) }
-    var showSources by remember { mutableStateOf(false) }
-    var showSubtitles by remember { mutableStateOf(false) }
+    var showPanel by remember { mutableStateOf(false) }
+    var showTracks by remember { mutableStateOf(false) }
     var showAppearance by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
     var showSync by remember { mutableStateOf(false) }
+    var locked by remember { mutableStateOf(false) }
+    var resizeToast by remember { mutableStateOf<ResizeMode?>(null) }
     var lastSeekKeyAt by remember { mutableLongStateOf(0L) }
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
@@ -149,8 +167,11 @@ fun PlayerScreen(
     val playFocus = remember { FocusRequester() }
     val noticeFocus = remember { FocusRequester() }
     val barFocus = remember { FocusRequester() }
+    val bottomFocus = remember { FocusRequester() }
+    val unlockFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     var barFocused by remember { mutableStateOf(false) }
+    val keyboard = LocalInputModeManager.current.inputMode == InputMode.Keyboard
     // "Dosyadan altyazı ekle": sistem dosya seçicisi (.srt / .vtt / .ass); seçilen dosya hemen açılır, oynatma sürdürülür.
     val context = LocalContext.current
     var resumeAfterPick by remember { mutableStateOf(false) }
@@ -159,14 +180,26 @@ fun PlayerScreen(
         if (resumeAfterPick) controller.player.play()
         resumeAfterPick = false
     }
+
+    val phase = coordinator?.phase ?: SourcePhase.Playing
+    val resolving = phase == SourcePhase.Resolving
+    val sourcesFailed = phase == SourcePhase.Failed
+
     // Sonraki bölüm kartı: kumandada odak ilk düğmededir (Tamam = "Şimdi oynat", Geri = "İptal").
     val cardPhase = autoNext?.phase ?: AutoNextPhase.Hidden
     val cardActive = cardPhase != AutoNextPhase.Hidden
     val cardFocus = remember { FocusRequester() }
     var cardFocused by remember { mutableStateOf(false) }
-    val dialogOpen = showSources || showSubtitles || showAppearance || showMenu || showSync || autoNext?.picking == true
+    // "Dublajlı kaynak bulundu, geçilsin mi?" (köşede; sonraki bölüm kartı varken gösterilmez).
+    val dubOffer = coordinator?.dubSuggestion
+    val dubVisible = dubOffer != null && !cardActive && !locked && ui.error == null
+    val dubFocus = remember { FocusRequester() }
+    var dubFocused by remember { mutableStateOf(false) }
+
+    val dialogOpen = showPanel || showTracks || showAppearance || showSync || autoNext?.picking == true
     // Senkron paneli açıkken kontroller gizlenir: altyazı (altta) ilerleme çubuğunun altında kalmasın.
-    val showControls = (controlsVisible && !showSync) || ui.error != null
+    // Kaynaklar aranırken ve hiçbiri açılmadığında geri düğmesi ve kontroller görünür kalır.
+    val showControls = !locked && ((controlsVisible && !showSync) || ui.error != null || resolving || sourcesFailed)
 
     fun bump() { interaction++ }
     fun reveal() { controlsVisible = true; bump() }
@@ -180,10 +213,20 @@ fun PlayerScreen(
         lastSeekKeyAt = SystemClock.uptimeMillis()
         if (step > 0) seek(direction * step) else bump()
     }
+    fun nextResize() {
+        val next = ResizeMode.entries[(resize.ordinal + 1) % ResizeMode.entries.size]
+        scope.launch { container.settings.setResizeMode(next) }
+        resizeToast = next
+        bump()
+    }
+    fun openPanel() {
+        showPanel = true
+        bump()
+    }
 
     // Kontroller bir süre dokunulmazsa (ve oynatma sürerken) kendiliğinden gizlenir.
-    LaunchedEffect(controlsVisible, interaction, ui.isPlaying, dialogOpen, ui.error) {
-        if (controlsVisible && ui.isPlaying && !dialogOpen && ui.error == null) {
+    LaunchedEffect(controlsVisible, interaction, ui.isPlaying, dialogOpen, ui.error, sourcesFailed) {
+        if (controlsVisible && ui.isPlaying && !dialogOpen && ui.error == null && !sourcesFailed) {
             delay(HIDE_AFTER_MS)
             controlsVisible = false
         }
@@ -203,13 +246,30 @@ fun PlayerScreen(
             subtitles.clearStatus()
         }
     }
-    // Odak: kontroller açıkken ilerleme çubuğunda (hata varsa hata düğmesinde), gizliyken kök yüzeyde
-    // (yön tuşları orada yakalanır).
+    // Kaynak bildirimi ("kaynak açılamadı, önceki kaynağa dönüldü") kısa süre görünür.
+    LaunchedEffect(coordinator?.notice) {
+        if (coordinator?.notice != null) {
+            delay(SOURCE_NOTICE_MS)
+            coordinator.clearNotice()
+        }
+    }
+    LaunchedEffect(resizeToast) {
+        if (resizeToast != null) {
+            delay(RESIZE_LABEL_MS)
+            resizeToast = null
+        }
+    }
+    LaunchedEffect(locked) { if (locked) controlsVisible = false else reveal() }
     LaunchedEffect(cardActive) { if (!cardActive) cardFocused = false }
-    LaunchedEffect(controlsVisible, ui.error, cardPhase) {
+    LaunchedEffect(dubVisible) { if (!dubVisible) dubFocused = false }
+    // Odak: kilitliyken açma simgesinde; hata/kaynak yokken hata düğmesinde; sonraki bölüm kartında; kontroller açıkken ilerleme
+    // çubuğunda; gizliyken kök yüzeyde (yön tuşları orada yakalanır).
+    LaunchedEffect(controlsVisible, ui.error, sourcesFailed, cardPhase, locked, dubVisible, keyboard) {
         when {
-            ui.error != null -> runCatching { playFocus.requestFocus() }
+            locked -> unlockFocus.requestWhenAttached()
+            ui.error != null || sourcesFailed -> runCatching { playFocus.requestFocus() }
             cardActive -> cardFocus.requestWhenAttached()
+            dubVisible && keyboard -> dubFocus.requestWhenAttached()
             controlsVisible -> barFocus.requestWhenAttached()
             else -> runCatching { rootFocus.requestFocus() }
         }
@@ -222,6 +282,8 @@ fun PlayerScreen(
         }
     }
 
+    val effectiveLevels = if (locked) null else levels
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -231,11 +293,28 @@ fun PlayerScreen(
                 // Geri tuşu burada ele alınır: aralıklı olarak (kontroller açıkken) görünüm ağacındaki bir öğe
                 // DOWN olayını tüketiyor ve etkinliğe hiç ulaşmıyordu; kök yakalayıcı ise olayı her zaman görür.
                 if (event.key == Key.Back) {
-                    // Sonraki bölüm kartı açıkken Geri kartı iptal eder (oynatıcıyı kapatmaz).
-                    if (event.type == KeyEventType.KeyUp) { if (cardActive) onAutoNextCancel() else onBack() }
+                    // Kilitliyken Geri kilidi açar; dublaj önerisi ya da sonraki bölüm kartı açıkken kartı kapatır (oynatıcıyı kapatmaz).
+                    if (event.type == KeyEventType.KeyUp) {
+                        when {
+                            locked -> locked = false
+                            dubVisible -> coordinator?.dismissDubSuggestion()
+                            cardActive -> onAutoNextCancel()
+                            else -> onBack()
+                        }
+                    }
                     return@onPreviewKeyEvent true
                 }
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (locked) {
+                    // Kilitliyken yalnızca açma düğmesi (Tamam) ve ses tuşları çalışır; sarma/oynat-duraklat yok.
+                    return@onPreviewKeyEvent when (event.key) {
+                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter,
+                        Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight,
+                        Key.VolumeUp, Key.VolumeDown, Key.VolumeMute -> false
+                        else -> true
+                    }
+                }
+                bump()
                 // Kart açıkken yön tuşları ve Tamam kartın düğmelerine kalır (sarma/oynat-duraklat yerine).
                 if (cardActive && event.key in CARD_KEYS) {
                     if (cardFocused) return@onPreviewKeyEvent false
@@ -256,7 +335,7 @@ fun PlayerScreen(
                         }
                     }
                 }
-                bump()
+                if (dubVisible && dubFocused && event.key in CARD_KEYS) return@onPreviewKeyEvent false
                 val repeat = event.nativeKeyEvent.repeatCount
                 // Sarma sürerken (basılı tutma) kontroller açılsa da Sol/Sağ sarmaya devam eder, odağı gezdirmez.
                 val seeking = SystemClock.uptimeMillis() - lastSeekKeyAt < SEEK_HOLD_MS
@@ -266,141 +345,232 @@ fun PlayerScreen(
                     PlayerKeyAction.SeekBack -> { seekByKey(-1, repeat); true }
                     PlayerKeyAction.SeekForward -> { seekByKey(1, repeat); true }
                     PlayerKeyAction.Reveal -> { reveal(); true }
-                    PlayerKeyAction.OpenMenu -> { reveal(); showMenu = true; true }
-                    PlayerKeyAction.GoToButtons -> { runCatching { playFocus.requestFocus() }; true }
+                    PlayerKeyAction.OpenMenu -> { reveal(); openPanel(); true }
+                    PlayerKeyAction.GoToButtons -> { runCatching { bottomFocus.requestFocus() }; true }
                     PlayerKeyAction.LeaveBarUp -> focusManager.moveFocus(FocusDirection.Up)
                 }
             }
             // Açık focusable(): clickable dokunmatik modda odak almaz; gizli kontrollerde tuşlar buraya gelmeli.
             .focusable()
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+            .clickable(enabled = !locked, interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 controlsVisible = !controlsVisible
                 bump()
             }
-            // clickable'dan sonra: eşik aşılınca olayı tüketir, dokunuş tıklama sayılmaz.
-            .levelGestures(levels, zones, levelIndicator),
+            // clickable'dan sonra: eşik aşılınca olayı tüketir, dokunuş tıklama sayılmaz. Kilitliyken jest yok.
+            .levelGestures(effectiveLevels, zones, levelIndicator),
     ) {
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                    player = controller.player
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    setShutterBackgroundColor(AndroidColor.BLACK)
-                    // Odak ve tuşlar Compose katmanında; görünüm odak çalmasın.
-                    isFocusable = false
-                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-                    // Harici altyazı satırlarını (kaydırmayla birlikte) kendimiz veririz; videonun içindekileri Media3 çizer.
-                    subtitles.attach { cues -> subtitleView?.setCues(SubtitleCues.toCues(cues)) }
-                }
-            },
-            // Ayar değişince anında uygulanır; oynatma kesilmez.
-            update = { view -> view.subtitleView?.let { SubtitleStyling.apply(it, subtitleStyle) } },
-            onRelease = { subtitles.attach(null) },
-            modifier = Modifier.fillMaxSize(),
-        )
+        // Görüntü: sığdır / doldur (kırp) / uzat; 16:9 ve 4:3'te görüntü o oranda bir alana uzatılır.
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            val ratio = when (resize) {
+                ResizeMode.Ratio16x9 -> 16f / 9f
+                ResizeMode.Ratio4x3 -> 4f / 3f
+                else -> null
+            }
+            val viewModifier = when {
+                ratio == null -> Modifier.fillMaxSize()
+                maxWidth / maxHeight > ratio -> Modifier.fillMaxHeight().aspectRatio(ratio)
+                else -> Modifier.fillMaxWidth().aspectRatio(ratio)
+            }
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        useController = false
+                        player = controller.player
+                        setShutterBackgroundColor(AndroidColor.BLACK)
+                        // Odak ve tuşlar Compose katmanında; görünüm odak çalmasın.
+                        isFocusable = false
+                        descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                        // Harici altyazı satırlarını (kaydırmayla birlikte) kendimiz veririz; videonun içindekileri Media3 çizer.
+                        subtitles.attach { cues -> subtitleView?.setCues(SubtitleCues.toCues(cues)) }
+                    }
+                },
+                // Ayar değişince anında uygulanır; oynatma kesilmez.
+                update = { view ->
+                    view.resizeMode = when (resize) {
+                        ResizeMode.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        ResizeMode.Fill -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        else -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    }
+                    view.subtitleView?.let { SubtitleStyling.apply(it, subtitleStyle) }
+                },
+                onRelease = { subtitles.attach(null) },
+                modifier = viewModifier,
+            )
+        }
 
         subtitles.status.takeIf { it != SubtitleStatus.Idle }?.let { status ->
             SubtitleNotice(
                 text = stringResource(if (status == SubtitleStatus.Loading) R.string.subtitle_loading else R.string.subtitle_load_failed),
-                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 72.dp),
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 96.dp),
             )
         }
 
         LevelIndicator(levelIndicator)
 
-        if (ui.buffering && ui.error == null) {
+        if (resolving && ui.error == null) {
+            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                CircularProgressIndicator(Modifier.size(40.dp), color = Color.White)
+                Text(stringResource(R.string.player_sources_loading), style = MaterialTheme.typography.bodyLarge, color = Color.White)
+            }
+        } else if ((ui.buffering || coordinator?.switching == true) && ui.error == null && !sourcesFailed) {
+            // Kaynak değişirken (kaldığı saniyeden devam) ve tamponlarken dönen yükleme göstergesi.
             CircularProgressIndicator(Modifier.align(Alignment.Center).size(40.dp), color = Color.White)
         }
 
         if (showControls) {
+            val playing = coordinator?.current ?: offlineStream
+            val sizeText = playing?.let { SizeText.format(coordinator?.sizeOf(it) ?: it.sizeBytes, locale) }
+            val dims = SizeText.dimensions(ui.videoWidth, ui.videoHeight)
+            val dubTag = when {
+                embeddedDub -> stringResource(R.string.tag_dubbed_embedded)
+                playing?.dubbed == true -> stringResource(R.string.tag_dubbed)
+                else -> null
+            }
+            val infoLine = listOfNotNull(playing?.source?.addonName, dims, sizeText, dubTag)
+                .reduceOrNull { acc, part -> stringResource(R.string.dot_join, acc, part) }
+            val canSync = subtitles.selected is SubtitleItem.External && subtitles.status == SubtitleStatus.Idle
+            val actions = buildList {
+                add(BarAction(PlayIcons.Lock, stringResource(R.string.player_btn_lock)) { locked = true })
+                add(BarAction(PlayIcons.Resize, stringResource(R.string.player_btn_resize), ::nextResize))
+                if (canSync) add(BarAction(PlayIcons.SubtitleSync, stringResource(R.string.player_btn_sync)) { showSync = true })
+                add(BarAction(PlayIcons.SwitchSource, stringResource(R.string.player_btn_source), ::openPanel))
+                add(BarAction(PlayIcons.Tracks, stringResource(R.string.player_btn_tracks)) { showTracks = true; bump() })
+            }
             Controls(
-                target = target,
+                infoLine = infoLine,
+                title = titleOf(target),
                 isPlaying = ui.isPlaying,
-                hasError = ui.error != null,
+                // Hata, kaynak yok ya da kaynaklar aranırken yalnızca üst çubuk (geri) görünür; oynat/sar/alt düğmeler anlamsızdır.
+                minimal = ui.error != null || sourcesFailed || resolving,
                 position = position,
                 duration = duration,
                 zones = zones,
                 playFocus = playFocus,
                 barFocus = barFocus,
+                bottomFocus = bottomFocus,
                 onBarFocusChange = { barFocused = it },
                 noticeFocus = if (resumeNotice) noticeFocus else null,
+                actions = actions,
                 onBack = onBack,
                 onTogglePlay = { controller.togglePlay(); bump() },
                 onSeek = ::seek,
                 onSeekTo = { controller.seekTo(it); position = it; bump() },
-                onSubtitles = { showSubtitles = true },
-                onSources = if (canSwitchSource) ({ showSources = true }) else null,
                 onInteract = ::bump,
             )
         }
 
-        if (resumeNotice && ui.error == null) {
+        if (resumeNotice && ui.error == null && !locked) {
             ResumeNotice(
                 onRestart = { controller.seekTo(0L); position = 0L; resumeNotice = false; bump() },
                 focus = noticeFocus,
                 upFocus = playFocus,
                 onFocusChange = { noticeFocused = it },
-                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 96.dp)
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 156.dp)
                     .gestureZone(zones, "notice"),
             )
         }
 
-        if (autoNext != null && cardActive && ui.error == null) {
+        if (autoNext != null && cardActive && ui.error == null && !locked) {
             NextEpisodeCard(
                 state = autoNext,
                 primaryFocus = cardFocus,
                 onCancel = onAutoNextCancel,
-                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 24.dp, bottom = 96.dp)
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 24.dp, bottom = 156.dp)
                     .gestureZone(zones, "next")
                     .onFocusChanged { cardFocused = it.hasFocus },
             )
         }
 
-        ui.error?.let { error ->
+        if (coordinator != null && dubVisible) {
+            DubSuggestionCard(
+                onSwitch = coordinator::acceptDubSuggestion,
+                onClose = coordinator::dismissDubSuggestion,
+                primaryFocus = dubFocus,
+                modifier = Modifier.align(Alignment.BottomStart).navigationBarsPadding().padding(start = 24.dp, bottom = 156.dp)
+                    .gestureZone(zones, "dub")
+                    .onFocusChanged { dubFocused = it.hasFocus },
+            )
+        }
+
+        // Kaynak açılmadı / hata: ana ileti sade, hata kodu ayrıntı satırında.
+        if (ui.error != null || sourcesFailed) {
             Column(
                 modifier = Modifier.align(Alignment.Center).gestureZone(zones, "error").padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
+                val message = when {
+                    sourcesFailed && coordinator?.streams.isNullOrEmpty() -> R.string.player_no_sources
+                    sourcesFailed -> R.string.player_all_failed
+                    canSwitchSource -> ui.error!!.messageRes()
+                    else -> R.string.player_error_download
+                }
                 Text(
-                    text = stringResource(if (canSwitchSource) error.messageRes() else R.string.player_error_download),
+                    text = stringResource(message),
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White,
                     textAlign = TextAlign.Center,
                 )
                 if (canSwitchSource) {
-                    Button(onClick = { showSources = true }, modifier = Modifier.focusRequester(playFocus)) {
+                    Button(onClick = { openPanel() }, modifier = Modifier.focusRequester(playFocus)) {
                         Text(stringResource(R.string.player_error_pick))
                     }
                 }
             }
         }
+
+        coordinator?.notice?.let { notice ->
+            SourceNoticePill(notice, Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 84.dp))
+        }
+
+        resizeToast?.let { mode ->
+            Text(
+                text = resizeText(mode),
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                // Üstte (oynat düğmesinin üstüne binmesin).
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 96.dp)
+                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(24.dp))
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+            )
+        }
+
+        // Kilitliyken yalnızca açma simgesi görünür.
+        if (locked) {
+            IconButton(
+                onClick = { locked = false },
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                    .focusRequester(unlockFocus),
+            ) {
+                Icon(PlayIcons.Unlock, contentDescription = stringResource(R.string.player_btn_unlock), tint = Color.White)
+            }
+        }
     }
 
-    if (showMenu) {
-        PlayerMenu(
-            onSubtitles = { showMenu = false; showSubtitles = true },
-            onSources = if (canSwitchSource) ({ showMenu = false; showSources = true }) else null,
-            onDismiss = { showMenu = false },
-        )
-    }
-
-    if (showSubtitles) {
-        val audio = remember(ui.tracksVersion) { controller.audioTracks() }
-        SubtitleMenu(
+    if (showPanel) {
+        SourcePanel(
+            coordinator = coordinator,
+            offlineStream = offlineStream,
             subtitles = subtitles,
-            audio = audio,
-            onAudio = controller::selectAudio,
+            embeddedDub = embeddedDub,
             online = canSwitchSource,
             onAddFile = {
-                showSubtitles = false
+                showPanel = false
                 resumeAfterPick = controller.player.isPlaying
                 runCatching { pickSubtitle.launch(arrayOf("*/*")) }
             },
-            onAppearance = { showSubtitles = false; showAppearance = true },
-            onSync = { showSubtitles = false; showSync = true },
-            onDismiss = { showSubtitles = false },
+            onAppearance = { showPanel = false; showAppearance = true },
+            onDismiss = { showPanel = false },
+        )
+    }
+
+    if (showTracks) {
+        TracksPanel(
+            controller = controller,
+            tracksVersion = ui.tracksVersion,
+            onAudioChosen = onAudioChosen,
+            onDismiss = { showTracks = false },
         )
     }
 
@@ -427,18 +597,20 @@ fun PlayerScreen(
         )
     }
 
-    if (showSources) {
-        SourcesSheet(
-            target = target,
-            onDismiss = { showSources = false },
-            onPicked = { showSources = false; resumeNotice = false; onSourcePicked(it) },
-        )
-    }
-
     // Sonraki bölümün kaynağı hiç bulunamadıysa: kullanıcı listeden seçer, seçilen akışla bölüm açılır.
     if (autoNext != null && autoNext.picking) {
         SourcesSheet(target = autoNext.nextTarget(), onDismiss = autoNext::dismissPicking, onPicked = autoNext::picked)
     }
+}
+
+/** Seçilen dosyanın görünen adı (`film.tr.srt`); okunamazsa adresin son parçası. */
+private fun displayName(context: Context, uri: Uri): String {
+    val name = runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    }.getOrNull()
+    return name?.takeIf { it.isNotBlank() } ?: uri.lastPathSegment?.substringAfterLast('/').orEmpty()
 }
 
 /** Kart açıkken kartın düğmelerine bırakılan tuşlar (kök yakalayıcı bunları sarma/oynat için kullanmaz). */
@@ -446,6 +618,91 @@ private val CARD_KEYS = setOf(
     Key.DirectionCenter, Key.Enter, Key.NumPadEnter,
     Key.DirectionLeft, Key.DirectionRight, Key.DirectionUp, Key.DirectionDown,
 )
+
+@Composable
+private fun resizeText(mode: ResizeMode): String = stringResource(
+    when (mode) {
+        ResizeMode.Fit -> R.string.resize_fit
+        ResizeMode.Fill -> R.string.resize_fill
+        ResizeMode.Stretch -> R.string.resize_stretch
+        ResizeMode.Ratio16x9 -> R.string.resize_16_9
+        ResizeMode.Ratio4x3 -> R.string.resize_4_3
+    },
+)
+
+/** Alt düğme satırındaki bir eylem. */
+private class BarAction(val icon: ImageVector, val label: String, val onClick: () -> Unit)
+
+/** Altyazı yükleniyor / yüklenemedi: tek satırlık, sade bildirim. */
+@Composable
+private fun SubtitleNotice(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = Color.White,
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(24.dp))
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+    )
+}
+
+/** Kaynak bildirimi: ana ileti sade; hata kodu küçük ayrıntı satırında. */
+@Composable
+private fun SourceNoticePill(notice: SourceNotice, modifier: Modifier = Modifier) {
+    val (message, detail) = when (notice) {
+        is SourceNotice.SwitchFailed -> R.string.player_switch_failed to notice.detail
+        is SourceNotice.Skipped -> R.string.player_source_skipped to notice.detail
+    }
+    Column(
+        modifier = modifier
+            .widthIn(max = 480.dp)
+            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(stringResource(message), style = MaterialTheme.typography.bodyMedium, color = Color.White, textAlign = TextAlign.Center)
+        Text(
+            stringResource(R.string.player_error_detail, detail),
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.White.copy(alpha = 0.6f),
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/** Sade, kısa ömürlü bildirim: konum korunur, tek düğme baştan başlatır. */
+@Composable
+private fun ResumeNotice(
+    onRestart: () -> Unit,
+    focus: FocusRequester,
+    upFocus: FocusRequester,
+    onFocusChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(24.dp))
+            .padding(start = 20.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.player_resuming),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White,
+            modifier = Modifier.padding(end = 4.dp),
+        )
+        // Kumanda: oynat düğmesinden Aşağı ile gelinir (Controls), Yukarı ile oynat düğmesine dönülür.
+        TextButton(
+            onClick = onRestart,
+            modifier = Modifier
+                .focusRequester(focus)
+                .focusProperties { up = upFocus }
+                .onFocusChanged { onFocusChange(it.hasFocus) },
+        ) {
+            Text(stringResource(R.string.resume_restart))
+        }
+    }
+}
 
 /**
  * Köşedeki "Sonraki bölüm" kartı: geri sayım (Şimdi oynat / İptal), kaynak hazırlanırken (İptal) ya da kaynak bulunamayınca
@@ -498,81 +755,48 @@ private fun NextEpisodeCard(
     }
 }
 
-/** Seçilen dosyanın görünen adı (`film.tr.srt`); okunamazsa adresin son parçası. */
-private fun displayName(context: Context, uri: Uri): String {
-    val name = runCatching {
-        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else null
-        }
-    }.getOrNull()
-    return name?.takeIf { it.isNotBlank() } ?: uri.lastPathSegment?.substringAfterLast('/').orEmpty()
-}
-
-/** Altyazı yükleniyor / yüklenemedi: tek satırlık, sade bildirim. */
+/** Sol alt köşede "Dublajlı kaynak bulundu, geçilsin mi?" (Geç / Kapat). Oynatma kesilmez; Geç kaldığı saniyeden devam ettirir. */
 @Composable
-private fun SubtitleNotice(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = Color.White,
-        modifier = modifier
-            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(24.dp))
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-    )
-}
-
-/** Sade, kısa ömürlü bildirim: konum korunur, tek düğme baştan başlatır. */
-@Composable
-private fun ResumeNotice(
-    onRestart: () -> Unit,
-    focus: FocusRequester,
-    upFocus: FocusRequester,
-    onFocusChange: (Boolean) -> Unit,
+private fun DubSuggestionCard(
+    onSwitch: () -> Unit,
+    onClose: () -> Unit,
+    primaryFocus: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = modifier
-            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(24.dp))
-            .padding(start = 20.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .widthIn(max = 340.dp)
+            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(
-            text = stringResource(R.string.player_resuming),
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White,
-            modifier = Modifier.padding(end = 4.dp),
-        )
-        // Kumanda: oynat düğmesinden Aşağı ile gelinir (Controls), Yukarı ile oynat düğmesine dönülür.
-        TextButton(
-            onClick = onRestart,
-            modifier = Modifier
-                .focusRequester(focus)
-                .focusProperties { up = upFocus }
-                .onFocusChanged { onFocusChange(it.hasFocus) },
-        ) {
-            Text(stringResource(R.string.resume_restart))
+        Text(stringResource(R.string.dub_suggest_title), style = MaterialTheme.typography.bodyMedium, color = Color.White)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = onSwitch, modifier = Modifier.focusRequester(primaryFocus)) { Text(stringResource(R.string.dub_suggest_switch)) }
+            TextButton(onClick = onClose) { Text(stringResource(R.string.dub_suggest_close)) }
         }
     }
 }
 
 @Composable
 private fun Controls(
-    target: PlayTarget,
+    infoLine: String?,
+    title: String,
     isPlaying: Boolean,
-    hasError: Boolean,
+    minimal: Boolean,
     position: Long,
     duration: Long,
     zones: GestureZones,
     playFocus: FocusRequester,
     barFocus: FocusRequester,
+    bottomFocus: FocusRequester,
     onBarFocusChange: (Boolean) -> Unit,
     noticeFocus: FocusRequester?,
+    actions: List<BarAction>,
     onBack: () -> Unit,
     onTogglePlay: () -> Unit,
     onSeek: (Long) -> Unit,
     onSeekTo: (Long) -> Unit,
-    onSubtitles: () -> Unit,
-    onSources: (() -> Unit)?,
     onInteract: () -> Unit,
 ) {
     val tint = Color.White
@@ -580,11 +804,12 @@ private fun Controls(
         // Üst ve alt kenarda okunabilirlik için yumuşak karartma.
         Box(Modifier.fillMaxWidth().height(120.dp).align(Alignment.TopCenter)
             .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent))))
-        if (!hasError) {
-            Box(Modifier.fillMaxWidth().height(140.dp).align(Alignment.BottomCenter)
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))))
+        if (!minimal) {
+            Box(Modifier.fillMaxWidth().height(190.dp).align(Alignment.BottomCenter)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)))))
         }
 
+        // Üst çubuk: geri, çalan kaynak (ad · çözünürlük · boyut), altında içerik adı.
         Row(
             modifier = Modifier.fillMaxWidth().gestureZone(zones, "top").statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -592,43 +817,40 @@ private fun Controls(
             IconButton(onClick = onBack) {
                 Icon(PlayIcons.Back, contentDescription = stringResource(R.string.common_back), tint = tint)
             }
-            Text(
-                text = titleOf(target),
-                style = MaterialTheme.typography.titleLarge,
-                color = tint,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-            )
-            if (!hasError) {
-                IconButton(onClick = onSubtitles) {
-                    Icon(PlayIcons.Subtitles, contentDescription = stringResource(R.string.player_subtitles), tint = tint)
+            Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                if (infoLine != null) {
+                    Text(
+                        text = infoLine,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = tint,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-            }
-            if (onSources != null) {
-                IconButton(onClick = onSources) {
-                    Icon(PlayIcons.SwitchSource, contentDescription = stringResource(R.string.player_sources), tint = tint)
-                }
+                Text(
+                    text = title,
+                    style = if (infoLine != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleLarge,
+                    color = if (infoLine != null) tint.copy(alpha = 0.75f) else tint,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
 
-        if (!hasError) {
+        if (!minimal) {
             Row(
                 modifier = Modifier.align(Alignment.Center).gestureZone(zones, "center"),
                 horizontalArrangement = Arrangement.spacedBy(32.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                val upToBar = Modifier.focusProperties { up = barFocus }
-                SeekButton(PlayIcons.SeekBack, stringResource(R.string.player_rewind), tint, modifier = upToBar) { onSeek(-10_000L) }
+                val downToBar = Modifier.focusProperties { down = barFocus }
+                SeekButton(PlayIcons.SeekBack, stringResource(R.string.player_rewind), tint, modifier = downToBar) { onSeek(-10_000L) }
                 FilledIconButton(
                     onClick = onTogglePlay,
                     modifier = Modifier
                         .size(72.dp)
                         .focusRequester(playFocus)
-                        .focusProperties {
-                            up = barFocus
-                            down = noticeFocus ?: FocusRequester.Default
-                        },
+                        .focusProperties { down = noticeFocus ?: barFocus },
                     colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primary),
                 ) {
                     Icon(
@@ -638,20 +860,58 @@ private fun Controls(
                         modifier = Modifier.size(36.dp),
                     )
                 }
-                SeekButton(PlayIcons.SeekForward, stringResource(R.string.player_forward), tint, iconFirst = false, modifier = upToBar) { onSeek(10_000L) }
+                SeekButton(PlayIcons.SeekForward, stringResource(R.string.player_forward), tint, iconFirst = false, modifier = downToBar) { onSeek(10_000L) }
             }
 
-            ProgressBar(
-                position = position,
-                duration = duration,
-                onSeekTo = onSeekTo,
-                onInteract = onInteract,
-                focus = barFocus,
-                downFocus = playFocus,
-                onFocusChange = onBarFocusChange,
-                modifier = Modifier.align(Alignment.BottomCenter).gestureZone(zones, "bar").padding(horizontal = 24.dp, vertical = 16.dp),
-            )
+            Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(horizontal = 24.dp, vertical = 8.dp)) {
+                ProgressBar(
+                    position = position,
+                    duration = duration,
+                    onSeekTo = onSeekTo,
+                    onInteract = onInteract,
+                    focus = barFocus,
+                    upFocus = playFocus,
+                    downFocus = bottomFocus,
+                    onFocusChange = onBarFocusChange,
+                    modifier = Modifier.gestureZone(zones, "bar"),
+                )
+                // Alt düğmeler: Kilitle, Yeniden boyutlandır, Altyazı senkronu (altyazı seçiliyken), Kaynak, Parçalar.
+                Row(
+                    modifier = Modifier.fillMaxWidth().gestureZone(zones, "buttons"),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    actions.forEachIndexed { i, action ->
+                        BarButton(
+                            icon = action.icon,
+                            label = action.label,
+                            onClick = action.onClick,
+                            modifier = Modifier.weight(1f)
+                                .then(if (i == 0) Modifier.focusRequester(bottomFocus) else Modifier)
+                                .focusProperties { up = barFocus },
+                        )
+                    }
+                }
+            }
         }
+    }
+}
+
+/** Alt düğme: ikon + küçük etiket; odakta turkuaz halka (kumanda). */
+@Composable
+private fun BarButton(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(12.dp)
+    Column(
+        modifier = modifier.clip(shape).focusRing(shape).clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -681,6 +941,7 @@ private fun ProgressBar(
     onSeekTo: (Long) -> Unit,
     onInteract: () -> Unit,
     focus: FocusRequester,
+    upFocus: FocusRequester,
     downFocus: FocusRequester,
     onFocusChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -712,7 +973,7 @@ private fun ProgressBar(
                 .weight(1f)
                 .padding(horizontal = 12.dp)
                 .focusRequester(focus)
-                .focusProperties { down = downFocus },
+                .focusProperties { up = upFocus; down = downFocus },
         )
         Text(formatTime(duration), style = MaterialTheme.typography.bodyMedium, color = Color.White)
     }
@@ -741,31 +1002,4 @@ internal fun formatTime(ms: Long): String {
     val m = (total % 3600) / 60
     val s = total % 60
     return if (h > 0) String.format(Locale.ROOT, "%d:%02d:%02d", h, m, s) else String.format(Locale.ROOT, "%d:%02d", m, s)
-}
-
-/** Kumandada Aşağı ile açılan küçük menü: altyazı ya da kaynak değiştir. İlk satır başlangıç odağındadır. */
-@Composable
-private fun PlayerMenu(onSubtitles: () -> Unit, onSources: (() -> Unit)?, onDismiss: () -> Unit) {
-    val focus = rememberInitialFocus()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        text = {
-            Column {
-                MenuRow(PlayIcons.Subtitles, stringResource(R.string.player_subtitles), onSubtitles, Modifier.focusRequester(focus))
-                if (onSources != null) MenuRow(PlayIcons.SwitchSource, stringResource(R.string.player_sources), onSources)
-            }
-        },
-        confirmButton = {},
-    )
-}
-
-@Composable
-private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null)
-        Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 16.dp))
-    }
 }

@@ -40,13 +40,29 @@ data class PlayerUiState(
     val error: PlaybackError? = null,
     /** Altyazı parçaları değişince artar; seçenek listesi buna göre yeniden okunur. */
     val tracksVersion: Int = 0,
+    /** Çalan videonun çözünürlüğü (bilinmiyorsa 0). */
+    val videoWidth: Int = 0,
+    val videoHeight: Int = 0,
 )
 
 /** Videonun içindeki (Media3'ün okuduğu) altyazı parçası; [index] parça listesindeki sıradır. */
 data class EmbeddedSubtitle(val index: Int, val language: String?, val selected: Boolean, val label: String? = null)
 
-/** Videonun ses parçası; [index] ses parçaları listesindeki sıradır, [label] parçanın kendi adı (yoksa null). */
-data class AudioTrack(val index: Int, val language: String?, val label: String?, val selected: Boolean)
+/**
+ * Videonun ses parçası; [index] ses parçaları listesindeki sıradır, [label] parçanın kendi adı (yoksa null), [channels] kanal sayısı
+ * (bilinmiyorsa 0), [mime] ses codec türü.
+ */
+data class AudioTrack(
+    val index: Int,
+    val language: String?,
+    val label: String?,
+    val selected: Boolean,
+    val channels: Int = 0,
+    val mime: String? = null,
+)
+
+/** Videonun çözünürlük/bitrate seçeneği (uyarlanabilir akışlarda birden çok); [group] ve [track] oynatıcının parça konumudur. */
+data class VideoOption(val group: Int, val track: Int, val width: Int, val height: Int, val bitrate: Int, val selected: Boolean)
 
 /**
  * Media3 ExoPlayer'ı sarar: kaynağı yükler (proxyHeaders), durumu Compose'a açar. Başlıklar yalnızca akış isteklerine eklenir.
@@ -97,7 +113,10 @@ class PlaybackController(
      * Kaynak açılamayınca hata ekranından önce çağrılır; true dönerse (ör. yedek kaynağa geçildi) hata gösterilmez.
      * Yalnızca otomatik sonraki bölümde kullanılır.
      */
-    var onFailure: (() -> Boolean)? = null
+    var onFailure: ((String) -> Boolean)? = null
+
+    /** İlk video karesi çizildi (kaynak gerçekten açıldı); kaynak seçimi 10 sn'lik süreyi buna göre izler. */
+    var onFirstFrame: (() -> Unit)? = null
 
     init {
         player.addListener(object : Player.Listener {
@@ -107,6 +126,10 @@ class PlaybackController(
 
             override fun onPlaybackStateChanged(state: Int) {
                 ui = ui.copy(buffering = state == Player.STATE_BUFFERING, ended = state == Player.STATE_ENDED)
+                // Görüntüsüz içerik (yalnızca ses) için ilk kare gelmez: hazır olunca açıldı sayılır.
+                if (state == Player.STATE_READY && player.currentTracks.groups.none { it.type == C.TRACK_TYPE_VIDEO && it.isSelected }) {
+                    onFirstFrame?.invoke()
+                }
             }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -125,12 +148,20 @@ class PlaybackController(
                     player.prepare()
                     return
                 }
-                if (onFailure?.invoke() == true) return
+                if (onFailure?.invoke(failureDetail(error, http?.responseCode)) == true) return
                 ui = ui.copy(error = errorOf(error), buffering = false)
             }
 
             override fun onTracksChanged(tracks: Tracks) {
                 ui = ui.copy(tracksVersion = ui.tracksVersion + 1)
+            }
+
+            override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
+                ui = ui.copy(videoWidth = videoSize.width, videoHeight = videoSize.height)
+            }
+
+            override fun onRenderedFirstFrame() {
+                onFirstFrame?.invoke()
             }
         })
     }
@@ -209,8 +240,34 @@ class PlaybackController(
     /** Videonun ses parçaları (dil etiketiyle; altyazı menüsünde birden çoksa seçilir). */
     fun audioTracks(): List<AudioTrack> = audioGroups().mapIndexed { i, group ->
         val format = group.mediaTrackGroup.getFormat(0)
-        AudioTrack(i, format.language, format.label, group.isSelected)
+        AudioTrack(i, format.language, format.label, group.isSelected, format.channelCount.coerceAtLeast(0), format.sampleMimeType)
     }
+
+    private fun videoGroups(): List<Tracks.Group> =
+        player.currentTracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO && it.isSupported }
+
+    /** Videonun çözünürlük/bitrate seçenekleri (uyarlanabilir akışlarda birden çok; düz dosyada tek). */
+    fun videoOptions(): List<VideoOption> = videoGroups().flatMapIndexed { gi, group ->
+        (0 until group.length).filter { group.isTrackSupported(it) }.map { ti ->
+            val f = group.mediaTrackGroup.getFormat(ti)
+            VideoOption(gi, ti, f.width.coerceAtLeast(0), f.height.coerceAtLeast(0), f.bitrate.coerceAtLeast(0), group.isTrackSelected(ti))
+        }
+    }
+
+    /** Video parçasını seçer; [option] null: "Otomatik" (oynatıcı kendi seçer). */
+    fun selectVideo(option: VideoOption?) {
+        val builder = player.trackSelectionParameters.buildUpon()
+        if (option == null) {
+            builder.clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+        } else {
+            val group = videoGroups().getOrNull(option.group) ?: return
+            builder.setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, option.track))
+        }
+        player.trackSelectionParameters = builder.build()
+    }
+
+    /** Video seçimi elle sabitlenmiş mi (aksi hâlde "Otomatik")? */
+    fun videoPinned(): Boolean = player.trackSelectionParameters.overrides.keys.any { it.type == C.TRACK_TYPE_VIDEO }
 
     fun selectAudio(index: Int) {
         val group = audioGroups().getOrNull(index) ?: return
@@ -265,6 +322,10 @@ class PlaybackController(
                 else -> null
             }
         }
+
+        /** Hata ayrıntısı (ana iletide gösterilmez): "ERROR_CODE_IO_BAD_HTTP_STATUS (2004) http=404". */
+        internal fun failureDetail(e: PlaybackException, httpCode: Int?): String =
+            "${e.errorCodeName} (${e.errorCode})" + (httpCode?.let { " http=$it" } ?: "")
 
         internal fun errorOf(e: PlaybackException): PlaybackError = when (e.errorCode) {
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,

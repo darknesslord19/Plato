@@ -16,6 +16,12 @@ val tmdbApiKey: String = localProps.getProperty("TMDB_API_KEY")
     ?: System.getenv("TMDB_API_KEY")
     ?: ""
 
+// SubDL altyazı araması için anahtar (isteğe bağlı): local.properties'te SUBDL_API_KEY. Yoksa SubDL sessizce atlanır.
+// Anahtar git'e girmez (local.properties .gitignore'dadır); derlemede BuildConfig'e geçer.
+val subdlApiKey: String = localProps.getProperty("SUBDL_API_KEY")
+    ?: System.getenv("SUBDL_API_KEY")
+    ?: ""
+
 android {
     namespace = "com.kaan.play"
     compileSdk = 37
@@ -29,6 +35,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
+        buildConfigField("String", "SUBDL_API_KEY", "\"$subdlApiKey\"")
     }
 
     // Yayın imzası: keystore yolu repoda, şifreler yalnızca local.properties'te (ya da ortam değişkeninde).

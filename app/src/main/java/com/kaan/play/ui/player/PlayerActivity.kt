@@ -7,6 +7,10 @@ import android.os.SystemClock
 import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -19,24 +23,29 @@ import com.kaan.play.data.db.DownloadStatus
 import com.kaan.play.data.download.DownloadedSubtitleLoader
 import com.kaan.play.data.library.WatchRules
 import com.kaan.play.data.model.MediaType
+import com.kaan.play.data.stream.DeviceCodecs
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.TorrentLinks
-import androidx.compose.runtime.snapshotFlow
 import com.kaan.play.data.subtitle.SubtitleDiag
 import com.kaan.play.data.subtitle.SubtitleItem
 import com.kaan.play.data.subtitle.SubtitleKind
+import com.kaan.play.data.subtitle.SubtitleLanguages
 import com.kaan.play.data.subtitle.SubtitleLoader
 import com.kaan.play.data.subtitle.SubtitleProvider
 import com.kaan.play.data.subtitle.TrackLoader
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.emptyFlow
 import com.kaan.play.ui.theme.PlayTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * Tam ekran yatay oynatıcı. Ekran açık kalır. Konum her 10 sn'de bir, duraklatınca, kaynak değişince,
  * bitince ve etkinlik durunca (Geri dahil) geçmişe yazılır; kurallar [WatchRules]'tadır.
+ *
+ * Kaynak seçimi [SourceCoordinator]'dadır: "Kaynağı otomatik seç" açıkken kaynak listesi beklenmez, kaynaklar arka planda yüklenirken
+ * uygun ilk kaynakla başlanır; kaynak/altyazı/ses/çözünürlük oynatıcının içinden değiştirilir.
  */
 class PlayerActivity : AppCompatActivity() {
 
@@ -45,11 +54,19 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var subtitles: SubtitleController
     private lateinit var autoNext: AutoNextController
 
-    /** Şu an oynayan akış (kaynak değişince güncellenir); sonraki bölümde "aynı eklenti" bundan bulunur. */
-    private lateinit var currentStream: PlayableStream
+    /** Çevrimiçi oynatmada kaynak seçimi; indirilmiş kopyada (çevrimdışı) null. */
+    private var coordinator: SourceCoordinator? = null
 
-    /** Otomatik sonraki bölümde [PlaySession.stream] açılmazsa sırayla denenecek yedekler. */
-    private val fallbacks = ArrayDeque<PlayableStream>()
+    /** Şu an oynayan akış (kaynak değişince güncellenir); sonraki bölümde "aynı eklenti" bundan bulunur. */
+    private var currentStream: PlayableStream? = null
+
+    /** Seçili ses parçası Türkçe mi (dosyanın içindeki dublaj): üst çubukta/panelde "Dublajlı (gömülü ses)". */
+    private var embeddedDub by mutableStateOf(false)
+
+    /** Kullanıcı sesi elle seçtiyse otomatik Türkçe ses seçimi dokunmaz; kaynak değişince aynı dil aranır. */
+    private var userAudioChosen = false
+    private var userAudioLanguage: String? = null
+    private var preferDub = true
 
     /** Sonraki bölüme geçiliyor: bu bölüm "izlendi" yazılır, oynatıcı hataları (kapanan torrent vb.) gösterilmez. */
     private var leaving = false
@@ -66,8 +83,6 @@ class PlayerActivity : AppCompatActivity() {
             return
         }
         session = parsed
-        currentStream = parsed.stream
-        fallbacks.addAll(parsed.fallbacks)
         if (parsed.fromAutoNext) noTransition(open = true)
         val container = (application as PlayApp).container
 
@@ -108,7 +123,6 @@ class PlayerActivity : AppCompatActivity() {
             onAdvance = ::advanceTo,
         )
         autoNext.start()
-        controller.onFailure = { leaving || tryFallback() }
         subtitles = SubtitleController(
             scope = lifecycleScope,
             playback = controller,
@@ -130,7 +144,6 @@ class PlayerActivity : AppCompatActivity() {
             preferredLanguage = { container.settings.subtitleLanguage.first() },
             persist = container.appScope,
         )
-        subtitles.setStream(session.stream)
         subtitles.start()
         // Teşhis (yalnızca debug): videonun içindeki parçalar ve geçerli seçim.
         lifecycleScope.launch {
@@ -151,9 +164,49 @@ class PlayerActivity : AppCompatActivity() {
                 )
             }
         }
+        // Ses parçaları değişince (kaynak yüklendi / kaynak değişti): Türkçe ses otomatik seçimi ve elle seçimin korunması.
+        lifecycleScope.launch {
+            snapshotFlow { controller.ui.tracksVersion }.collect { syncAudio() }
+        }
+
         if (offline == null) {
-            controller.load(session.stream, session.startPositionMs)
+            // Ayarlar: tek seferlik okuma (milisaniyeler); oynatma başlamadan önce bilinmeli.
+            val settings = container.settings
+            val autoSource = runBlocking { settings.autoSource.first() }
+            preferDub = runBlocking { settings.preferDub.first() }
+            val sources = SourceCoordinator(
+                scope = lifecycleScope,
+                request = session.target.request,
+                streamsFor = container.streams::streams,
+                askedFor = container.streams::sources,
+                preferenceFor = container.sourceMemory::get,
+                remember = container.sourceMemory::remember,
+                sizeProbe = container.sizeProbe::size,
+                maxHeight = DeviceCodecs.maxDecodableHeight(),
+                preferDub = preferDub,
+                autoSource = autoSource,
+                load = ::loadStream,
+                position = { controller.positionMs() },
+                clock = SystemClock::elapsedRealtime,
+            )
+            coordinator = sources
+            controller.onFirstFrame = { sources.onFirstFrame() }
+            controller.onFailure = { detail -> leaving || sources.onFailure(detail) }
+            // Torrent açılınca dosya boyutu panelde ve üst çubukta görünsün.
+            container.torrentServer.onOpened = { magnet, size ->
+                runOnUiThread { sources.reportSize(magnet, size) }
+            }
+            sources.start(
+                initial = if (session.autoSource) null else session.stream,
+                fallbacks = session.fallbacks,
+                startMs = session.startPositionMs,
+            )
         } else {
+            val stream = session.stream
+            if (stream != null) {
+                currentStream = stream
+                subtitles.setStream(stream)
+            }
             lifecycleScope.launch {
                 val item = container.downloads.mediaItem(offline.downloadId)
                 if (item == null) controller.markUnavailable() else controller.loadDownloaded(item, session.startPositionMs)
@@ -171,8 +224,11 @@ class PlayerActivity : AppCompatActivity() {
                     levels = levels,
                     autoNext = autoNext,
                     onAutoNextCancel = ::cancelAutoNext,
+                    coordinator = coordinator,
+                    offlineStream = if (offline != null) session.stream else null,
+                    embeddedDub = embeddedDub,
+                    onAudioChosen = ::onAudioChosen,
                     onBack = ::finish,
-                    onSourcePicked = ::switchSource,
                 )
             }
         }
@@ -228,17 +284,60 @@ class PlayerActivity : AppCompatActivity() {
         levels?.restoreBrightness()
         if (::controller.isInitialized) {
             controller.release()
-            (application as PlayApp).container.torrentEngine.release()
+            val container = (application as PlayApp).container
+            container.torrentServer.onOpened = null
+            container.torrentEngine.release()
         }
     }
 
-    private fun switchSource(stream: PlayableStream) {
-        saveProgress()
-        // Kullanıcı kendisi seçti: otomatik geçişin yedekleri artık anlamsız.
-        fallbacks.clear()
+    // ---- kaynak ----
+
+    /**
+     * [SourceCoordinator] kaynağı oynatıcıya verir (ilk başlangıç, otomatik geçiş, elle seçim, geri dönüş). Torrent kaynaktan başka
+     * kaynağa geçilirken eski torrent oturumu kapatılır; altyazı hafızası ve ses seçimi korunur (dublajlı kaynakta otomatik altyazı yok).
+     */
+    private fun loadStream(stream: PlayableStream, startMs: Long) {
+        val previous = currentStream
+        if (previous != null && previous.url != stream.url && TorrentLinks.isMagnet(previous.url)) {
+            appContainer.torrentEngine.closeActive()
+        }
         currentStream = stream
+        embeddedDub = false
+        // Dublajlı kaynakta Türkçe altyazı gereksiz: otomatik seçim kapanır (kullanıcının elle seçtiğine dokunulmaz).
+        if (stream.dubbed) subtitles.suppressAuto() else subtitles.resumeAuto()
         subtitles.setStream(stream)
-        controller.load(stream, controller.positionMs())
+        if (previous != null) saveProgress()
+        controller.load(stream, startMs)
+    }
+
+    /** Ses parçası listesi değişti: elle seçilen dil korunur; yoksa (Türkçe dublaj önceliği açıkken) Türkçe ses seçilir. */
+    private fun syncAudio() {
+        val tracks = controller.audioTracks()
+        if (tracks.isEmpty()) {
+            embeddedDub = false
+            return
+        }
+        fun lang(t: AudioTrack) = SubtitleLanguages.normalize(t.language)
+        if (userAudioChosen) {
+            val wanted = userAudioLanguage
+            val match = if (wanted != null) tracks.firstOrNull { lang(it) == wanted } else null
+            if (match != null && !match.selected) controller.selectAudio(match.index)
+        } else if (preferDub) {
+            val turkish = tracks.firstOrNull { lang(it) == "tr" }
+            if (turkish != null && !turkish.selected) controller.selectAudio(turkish.index)
+        }
+        val selected = tracks.firstOrNull { it.selected }
+        embeddedDub = selected != null && lang(selected) == "tr" && (tracks.size > 1 || currentStream?.dubbed == true)
+        // Türkçe ses seçiliyken Türkçe altyazıya gerek yok; yoksa otomatik altyazı yeniden açılır.
+        if (embeddedDub) subtitles.suppressAuto() else if (currentStream?.dubbed != true) subtitles.resumeAuto()
+    }
+
+    /** Kullanıcı sesi Parçalar panelinden seçti: dil hatırlanır (kaynak değişince aynı dil aranır), otomatik seçim bir daha karışmaz. */
+    private fun onAudioChosen(index: Int) {
+        val track = controller.audioTracks().firstOrNull { it.index == index } ?: return
+        userAudioChosen = true
+        userAudioLanguage = SubtitleLanguages.normalize(track.language)
+        controller.selectAudio(index)
     }
 
     // ---- otomatik sonraki bölüm ----
@@ -272,8 +371,9 @@ class PlayerActivity : AppCompatActivity() {
         val target = session.target.copy(request = request)
         appContainer.downloads.completedFor(request)?.let { return NextPlayback.Offline(target, it) }
         if (session.offline != null) return null
-        val found = AutoNextRules.collect(appContainer.streams.streams(request), currentStream.source.addonId)
-        val ordered = AutoNextRules.order(found, currentStream)
+        val playing = currentStream ?: return null
+        val found = AutoNextRules.collect(appContainer.streams.streams(request), playing.source.addonId)
+        val ordered = AutoNextRules.order(found, playing)
         return if (ordered.isEmpty()) null else NextPlayback.Online(target, ordered)
     }
 
@@ -303,20 +403,11 @@ class PlayerActivity : AppCompatActivity() {
             }
             finishedForAdvance = true
             saveProgress() // bu bölüm izlendi
-            if (TorrentLinks.isMagnet(currentStream.url)) container.torrentEngine.closeActive()
+            if (currentStream?.url?.let(TorrentLinks::isMagnet) == true) container.torrentEngine.closeActive()
             startActivity(nextSession.toIntent(this@PlayerActivity))
             noTransition(open = false)
             finish()
         }
-    }
-
-    /** Hata ekranından önce: sıradaki yedek kaynak varsa ona geçilir (true). Hepsi tükenince false: her zamanki hata ekranı. */
-    private fun tryFallback(): Boolean {
-        val next = fallbacks.removeFirstOrNull() ?: return false
-        currentStream = next
-        subtitles.setStream(next)
-        controller.load(next, controller.positionMs())
-        return true
     }
 
     /** Kartta "İptal"/Geri: kart kapanır; video zaten bitmişse eskisi gibi oynatıcı da kapanır. */

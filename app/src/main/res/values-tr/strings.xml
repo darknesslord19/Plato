@@ -334,4 +334,53 @@
     <string name="update_notification_ready_text">Play %1$s sürümünü yüklemek için dokun</string>
     <string name="update_notification_failed_text">Tekrar denemek için Play\'i aç</string>
     <string name="update_retry">Tekrar dene</string>
+
+    <!-- Oynatıcı: kaynak, altyazı, ses, çözünürlük -->
+    <string name="player_btn_lock">Kilitle</string>
+    <string name="player_btn_unlock">Kilidi aç</string>
+    <string name="player_btn_resize">Yeniden boyutlandır</string>
+    <string name="player_btn_sync">Altyazı senkronu</string>
+    <string name="player_btn_source">Kaynak</string>
+    <string name="player_btn_tracks">Parçalar</string>
+    <string name="resize_fit">Sığdır</string>
+    <string name="resize_fill">Doldur (kırp)</string>
+    <string name="resize_stretch">Uzat</string>
+    <string name="resize_16_9" translatable="false">16:9</string>
+    <string name="resize_4_3" translatable="false">4:3</string>
+    <string name="player_sources_loading">Kaynaklar yükleniyor…</string>
+    <string name="player_all_failed">Hiçbir kaynak açılamadı.</string>
+    <string name="player_no_sources">Bu içerik için kaynak bulunamadı.</string>
+    <string name="player_switch_failed">Bu kaynak açılamadı, önceki kaynağa dönüldü.</string>
+    <string name="player_source_skipped">Bir kaynak açılmadı, sıradakine geçildi.</string>
+    <string name="player_error_detail">Ayrıntı: %1$s</string>
+    <string name="dub_suggest_title">Dublajlı kaynak bulundu, geçilsin mi?</string>
+    <string name="dub_suggest_switch">Geç</string>
+    <string name="dub_suggest_close">Kapat</string>
+    <string name="tag_dubbed">Dublajlı</string>
+    <string name="tag_subbed">Altyazılı</string>
+    <string name="tag_dubbed_embedded">Dublajlı (gömülü ses)</string>
+    <string name="tag_torrent">Torrent</string>
+    <string name="tag_direct">Doğrudan</string>
+    <string name="panel_title_sources">Kaynak ve altyazı</string>
+    <string name="panel_sources">Kaynaklar</string>
+    <string name="panel_subtitles">Altyazılar</string>
+    <string name="panel_apply">Uygula</string>
+    <string name="panel_playing">Çalıyor</string>
+    <string name="sort_recommended">Önerilen</string>
+    <string name="sort_size">Boyut</string>
+    <string name="sort_resolution">Çözünürlük</string>
+    <string name="subs_none">Altyazı yok</string>
+    <string name="subs_load_file">Dosyadan yükle</string>
+    <string name="subs_load_online">İnternetten yükle</string>
+    <string name="subs_load_first">İlk kullanılabiliri yükle</string>
+    <string name="subs_search_online">Çevrimiçi ara</string>
+    <string name="subs_online_failed">Altyazı servisine ulaşılamadı.</string>
+    <string name="subs_first_none">Kullanılabilir altyazı bulunamadı.</string>
+    <string name="subs_embedded_row">%1$s · videonun içinde</string>
+    <string name="tracks_title">Parçalar</string>
+    <string name="tracks_video">Video</string>
+    <string name="tracks_auto">Otomatik</string>
+    <string name="tracks_none">Seçenek yok</string>
+    <string name="settings_auto_source">Kaynağı otomatik seç</string>
+    <string name="settings_prefer_dub">Türkçe dublajı öncele</string>
 </resources>

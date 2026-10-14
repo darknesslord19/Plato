@@ -34,12 +34,16 @@ import com.kaan.play.data.plugin.runtime.PluginRuntime
 import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.stream.AddonStreamProvider
 import com.kaan.play.data.stream.CompositeStreamProvider
+import com.kaan.play.data.stream.SizeProbe
+import com.kaan.play.data.stream.SourceMemory
 import com.kaan.play.data.stream.TorrentStreamProvider
 import com.kaan.play.data.stream.StreamProvider
 import com.kaan.play.data.subtitle.AddonSubtitleProvider
 import com.kaan.play.data.subtitle.CompositeSubtitleProvider
 import com.kaan.play.data.subtitle.OnlineSubtitleProvider
+import com.kaan.play.data.subtitle.SubdlSubtitleProvider
 import com.kaan.play.data.subtitle.SubtitleLoader
+import com.kaan.play.data.subtitle.SubtitleSearchCache
 import com.kaan.play.data.subtitle.SubtitleMemory
 import com.kaan.play.data.subtitle.SubtitleProvider
 import com.kaan.play.data.tmdb.TmdbRepository
@@ -106,6 +110,12 @@ class AppContainer(context: Context) {
     val settings: SettingsRepository by lazy {
         SettingsRepository(PreferenceDataStoreFactory.create { appContext.preferencesDataStoreFile("settings") })
     }
+
+    /** Elle seçilen kaynak (film/dizi başına): sonraki açılışta ve dizinin sonraki bölümünde önce denenir. Ayarlarla aynı DataStore. */
+    val sourceMemory: SourceMemory by lazy { SourceMemory(settings.store) }
+
+    /** Doğrudan HTTP kaynakların dosya boyutu (HEAD ile; hata sessizce geçilir). */
+    val sizeProbe: SizeProbe by lazy { SizeProbe(httpClient) }
 
     val library: LibraryRepository by lazy {
         LibraryRepository(database.watchHistoryDao(), database.favoriteDao())
@@ -233,15 +243,29 @@ class AppContainer(context: Context) {
      * Altyazı (Faz 4/A): `subtitles` kaynağı olan aktif addon'lar paralel sorulur (zaman aşımı kaynaklarla ortak). Yalnızca altyazı
      * veren addon'lar kaynak listesinde görünmez; eklentilerin ve akışın kendi altyazıları seçilen akışla gelir.
      */
+    /** Altyazı arama sonuçları (film/bölüm bazında): aynı içerik tekrar açılınca sağlayıcılara yeniden sorulmaz. */
+    val subtitleSearchCache: SubtitleSearchCache by lazy { SubtitleSearchCache(File(appContext.cacheDir, "subtitle-search")) }
+
     val subtitleProvider: SubtitleProvider by lazy {
+        val languages: suspend () -> List<String> = { listOf(settings.subtitleLanguage.first(), "en") }
+        val imdbFor: suspend (com.kaan.play.data.stream.StreamRequest) -> String? = { req -> tmdb.detail(req.type, req.tmdbId).imdbId }
         CompositeSubtitleProvider(
             listOf(
                 AddonSubtitleProvider(addons = addons::enabledAddons, client = httpClient, timeout = sourceTimeout),
-                // Yerleşik çevrimiçi arama (kullanıcının isteğiyle): IMDb + sezon/bölüm; tercih edilen dil, sonra İngilizce.
+                // Yerleşik çevrimiçi arama, IMDb (+ sezon/bölüm) ile; sıra: önce SubDL (anahtar yoksa sessizce atlanır), sonra OpenSubtitles.
+                // Tercih edilen dil önce, sonra İngilizce.
+                SubdlSubtitleProvider(
+                    client = httpClient,
+                    apiKey = BuildConfig.SUBDL_API_KEY,
+                    languages = languages,
+                    imdbFor = imdbFor,
+                    cache = subtitleSearchCache,
+                ),
                 OnlineSubtitleProvider(
                     client = httpClient,
-                    languages = { listOf(settings.subtitleLanguage.first(), "en") },
-                    imdbFor = { req -> tmdb.detail(req.type, req.tmdbId).imdbId },
+                    languages = languages,
+                    imdbFor = imdbFor,
+                    cache = subtitleSearchCache,
                 ),
             ),
         )

@@ -53,6 +53,10 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_DOWNLOAD_WIFI_ONLY)
     val subtitleLanguage by container.settings.subtitleLanguage
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_SUBTITLE_LANGUAGE)
+    val autoSource by container.settings.autoSource
+        .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_AUTO_SOURCE)
+    val preferDub by container.settings.preferDub
+        .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_PREFER_DUB)
     val autoNext by container.settings.autoNext
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_AUTO_NEXT)
     val autoNextSeconds by container.settings.autoNextSeconds
@@ -76,6 +80,13 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
                 onClick = { pickLanguage = true },
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            // Kaynağı otomatik seç: kapalıyken eski davranış (önce kaynak listesi). Türkçe dublaj: dublajlı kaynak önce denenir.
+            SwitchRow(stringResource(R.string.settings_auto_source), autoSource) {
+                scope.launch { container.settings.setAutoSource(it) }
+            }
+            SwitchRow(stringResource(R.string.settings_prefer_dub), preferDub) {
+                scope.launch { container.settings.setPreferDub(it) }
+            }
             SwitchRow(stringResource(R.string.settings_always_resume), alwaysResume) {
                 scope.launch { container.settings.setAlwaysResume(it) }
             }

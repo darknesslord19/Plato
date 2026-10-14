@@ -93,10 +93,10 @@ class DownloadModelsTest {
         assertEquals(mapOf("https://s/tr.srt" to "/x/5-0.txt"), session.offline!!.subtitleFiles)
         assertEquals(61_000L, session.startPositionMs)
         assertTrue(session.autoResumed)
-        assertEquals("Eklenti A", session.stream.source.addonName)
+        assertEquals("Eklenti A", session.stream!!.source.addonName)
         // Oynatıcı yalnızca indirilen altyazıları görür; internetten başlık/altyazı gitmez.
-        assertEquals(listOf("https://s/tr.srt"), session.stream.subtitles.map { it.url })
-        assertTrue(session.stream.headers.isEmpty())
+        assertEquals(listOf("https://s/tr.srt"), session.stream!!.subtitles.map { it.url })
+        assertTrue(session.stream!!.headers.isEmpty())
 
         val json = PlayJson.encodeToString(PlaySession.serializer(), session)
         assertEquals(session, PlayJson.decodeFromString(PlaySession.serializer(), json))
