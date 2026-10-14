@@ -102,6 +102,12 @@
                 android:resource="@xml/update_paths" />
         </provider>
 
+        <!-- Uygulama içi güncelleme indirmesi: ilerleme bildirimiyle ön planda sürer (uygulamadan çıkılsa da kesilmez). -->
+        <service
+            android:name=".data.update.UpdateDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- API 33 öncesinde uygulama başına dil seçimini AppCompat'in kalıcı tutması için. -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"

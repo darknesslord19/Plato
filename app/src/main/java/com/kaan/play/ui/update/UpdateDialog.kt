@@ -1,8 +1,14 @@
 package com.kaan.play.ui.update
 
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -41,6 +47,19 @@ fun UpdateDialog(flow: UpdateFlow) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
+    // Android 13+: indirmeyi başlatmadan önce bildirim izni istenir (ilerleme ve "indirildi" bildirimi için). Reddedilse de
+    // indirme aynen başlar: uygulama açıkken pencerede ilerleme görünür, çökme olmaz.
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { flow.start() }
+    val startDownload: () -> Unit = {
+        val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            runCatching { permission.launch(Manifest.permission.POST_NOTIFICATIONS) }.onFailure { flow.start() }
+        } else {
+            flow.start()
+        }
+    }
+
     // Kurulum ekranı yalnızca ön plandayken açılır (arka plandan etkinlik başlatmak engellenir): indirme bitince ve
     // ayar sayfasından dönünce (ON_RESUME) kaldığı yerden sürer.
     LaunchedEffect(state) {
@@ -50,16 +69,16 @@ fun UpdateDialog(flow: UpdateFlow) {
 
     when (val s = state) {
         UpdateState.Idle -> Unit
-        is UpdateState.Offer -> OfferDialog(s.info, flow, context)
+        is UpdateState.Offer -> OfferDialog(s.info, flow, context, startDownload)
         is UpdateState.Downloading -> DownloadingDialog(s, flow)
         is UpdateState.Ready -> Unit // kurulum ekranı açılıyor
         is UpdateState.NeedsPermission -> PermissionDialog(flow)
-        is UpdateState.Failed -> FailedDialog(s, flow, context)
+        is UpdateState.Failed -> FailedDialog(s, flow, context, startDownload)
     }
 }
 
 @Composable
-private fun OfferDialog(info: UpdateInfo, flow: UpdateFlow, context: Context) {
+private fun OfferDialog(info: UpdateInfo, flow: UpdateFlow, context: Context, onStart: () -> Unit) {
     val focus = rememberInitialFocus()
     val inApp = info.apk != null
     AlertDialog(
@@ -70,7 +89,7 @@ private fun OfferDialog(info: UpdateInfo, flow: UpdateFlow, context: Context) {
             TextButton(
                 onClick = {
                     if (inApp) {
-                        flow.start()
+                        onStart()
                     } else {
                         openReleasePage(context, info)
                         flow.dismiss()
@@ -130,27 +149,44 @@ private fun PermissionDialog(flow: UpdateFlow) {
 }
 
 @Composable
-private fun FailedDialog(state: UpdateState.Failed, flow: UpdateFlow, context: Context) {
+private fun FailedDialog(state: UpdateState.Failed, flow: UpdateFlow, context: Context, onRetry: () -> Unit) {
     val focus = rememberInitialFocus()
     val message = when (state.reason) {
         UpdateState.Reason.DOWNLOAD -> R.string.update_failed_download
         UpdateState.Reason.CHECKSUM -> R.string.update_failed_checksum
         UpdateState.Reason.INSTALL -> R.string.update_failed_install
     }
+    // Ağ kesilince yarım dosya saklanır: "Tekrar dene" kaldığı yerden sürdürür. Özet/kurulum hatasında deneme anlamsızdır.
+    val canRetry = state.reason == UpdateState.Reason.DOWNLOAD && state.info.apk != null
     AlertDialog(
         onDismissRequest = flow::dismiss,
         title = { Text(stringResource(R.string.update_failed_title)) },
         text = { Text(stringResource(message)) },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    openReleasePage(context, state.info)
-                    flow.dismiss()
-                },
-                modifier = Modifier.focusRequester(focus),
-            ) { Text(stringResource(R.string.update_open_browser)) }
+            if (canRetry) {
+                TextButton(onClick = onRetry, modifier = Modifier.focusRequester(focus)) { Text(stringResource(R.string.update_retry)) }
+            } else {
+                TextButton(
+                    onClick = {
+                        openReleasePage(context, state.info)
+                        flow.dismiss()
+                    },
+                    modifier = Modifier.focusRequester(focus),
+                ) { Text(stringResource(R.string.update_open_browser)) }
+            }
         },
-        dismissButton = { TextButton(onClick = flow::dismiss) { Text(stringResource(R.string.update_close)) } },
+        dismissButton = {
+            if (canRetry) {
+                TextButton(
+                    onClick = {
+                        openReleasePage(context, state.info)
+                        flow.dismiss()
+                    },
+                ) { Text(stringResource(R.string.update_open_browser)) }
+            } else {
+                TextButton(onClick = flow::dismiss) { Text(stringResource(R.string.update_close)) }
+            }
+        },
     )
 }
 

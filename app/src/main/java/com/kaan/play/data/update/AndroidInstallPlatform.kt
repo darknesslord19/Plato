@@ -25,6 +25,7 @@ class AndroidInstallPlatform(private val context: Context) : InstallPlatform {
             .setDataAndType(uri, APK_MIME)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
+        UpdateNotifications.cancelResult(context) // "indirildi" bildirimi artık gereksiz
         true
     } catch (_: ActivityNotFoundException) {
         false

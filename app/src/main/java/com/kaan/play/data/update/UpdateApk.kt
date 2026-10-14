@@ -1,5 +1,6 @@
 package com.kaan.play.data.update
 
+import kotlinx.serialization.Serializable
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -7,6 +8,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 data class ReleaseAsset(val name: String, val url: String, val size: Long)
 
 /** Seçilen APK: indirme adresi, beklenen boyut ve SHA-256 dosyasının adresi. */
+@Serializable
 data class UpdateApk(val name: String, val url: String, val size: Long, val sha256Url: String)
 
 /** Android'den bağımsız APK seçimi ve adres/özet kuralları (birim testli). */
@@ -35,6 +37,10 @@ object UpdateApkRules {
         }
         return null
     }
+
+    /** İndirme klasörüne yazılan/okunan APK adı: `Play-<...>.apk`, yol ayırıcı yok (klasör dışına çıkamaz). */
+    fun isPlausibleApkName(name: String): Boolean =
+        name.startsWith("Play-") && name.endsWith(".apk") && name.none { it == '/' || it == '\\' } && ".." !in name
 
     /**
      * `sha256sum` biçimi (`<64 onaltılık> *<ad>` ya da `<özet>  <ad>`): [fileName] satırının özeti, küçük harfle.

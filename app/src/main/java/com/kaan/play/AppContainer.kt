@@ -49,6 +49,8 @@ import com.kaan.play.data.web.WebSiteRepository
 import com.kaan.play.ui.web.AndroidWebDataCleaner
 import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.data.update.AndroidInstallPlatform
+import com.kaan.play.data.update.DownloadLauncher
+import com.kaan.play.data.update.UpdateDownloadService
 import com.kaan.play.data.update.UpdateChecker
 import com.kaan.play.data.update.UpdateDownloader
 import com.kaan.play.data.update.UpdateFlow
@@ -112,12 +114,16 @@ class AppContainer(context: Context) {
     /** Etkinliklerden bağımsız işler için (ör. oynatıcı kapanırken konum kaydı tamamlansın). */
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    val continueWatching: ContinueWatching by lazy {
-        val resolver = NextEpisodeResolver(
+    /** Bir bölümden sonraki izlenebilir bölüm (ana sayfa "devam et" ve oynatıcının otomatik sonraki bölümü ortak kullanır). */
+    val nextEpisodes: NextEpisodeResolver by lazy {
+        NextEpisodeResolver(
             loadSeason = { tvId, season -> tmdb.season(tvId, season) },
             today = { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) },
         )
-        ContinueWatching(library) { row -> resolver.next(row.tmdbId, row.season, row.episode) }
+    }
+
+    val continueWatching: ContinueWatching by lazy {
+        ContinueWatching(library) { row -> nextEpisodes.next(row.tmdbId, row.season, row.episode) }
     }
 
     val addons: AddonRepository by lazy {
@@ -320,12 +326,18 @@ class AppContainer(context: Context) {
 
     /** Uygulama içi güncelleme akışı: indir, SHA-256 doğrula, sistem kurulum ekranını aç (bkz. UpdateFlow). */
     val updateFlow: UpdateFlow by lazy {
-        UpdateFlow(
+        lateinit var flow: UpdateFlow
+        flow = UpdateFlow(
             checker = updateChecker,
             downloader = UpdateDownloader(httpClient) { updateChecker.debugHost },
             platform = AndroidInstallPlatform(appContext),
             dir = File(appContext.cacheDir, "updates"),
             scope = appScope,
+            // İndirme ön plan servisinde (bildirimde ilerleme, uygulamadan çıkılsa da sürer); servis başlatılamazsa doğrudan sürer.
+            launcher = DownloadLauncher { info ->
+                if (!UpdateDownloadService.start(appContext, info)) flow.launchDownload(info, appScope)
+            },
         )
+        flow
     }
 }

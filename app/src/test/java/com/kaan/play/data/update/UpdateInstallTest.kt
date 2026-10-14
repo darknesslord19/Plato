@@ -155,6 +155,12 @@ class UpdateFlowTest {
     private var hashResponse: (() -> MockResponse)? = null
     private val paths = mutableListOf<String>()
 
+    /** İsteğe (Range başlığına) göre APK yanıtı; verilmişse [apkResponse]'un yerine geçer. */
+    private var apkHandler: ((RecordedRequest) -> MockResponse)? = null
+
+    /** APK isteklerinin `Range` başlıkları, sırayla (yoksa null). */
+    private val apkRanges = java.util.Collections.synchronizedList(mutableListOf<String?>())
+
     @Before
     fun setUp() {
         dir = tmp.newFolder("updates")
@@ -166,7 +172,10 @@ class UpdateFlowTest {
                     paths += path
                     return when (path) {
                         "/api/latest" -> MockResponse.Builder().body(releaseJson()).build()
-                        "/dl/$apkName" -> apkResponse()
+                        "/dl/$apkName" -> {
+                            apkRanges += request.headers["Range"]
+                            apkHandler?.invoke(request) ?: apkResponse()
+                        }
                         "/dl/Play-9.9.9-SHA256.txt" -> hashResponse?.invoke() ?: MockResponse.Builder().body(hashLine).build()
                         else -> MockResponse.Builder().code(404).build()
                     }
@@ -215,7 +224,8 @@ class UpdateFlowTest {
             client, PlayJson, installedVersion = "1.0.0",
             endpoint = server.url("/api/latest").toString(), abis = abis,
         )
-        val flow = UpdateFlow(checker, UpdateDownloader(client) { checker.debugHost }, platform, dir, scope)
+        // Bir yeniden deneme, kısa bekleme: hata testleri hızlı biter (gerçekte 2 sn + 5 sn).
+        val flow = UpdateFlow(checker, UpdateDownloader(client) { checker.debugHost }, platform, dir, scope, retryDelaysMs = listOf(30L))
         checker.checkOnce(scope, server.url("/api/latest").toString())
         return flow to checker
     }
@@ -299,10 +309,8 @@ class UpdateFlowTest {
     }
 
     @Test
-    fun `ag kesilirse cokme yok ve yarim dosya kalmaz`() = runTest {
-        apkResponse = {
-            MockResponse.Builder().body(Buffer().write(apkBytes)).onResponseBody(SocketEffect.CloseSocket()).build()
-        }
+    fun `ag kesilirse cokme yok kurulmaz ve yarim dosya devam icin saklanir`() = runTest {
+        apkResponse = { truncated(from = 0, keep = 50 * 1024) }
         val platform = FakePlatform()
         val (flow, _) = newFlow(platform)
         flow.await { it is UpdateState.Offer }
@@ -310,7 +318,276 @@ class UpdateFlowTest {
         val failed = flow.await { it is UpdateState.Failed } as UpdateState.Failed
         assertEquals(UpdateState.Reason.DOWNLOAD, failed.reason)
         assertTrue(platform.installed.isEmpty())
-        assertEquals(0, dir.listFiles()!!.size)
+        // Yarım dosya `.part` olarak kalır (sonraki deneme kaldığı yerden sürer); kurulacak bir APK yoktur.
+        assertEquals(listOf("$apkName.part"), dir.listFiles()!!.map { it.name })
+        assertTrue(dir.listFiles()!!.single().length() > 0)
+    }
+
+    /** Sunucu [keep] bayt gönderip bağlantıyı koparır; başlık tam boyutu (ya da aralığı) söyler. */
+    private fun truncated(from: Int, keep: Int): MockResponse {
+        val total = apkBytes.size
+        val builder = MockResponse.Builder()
+            .body(Buffer().write(apkBytes.copyOfRange(from, from + keep)))
+            .setHeader("Content-Length", (total - from).toString())
+            .onResponseBody(SocketEffect.CloseSocket())
+        if (from > 0) builder.code(206).setHeader("Content-Range", "bytes $from-${total - 1}/$total")
+        return builder.build()
+    }
+
+    /** Sunucu Range'e uyar: `bytes=N-` için 206 + kalan; Range yoksa 200 + tamamı. */
+    private fun rangeAware(request: RecordedRequest): MockResponse {
+        val total = apkBytes.size
+        val from = request.headers["Range"]?.removePrefix("bytes=")?.removeSuffix("-")?.toIntOrNull()
+        return if (from == null) {
+            MockResponse.Builder().body(Buffer().write(apkBytes)).build()
+        } else {
+            MockResponse.Builder().code(206)
+                .setHeader("Content-Range", "bytes $from-${total - 1}/$total")
+                .body(Buffer().write(apkBytes.copyOfRange(from, total))).build()
+        }
+    }
+
+    @Test
+    fun `yarim kalan indirme Range ile kaldigi yerden surer ve ozeti dogrular`() = runTest {
+        val cut = 50 * 1024
+        var first = true
+        apkHandler = { request ->
+            if (first) {
+                first = false
+                truncated(from = 0, keep = cut)
+            } else {
+                rangeAware(request)
+            }
+        }
+        val platform = FakePlatform()
+        val (flow, _) = newFlow(platform)
+        flow.await { it is UpdateState.Offer }
+        flow.start()
+        val ready = flow.await { it is UpdateState.Ready } as UpdateState.Ready
+        assertEquals(sha256Hex(apkBytes), sha256Hex(ready.file.readBytes()))
+        // Kesinti, aynı start() içinde otomatik yeniden denendi ve yalnızca kalan kısım istendi.
+        val ranges = apkRanges.toList()
+        assertEquals(2, ranges.size)
+        assertNull(ranges[0])
+        // Soket kapanırken ne kadarının diske yazıldığı sabit değildir (en çok kesilen kadar); devam o noktadan istenir.
+        val offset = ranges[1]!!.removePrefix("bytes=").removeSuffix("-").toInt()
+        assertTrue(offset in 1..cut)
+        assertTrue(dir.listFiles()!!.none { it.name.endsWith(".part") })
+    }
+
+    @Test
+    fun `onceki oturumdan kalan yarim dosya yeni indirmede devam eder`() = runTest {
+        // Süreç ölmüş gibi: aynı APK'nın yarım dosyası diskte duruyor.
+        val cut = 80 * 1024
+        File(dir, "$apkName.part").writeBytes(apkBytes.copyOf(cut))
+        apkHandler = ::rangeAware
+        val (flow, _) = newFlow(FakePlatform())
+        flow.await { it is UpdateState.Offer }
+        flow.start()
+        val ready = flow.await { it is UpdateState.Ready } as UpdateState.Ready
+        assertEquals(sha256Hex(apkBytes), sha256Hex(ready.file.readBytes()))
+        assertEquals(listOf<String?>("bytes=$cut-"), apkRanges.toList())
+    }
+
+    @Test
+    fun `sunucu Range i yok sayarsa bastan indirilir`() = runTest {
+        File(dir, "$apkName.part").writeBytes(apkBytes.copyOf(80 * 1024))
+        // Her zaman 200 + tamamı (Range desteği yok).
+        apkHandler = { MockResponse.Builder().body(Buffer().write(apkBytes)).build() }
+        val (flow, _) = newFlow(FakePlatform())
+        flow.await { it is UpdateState.Offer }
+        flow.start()
+        val ready = flow.await { it is UpdateState.Ready } as UpdateState.Ready
+        assertEquals(sha256Hex(apkBytes), sha256Hex(ready.file.readBytes()))
+        assertEquals(apkBytes.size.toLong(), ready.file.length())
+    }
+
+    @Test
+    fun `416 yaniti gelirse yarim dosya atilir ve bastan indirilir`() = runTest {
+        File(dir, "$apkName.part").writeBytes(apkBytes.copyOf(80 * 1024))
+        var calls = 0
+        apkHandler = { request ->
+            if (calls++ == 0) MockResponse.Builder().code(416).build() else rangeAware(request)
+        }
+        val (flow, _) = newFlow(FakePlatform())
+        flow.await { it is UpdateState.Offer }
+        flow.start()
+        val ready = flow.await { it is UpdateState.Ready } as UpdateState.Ready
+        assertEquals(sha256Hex(apkBytes), sha256Hex(ready.file.readBytes()))
+        assertEquals(listOf<String?>("bytes=${80 * 1024}-", null), apkRanges.toList())
+    }
+
+    @Test
+    fun `yanlis Content-Range gelirse devam edilmez bastan indirilir`() = runTest {
+        File(dir, "$apkName.part").writeBytes(apkBytes.copyOf(80 * 1024))
+        var calls = 0
+        apkHandler = { request ->
+            if (calls++ == 0) {
+                // İstenen 81920 yerine 0'dan başlıyormuş gibi cevap veriyor.
+                MockResponse.Builder().code(206).setHeader("Content-Range", "bytes 0-${apkBytes.size - 1}/${apkBytes.size}")
+                    .body(Buffer().write(apkBytes)).build()
+            } else {
+                rangeAware(request)
+            }
+        }
+        val (flow, _) = newFlow(FakePlatform())
+        flow.await { it is UpdateState.Offer }
+        flow.start()
+        val ready = flow.await { it is UpdateState.Ready } as UpdateState.Ready
+        assertEquals(sha256Hex(apkBytes), sha256Hex(ready.file.readBytes()))
+    }
+
+    @Test
+    fun `devam edilen dosyanin ozeti tutmazsa bir kez bastan denenir`() = runTest {
+        // Diskteki yarım dosya bozuk (ilk 80 KB'ın bir baytı yanlış); devam sonrası özet tutmaz, baştan indirilince tutar.
+        val bad = apkBytes.copyOf(80 * 1024).also { it[100] = (it[100] + 1).toByte() }
+        File(dir, "$apkName.part").writeBytes(bad)
+        apkHandler = ::rangeAware
+        val (flow, _) = newFlow(FakePlatform())
+        flow.await { it is UpdateState.Offer }
+        flow.start()
+        val ready = flow.await { it is UpdateState.Ready } as UpdateState.Ready
+        assertEquals(sha256Hex(apkBytes), sha256Hex(ready.file.readBytes()))
+        assertEquals(listOf<String?>("bytes=${80 * 1024}-", null), apkRanges.toList())
+    }
+
+    @Test
+    fun `gecici hata sonrasi otomatik yeniden denenir`() = runTest {
+        var calls = 0
+        apkHandler = { request -> if (calls++ == 0) MockResponse.Builder().code(503).build() else rangeAware(request) }
+        val (flow, _) = newFlow(FakePlatform())
+        flow.await { it is UpdateState.Offer }
+        flow.start()
+        flow.await { it is UpdateState.Ready }
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun `yeniden deneme hakki bitince indirilemedi denir ve Tekrar dene kaldigi yerden surer`() = runTest {
+        var online = false
+        apkHandler = { request -> if (online) rangeAware(request) else truncated(from = 0, keep = 60 * 1024) }
+        val (flow, _) = newFlow(FakePlatform())
+        flow.await { it is UpdateState.Offer }
+        flow.start()
+        assertEquals(UpdateState.Reason.DOWNLOAD, (flow.await { it is UpdateState.Failed } as UpdateState.Failed).reason)
+
+        online = true
+        flow.start() // dialogdaki "Tekrar dene"
+        val ready = flow.await { it is UpdateState.Ready } as UpdateState.Ready
+        assertEquals(sha256Hex(apkBytes), sha256Hex(ready.file.readBytes()))
+        assertTrue(apkRanges.last()!!.startsWith("bytes="))
+    }
+
+    @Test
+    fun `baska surume ait yarim dosya temizlenir`() = runTest {
+        val stale = File(dir, "Play-9.0.0-x86_64.apk.part").also { it.writeBytes(ByteArray(10)) }
+        val oldApk = File(dir, "Play-9.0.0-x86_64.apk").also { it.writeBytes(ByteArray(10)) }
+        apkHandler = ::rangeAware
+        val (flow, _) = newFlow(FakePlatform())
+        flow.await { it is UpdateState.Offer }
+        flow.start()
+        flow.await { it is UpdateState.Ready }
+        assertFalse(stale.exists())
+        assertFalse(oldApk.exists())
+    }
+
+    @Test
+    fun `servis baslaticisi verilirse start indirmeyi servise birakir ve servis calistirir`() = runTest {
+        val platform = FakePlatform()
+        val client = OkHttpClient()
+        val checker = UpdateChecker(
+            client, PlayJson, installedVersion = "1.0.0",
+            endpoint = server.url("/api/latest").toString(), abis = listOf("x86_64"),
+        )
+        val launched = mutableListOf<UpdateInfo>()
+        lateinit var flow: UpdateFlow
+        flow = UpdateFlow(
+            checker, UpdateDownloader(client) { checker.debugHost }, platform, dir, scope,
+            launcher = DownloadLauncher { info -> launched += info; flow.launchDownload(info, scope) },
+        )
+        checker.checkOnce(scope, server.url("/api/latest").toString())
+        flow.await { it is UpdateState.Offer }
+        flow.start()
+        flow.await { it is UpdateState.Ready }
+        assertEquals(1, launched.size)
+        assertEquals(apkName, launched.single().apk?.name)
+    }
+
+    @Test
+    fun `ikinci launchDownload calisan indirmeyi tekrarlamaz`() = runTest {
+        apkResponse = {
+            MockResponse.Builder().body(Buffer().write(apkBytes)).throttleBody(16 * 1024, 50, TimeUnit.MILLISECONDS).build()
+        }
+        val (flow, _) = newFlow(FakePlatform())
+        val offer = flow.await { it is UpdateState.Offer } as UpdateState.Offer
+        flow.start()
+        flow.launchDownload(offer.info, scope) // zaten iniyor
+        flow.await { it is UpdateState.Ready }
+        assertEquals(1, paths.count { it == "/dl/$apkName" })
+    }
+
+    @Test
+    fun `bildirime dokununca surec yeniden baslamis olsa da hazir dosya kuruluma gider`() = runTest {
+        // Önceki süreçte indirildi ve doğrulandı: son adıyla diskte; yeni süreçte durum Idle.
+        File(dir, apkName).writeBytes(apkBytes)
+        val platform = FakePlatform()
+        val (flow, _) = newFlow(platform, abis = listOf("x86_64"))
+        val info = (flow.await { it is UpdateState.Offer } as UpdateState.Offer).info
+        flow.dismiss() // Idle: yeni süreç gibi
+        assertEquals(UpdateState.Idle, flow.state.value)
+
+        flow.restoreReady(info)
+        assertTrue(flow.state.value is UpdateState.Ready)
+        flow.installIfPossible()
+        assertEquals(listOf(File(dir, apkName)), platform.installed)
+    }
+
+    @Test
+    fun `bildirimden gelen yabanci girdi kurulum acmaz`() = runTest {
+        val platform = FakePlatform()
+        val (flow, _) = newFlow(platform)
+        val info = (flow.await { it is UpdateState.Offer } as UpdateState.Offer).info
+        flow.dismiss()
+        val apk = info.apk!!
+
+        File(dir, apkName).writeBytes(apkBytes)
+        // Klasör dışına çıkan ad
+        flow.restoreReady(info.copy(apk = apk.copy(name = "../evil.apk")))
+        assertEquals(UpdateState.Idle, flow.state.value)
+        // GitHub dışı sayfa adresi
+        flow.restoreReady(info.copy(pageUrl = "https://evil.example/phish"))
+        assertEquals(UpdateState.Idle, flow.state.value)
+        // Bu uygulamanın paketi olmayan dosya
+        platform.ours = false
+        flow.restoreReady(info)
+        assertEquals(UpdateState.Idle, flow.state.value)
+        // Dosya yok
+        platform.ours = true
+        File(dir, apkName).delete()
+        flow.restoreReady(info)
+        assertEquals(UpdateState.Idle, flow.state.value)
+        assertTrue(platform.installed.isEmpty())
+    }
+
+    @Test
+    fun `Content-Range ayristirilir`() {
+        val ok = UpdateDownloader.ContentRange.parse("bytes 100-199/200")!!
+        assertEquals(100L, ok.start)
+        assertEquals(200L, ok.total)
+        assertNull(UpdateDownloader.ContentRange.parse("bytes 100-199/*")!!.total)
+        assertNull(UpdateDownloader.ContentRange.parse("items 1-2/3"))
+        assertNull(UpdateDownloader.ContentRange.parse(null))
+        assertNull(UpdateDownloader.ContentRange.parse("bytes */200"))
+    }
+
+    @Test
+    fun `apk adi klasor disina cikamaz`() {
+        assertTrue(UpdateApkRules.isPlausibleApkName("Play-1.0.4-arm64-v8a.apk"))
+        assertFalse(UpdateApkRules.isPlausibleApkName("../Play-1.0.4.apk"))
+        assertFalse(UpdateApkRules.isPlausibleApkName("a/Play-1.0.4.apk"))
+        assertFalse(UpdateApkRules.isPlausibleApkName("Play-1.0.4.apk\\x"))
+        assertFalse(UpdateApkRules.isPlausibleApkName("evil.apk"))
+        assertFalse(UpdateApkRules.isPlausibleApkName("Play-1.0.4.txt"))
     }
 
     @Test

@@ -316,4 +316,22 @@
     <string name="deeplink_confirm_message">Bu bağlantı şunu eklemek istiyor:\n%1$s\n\nYalnızca güvendiğin kaynaklardan ekle.</string>
     <string name="deeplink_confirm_add">Ekle</string>
     <string name="deeplink_invalid">Geçersiz bağlantı</string>
+
+    <!-- Otomatik sonraki bölüm -->
+    <string name="next_episode_countdown">Sonraki bölüm: S%1$d B%2$d · %3$d sn</string>
+    <string name="next_episode_loading">S%1$d B%2$d hazırlanıyor…</string>
+    <string name="next_episode_no_source">S%1$d B%2$d için kaynak bulunamadı</string>
+    <string name="next_episode_play_now">Şimdi oynat</string>
+    <string name="next_episode_pick_source">Başka kaynak seç</string>
+    <string name="settings_auto_next">Sonraki bölümü otomatik oynat</string>
+    <string name="settings_auto_next_countdown">Geri sayım</string>
+    <string name="settings_auto_next_seconds">%1$d sn</string>
+
+    <!-- Güncelleme indirmesi: bildirimler -->
+    <string name="update_channel_name">Uygulama güncellemeleri</string>
+    <string name="update_notification_downloading">Play %1$s indiriliyor</string>
+    <string name="update_notification_ready">Güncelleme indirildi</string>
+    <string name="update_notification_ready_text">Play %1$s sürümünü yüklemek için dokun</string>
+    <string name="update_notification_failed_text">Tekrar denemek için Play\'i aç</string>
+    <string name="update_retry">Tekrar dene</string>
 </resources>

@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Yeni sürüm bilgisi. [tag] ekranda gösterilen etiket ("v1.0.1"), [pageUrl] tarayıcıda açılan release sayfası.
  * [apk]: bu cihazın işlemci türüne uyan, SHA-256 dosyası da olan APK; yoksa (eşleşme yok) eski tarayıcı yöntemi kullanılır.
  */
+@Serializable
 data class UpdateInfo(val tag: String, val pageUrl: String, val apk: UpdateApk? = null)
 
 /**

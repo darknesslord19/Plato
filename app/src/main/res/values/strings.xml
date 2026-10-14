@@ -334,4 +334,22 @@
     <string name="deeplink_confirm_message">This link wants to add:\n%1$s\n\nOnly add from sources you trust.</string>
     <string name="deeplink_confirm_add">Add</string>
     <string name="deeplink_invalid">Invalid link</string>
+
+    <!-- Otomatik sonraki bölüm -->
+    <string name="next_episode_countdown">Next episode: S%1$d E%2$d · %3$d s</string>
+    <string name="next_episode_loading">Getting S%1$d E%2$d ready…</string>
+    <string name="next_episode_no_source">No source found for S%1$d E%2$d</string>
+    <string name="next_episode_play_now">Play now</string>
+    <string name="next_episode_pick_source">Pick another source</string>
+    <string name="settings_auto_next">Autoplay next episode</string>
+    <string name="settings_auto_next_countdown">Countdown</string>
+    <string name="settings_auto_next_seconds">%1$d s</string>
+
+    <!-- Güncelleme indirmesi: bildirimler -->
+    <string name="update_channel_name">App updates</string>
+    <string name="update_notification_downloading">Downloading Play %1$s</string>
+    <string name="update_notification_ready">Update downloaded</string>
+    <string name="update_notification_ready_text">Tap to install Play %1$s</string>
+    <string name="update_notification_failed_text">Open Play to try again</string>
+    <string name="update_retry">Try again</string>
 </resources>

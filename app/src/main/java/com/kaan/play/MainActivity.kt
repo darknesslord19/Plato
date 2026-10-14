@@ -14,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.data.settings.ThemeMode
 import com.kaan.play.data.plugin.DeepLink
+import com.kaan.play.data.update.UpdateNotifications
 import com.kaan.play.ui.components.SplashOverlay
 import com.kaan.play.ui.nav.PlayRoot
 import com.kaan.play.ui.theme.PlayTheme
@@ -37,7 +38,10 @@ class MainActivity : AppCompatActivity() {
         val initialTheme = runBlocking { settings.themeMode.first() }
 
         // Yalnızca ilk açılışta: dil değişimi gibi yeniden oluşturmalarda aynı bağlantı tekrar işlenmesin.
-        if (savedInstanceState == null) handleLink(intent)
+        if (savedInstanceState == null) {
+            handleLink(intent)
+            handleUpdateIntent(intent)
+        }
 
         setContent {
             val mode by settings.themeMode.collectAsStateWithLifecycle(initialValue = initialTheme)
@@ -70,6 +74,17 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleLink(intent)
+        handleUpdateIntent(intent)
+    }
+
+    /**
+     * "Güncelleme indirildi" bildirimine dokunuldu: doğrulanmış APK hazırsa kurulum ekranı açılır
+     * (bkz. [com.kaan.play.data.update.UpdateFlow.restoreReady]).
+     */
+    private fun handleUpdateIntent(intent: Intent?) {
+        if (intent?.action != UpdateNotifications.ACTION_INSTALL) return
+        val info = UpdateNotifications.decode(intent.getStringExtra(UpdateNotifications.EXTRA_INFO)) ?: return
+        (application as PlayApp).container.updateFlow.restoreReady(info)
     }
 
     /**
