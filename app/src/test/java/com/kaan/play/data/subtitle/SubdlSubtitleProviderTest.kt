@@ -93,21 +93,63 @@ class SubdlSubtitleProviderTest {
         assertEquals("tv", url.queryParameter("type"))
         assertEquals("1", url.queryParameter("season_number"))
         assertEquals("2", url.queryParameter("episode_number"))
-        assertEquals("TR,EN", url.queryParameter("languages"))
+        assertEquals("TR", url.queryParameter("languages")) // önce yalnız Türkçe
         assertEquals("30", url.queryParameter("subs_per_page"))
 
-        // Türkçe önce (cevap sırasıyla), sonra İngilizce; tam sezon paketi, Almanca, yinelenen ve adressiz atılır.
+        // Türkçe sonuç var: ikinci (İngilizce) istek atılmaz; tam sezon paketi, yinelenen ve adressiz atılır.
         assertEquals(
-            listOf(
-                "https://dl.subdl.example/subtitle/200-1.zip",
-                "https://dl.subdl.example/subtitle/200-2.zip",
-                "https://dl.subdl.example/subtitle/100-1.zip",
-            ),
+            listOf("https://dl.subdl.example/subtitle/200-1.zip", "https://dl.subdl.example/subtitle/200-2.zip"),
             tracks.map { it.url },
         )
-        assertEquals(listOf("tr", "tr", "en"), tracks.map { it.language })
-        assertEquals(listOf("BB.S01E02.TR.BluRay", "BB.S01E02.TR.WEB", "BB.S01E02.EN.WEB"), tracks.map { it.label })
+        assertEquals(listOf("tr", "tr"), tracks.map { it.language })
+        assertEquals(listOf("BB.S01E02.TR.BluRay", "BB.S01E02.TR.WEB"), tracks.map { it.label })
         assertTrue(tracks.all { it.kind == SubtitleKind.Online && it.origin == SubdlSubtitleProvider.ORIGIN })
+    }
+
+    @Test
+    fun englishIsRequestedOnlyWhenTurkishHasNoResults() = runTest {
+        responder = {
+            if (requests.last().queryParameter("languages") == "EN") json(body) else json("""{"status":true,"subtitles":[]}""")
+        }
+        val tracks = provider().search(StreamRequest(1396, "tt0903747", MediaType.Tv, 1, 2))
+        assertEquals(listOf("TR", "EN"), requests.map { it.queryParameter("languages") })
+        assertEquals(listOf("en"), tracks.map { it.language })
+
+        // Türkçe aramada hata: İngilizceye geçilmez, "yanıt vermedi".
+        requests.clear()
+        responder = { MockResponse.Builder().code(500).build() }
+        assertTrue(provider().subtitles(StreamRequest(1, "tt1", MediaType.Movie)).toList().single() is SubtitleResult.Failed)
+        assertEquals(1, requests.size)
+    }
+
+    @Test
+    fun apiKeyInResultAddressesIsStrippedAndNeverCached() = runTest {
+        val dir = tmp.newFolder("keyed")
+        val keyed = """{"status":true,"subtitles":[
+            {"release_name":"a","lang":"TR","url":"/subtitle/1-1.zip?api_key=SECRET-KEY-123"},
+            {"release_name":"b","lang":"TR","url":"https://dl.subdl.example/subtitle/2-2.zip?x=1&api_key=SECRET-KEY-123"}]}"""
+        responder = { json(keyed) }
+        val tracks = provider(cache = SubtitleSearchCache(dir)).search(StreamRequest(603, "tt0133093", MediaType.Movie))
+        assertEquals(
+            listOf("https://dl.subdl.example/subtitle/1-1.zip", "https://dl.subdl.example/subtitle/2-2.zip?x=1"),
+            tracks.map { it.url },
+        )
+        assertTrue(dir.listFiles()!!.isNotEmpty())
+        assertTrue(dir.listFiles()!!.none { "api_key" in it.readText() || "SECRET" in it.readText() })
+    }
+
+    @Test
+    fun oldCacheFilesWithAKeyAreCleanedWhenRead() = runTest {
+        val dir = tmp.newFolder("old")
+        val cache = SubtitleSearchCache(dir, clock = { 1_000L })
+        cache.getOrFetch("k") { listOf(SubtitleTrack("https://x/1.zip", "tr", "SubDL", SubtitleKind.Online, "r")) }
+        val file = dir.listFiles { f -> f.name.endsWith(".json") }!!.single()
+        file.writeText(file.readText().replace("https://x/1.zip", "https://x/1.zip?api_key=SECRET-KEY-123"))
+        assertTrue("api_key" in file.readText())
+
+        val read = cache.getOrFetch("k") { error("önbellekten okunmalı") }
+        assertEquals("https://x/1.zip", read!!.single().url)
+        assertFalse("api_key" in file.readText())
     }
 
     @Test
@@ -171,10 +213,10 @@ class SubdlSubtitleProviderTest {
         assertEquals(1, requests.size)
 
         responder = { json(body) }
-        assertEquals(3, p.search(request).size) // hata önbelleğe yazılmadığı için tekrar sorulur
+        assertEquals(2, p.search(request).size) // hata önbelleğe yazılmadığı için tekrar sorulur
         assertEquals(2, requests.size)
 
-        assertEquals(3, p.search(request).size) // artık önbellekten: ağa gidilmez
+        assertEquals(2, p.search(request).size) // artık önbellekten: ağa gidilmez
         assertEquals(2, requests.size)
 
         // Başka bölüm ayrı sorgudur.

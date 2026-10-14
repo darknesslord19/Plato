@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
@@ -41,9 +42,13 @@ class SubtitleSearchCache(
         val file = fileFor(key)
         if (!file.isFile) return@withContext null
         try {
-            val entry = PlayJson.decodeFromString(serializer, file.readText(Charsets.UTF_8))
-            val ttl = if (entry.tracks.isEmpty()) EMPTY_TTL_MS else TTL_MS
-            if (clock() - entry.at in 0..ttl) entry.tracks else null
+            val text = file.readText(Charsets.UTF_8)
+            val entry = PlayJson.decodeFromString(serializer, text)
+            val tracks = entry.tracks.map { it.copy(url = stripApiKey(it.url)) }
+            // Eski sürümlerden kalan, anahtar içeren dosyayı temizlenmiş hâliyle yeniden yaz.
+            if (API_KEY_PARAM in text) write(key, tracks, entry.at)
+            val ttl = if (tracks.isEmpty()) EMPTY_TTL_MS else TTL_MS
+            if (clock() - entry.at in 0..ttl) tracks else null
         } catch (_: IOException) {
             null
         } catch (_: IllegalArgumentException) { // bozuk dosya
@@ -51,13 +56,18 @@ class SubtitleSearchCache(
         }
     }
 
-    private suspend fun write(key: String, tracks: List<SubtitleTrack>) = withContext(Dispatchers.IO) {
+    private suspend fun write(key: String, tracks: List<SubtitleTrack>, at: Long = clock()) = withContext(Dispatchers.IO) {
         try {
             dir.mkdirs()
             val file = fileFor(key)
             val temp = File(dir, file.name + ".tmp")
-            temp.writeText(PlayJson.encodeToString(serializer, Entry(clock(), tracks)), Charsets.UTF_8)
-            if (!temp.renameTo(file)) temp.delete()
+            val clean = tracks.map { it.copy(url = stripApiKey(it.url)) } // anahtar asla diske yazılmaz
+            temp.writeText(PlayJson.encodeToString(serializer, Entry(at, clean)), Charsets.UTF_8)
+            if (!temp.renameTo(file)) {
+                // Hedef varken rename bazı dosya sistemlerinde (Windows) başarısız olur: eskiyi silip bir kez daha dene.
+                file.delete()
+                if (!temp.renameTo(file)) temp.delete()
+            }
             dir.listFiles { f -> f.isFile && f.name.endsWith(".json") }
                 ?.sortedByDescending { it.lastModified() }
                 ?.drop(MAX_FILES)
@@ -74,7 +84,14 @@ class SubtitleSearchCache(
         const val TTL_MS = 7L * 24 * 60 * 60 * 1000
         const val EMPTY_TTL_MS = 10L * 60 * 1000
         const val MAX_FILES = 300
+        const val API_KEY_PARAM = "api_key"
     }
+}
+
+/** Adresteki `api_key` sorgu parametresini siler (SubDL indirme adreslerine anahtarı kendisi ekler); adres çözümlenemezse olduğu gibi döner. */
+internal fun stripApiKey(url: String): String {
+    if (!url.contains(SubtitleSearchCache.API_KEY_PARAM)) return url
+    return url.toHttpUrlOrNull()?.newBuilder()?.removeAllQueryParameters(SubtitleSearchCache.API_KEY_PARAM)?.build()?.toString() ?: url
 }
 
 /** Arama anahtarı: sağlayıcı + içerik (IMDb, tür, sezon/bölüm) + istenen diller. */

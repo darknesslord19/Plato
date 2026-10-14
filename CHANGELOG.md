@@ -15,6 +15,8 @@
 - **Dosya boyutu:** eklentinin verdiği boyut → torrent bilgisi → HTTP HEAD (`Content-Length`); sessizce başarısız olur, oynatmayı geciktirmez. Bilinmiyorsa hiçbir şey yazılmaz ("0 GB" asla çıkmaz).
 - **Çevrimiçi altyazı:** IMDb kimliğiyle (dizide sezon/bölümle) SubDL (anahtar varsa) + OpenSubtitles tek listede; Türkçe önce, sonra İngilizce; sonuçta dil, kaynak adı ve sürüm adı görünür. .zip içinden .srt/.vtt/.ass çıkarılır, kodlama (UTF-8 / Windows-1254) bulunur. Sonuçlar film başına önbelleğe alınır. Ağ hatasında kısa bir mesaj çıkar, oynatma bozulmaz; hiç altyazı yoksa belirgin bir "Çevrimiçi ara" satırı görünür.
 - Kumanda (TV): paneller D-pad ile gezilir, Tamam seçer, Geri paneli kapatır.
+- **SubDL Türkçe sonuçları:** altyazı dil dil aranır (önce yalnız Türkçe; hiç Türkçe yoksa İngilizce). Eskiden tek istekte iki dil istenince 30'luk sayfa İngilizceyle doluyor, Türkçe çoğu kez tek sonuç kalıyordu (Matrix: 1 → 14). Önbellek film/bölüm ve dil başınadır.
+- **Anahtar önbelleğe yazılmaz:** SubDL cevabındaki adresler `api_key` içerir; artık adreslerden silinir (indirme anonim yapılır), arama önbelleğine yazılmaz, eski önbellek dosyalarında kalan anahtar okunurken temizlenir.
 
 ### English
 - **Fast start:** opening a movie or episode no longer waits for the source list; playback starts as soon as a suitable first source is found, with "Loading sources…" shown while the rest load in the background. The old behaviour (source list first) returns when Settings > Player > "Pick the source automatically" is off.
@@ -29,6 +31,8 @@
 - **File size:** size from the addon → torrent metadata → HTTP HEAD (`Content-Length`); it fails silently and never delays playback. If unknown nothing is shown (never "0 GB").
 - **Online subtitles:** looked up by IMDb id (plus season/episode) from SubDL (when a key is set) and OpenSubtitles in one list; Turkish first, then English; each result shows language, source name and release name. .srt/.vtt/.ass are extracted from .zip files and the encoding (UTF-8 / Windows-1254) is detected. Results are cached per title. On a network error a short message appears and playback is unaffected; with no subtitles at all a prominent "Search online" row shows.
 - Remote (TV): panels are navigated with the D-pad, OK selects, Back closes the panel.
+- **SubDL Turkish results:** subtitles are searched one language at a time (Turkish first; English only if there is no Turkish). Asking for two languages in one request used to fill the 30-item page with English, often leaving a single Turkish result (Matrix: 1 → 14). The cache is per title/episode and language.
+- **API key is never cached:** SubDL result addresses contain `api_key`; it is now stripped from the addresses (downloads are anonymous), never written to the search cache, and cleaned out of old cache files when they are read.
 
 ## [1.0.4] — 2026-10-14
 

@@ -37,7 +37,9 @@ object DebugEndpoints {
  * lang, url, season, episode, full_season …}]}`; `url` göreli yoldur ve indirme adresi `https://dl.subdl.com` + `url`'dir (zip).
  *
  * - **Anahtar:** `SUBDL_API_KEY` (local.properties → BuildConfig). Boşsa SubDL **sessizce atlanır** (hiç istek atılmaz, hata yok).
- *   Anahtar yalnızca istek adresinde gider; loglanmaz, hata iletilerine girmez.
+ *   Anahtar yalnızca arama isteğinin adresinde gider; loglanmaz, hata iletilerine girmez. Cevaptaki `url`lerde SubDL anahtarı da
+ *   döndürür; [stripApiKey] onu siler (önbelleğe/oynatıcıya anahtarsız adres gider, indirme anonimdir).
+ * - **Diller:** dil dil, öncelik sırasıyla aranır (önce Türkçe; hiç sonuç yoksa İngilizce); aynı istekte iki dil sayfa sınırını İngilizceyle doldurur.
  * - **Limitler (api-doc, 2026-10):** ücretsiz anahtar günde 2000 istek; anonim indirme IP başına günde 300. Bu yüzden arama sonuçları
  *   film/bölüm bazında önbelleğe alınır ([SubtitleSearchCache]) ve indirilen metin adres bazında saklanır ([SubtitleLoader]).
  * - Tam sezon paketleri (`full_season`) atılır. Hata/zaman aşımı/bozuk cevap boş liste döner; oynatmayı etkilemez.
@@ -75,33 +77,40 @@ class SubdlSubtitleProvider(
         if (wanted.isEmpty()) return emptyList()
         val tv = request.type == MediaType.Tv && request.season != null && request.episode != null
         val ep = endpoints()
-        val key = searchKey("subdl", if (tv) "tv" else "movie", imdb, request.season.takeIf { tv }, request.episode.takeIf { tv }, wanted)
-        val fetch: suspend () -> List<SubtitleTrack>? = {
-            val url = "${ep.api.trimEnd('/')}/api/v1/subtitles".toHttpUrlOrNull()?.newBuilder()
-                ?.addQueryParameter("api_key", apiKey)
-                ?.addQueryParameter("imdb_id", imdb)
-                ?.addQueryParameter("type", if (tv) "tv" else "movie")
-                ?.apply {
-                    if (tv) {
-                        addQueryParameter("season_number", request.season.toString())
-                        addQueryParameter("episode_number", request.episode.toString())
+        // Dil dil, öncelik sırasıyla (Türkçe → İngilizce …): birden çok dil tek istekte istenince sayfa sınırı (30) çoğunlukla İngilizceyle
+        // dolup Türkçe neredeyse hiç gelmiyordu. İlk sonuç veren dilde durulur; sonraki dil için ikinci istek yalnızca öncekinde sonuç yoksa atılır.
+        // Her (film/bölüm, dil) çifti ayrı önbelleklenir; hata (null) önbelleğe yazılmaz ve aramayı "yanıt vermedi" yapar.
+        for (language in wanted) {
+            val key = searchKey("subdl", if (tv) "tv" else "movie", imdb, request.season.takeIf { tv }, request.episode.takeIf { tv }, listOf(language))
+            val fetch: suspend () -> List<SubtitleTrack>? = {
+                val url = "${ep.api.trimEnd('/')}/api/v1/subtitles".toHttpUrlOrNull()?.newBuilder()
+                    ?.addQueryParameter("api_key", apiKey)
+                    ?.addQueryParameter("imdb_id", imdb)
+                    ?.addQueryParameter("type", if (tv) "tv" else "movie")
+                    ?.apply {
+                        if (tv) {
+                            addQueryParameter("season_number", request.season.toString())
+                            addQueryParameter("episode_number", request.episode.toString())
+                        }
+                    }
+                    ?.addQueryParameter("languages", language.uppercase(Locale.ROOT))
+                    ?.addQueryParameter("subs_per_page", MAX_PER_LANGUAGE.toString())
+                    ?.addQueryParameter("client", "custom_integration")
+                    ?.build()
+                if (url == null) {
+                    null
+                } else {
+                    try {
+                        parse(fetchAddonText(client, url, timeout, MAX_BYTES), listOf(language), ep.dl)
+                    } catch (_: AddonFetchFailure) {
+                        null // hata: önbelleğe yazılmaz
                     }
                 }
-                ?.addQueryParameter("languages", wanted.joinToString(",") { it.uppercase(Locale.ROOT) })
-                ?.addQueryParameter("subs_per_page", MAX_PER_LANGUAGE.toString())
-                ?.addQueryParameter("client", "custom_integration")
-                ?.build()
-            if (url == null) {
-                null
-            } else {
-                try {
-                    parse(fetchAddonText(client, url, timeout, MAX_BYTES), wanted, ep.dl)
-                } catch (_: AddonFetchFailure) {
-                    null // hata: önbelleğe yazılmaz
-                }
             }
+            val found = (if (cache != null) cache.getOrFetch(key, fetch) else fetch()) ?: return null
+            if (found.isNotEmpty()) return found
         }
-        return if (cache != null) cache.getOrFetch(key, fetch) else fetch()
+        return emptyList()
     }
 
     companion object {
@@ -130,10 +139,11 @@ class SubdlSubtitleProvider(
                 .filter { (it["full_season"] as? JsonPrimitive)?.booleanOrNull != true }
                 .mapNotNull { obj ->
                     val raw = obj.string("url")?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-                    val url = when {
+                    // SubDL cevaptaki adrese `api_key` ekler; anahtar adreste (önbellek, kayıtlar) taşınmaz, indirme anonim yapılır.
+                    val url = stripApiKey(when {
                         raw.startsWith("https://", true) || raw.startsWith("http://", true) -> raw
                         else -> dlBase.trimEnd('/') + "/" + raw.trimStart('/')
-                    }
+                    })
                     val lang = language(obj.string("lang") ?: obj.string("language"))?.takeIf { it in wanted } ?: return@mapNotNull null
                     val label = (obj.string("release_name") ?: obj.string("name"))?.trim()?.takeIf { it.isNotEmpty() }
                     SubtitleTrack(url, lang, ORIGIN, SubtitleKind.Online, label)
