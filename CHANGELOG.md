@@ -1,5 +1,25 @@
 # Changelog / Değişiklik günlüğü
 
+## [1.0.4] — 2026-10-14
+
+### Türkçe
+- **Sonraki bölüm otomatik açılır:** dizide bölüm bitmeye yaklaşınca (son ~20 saniye) köşede "Sonraki bölüm: S1 B4 · 10 sn" kartı çıkar; süre dolunca sonraki bölüm kendiliğinden başlar. Kartta "Şimdi oynat" ve "İptal" var; iptal edersen o bölümde kart bir daha çıkmaz. Filmlerde ve dizinin son bölümünde kart çıkmaz.
+- Sonraki bölümün kaynağı kendiliğinden seçilir: önce izlediğin eklenti ve sunucuyla aynısı denenir, açılmazsa sıradaki kaynağa geçilir. Hiçbiri açılmazsa kart "Başka kaynak seç" der, ekran siyah kalmaz. Bölüm indirilmişse indirilmiş kopya oynar.
+- Biten bölüm izlendi olarak kaydedilir; altyazı dili ve görünümü sonraki bölümde de geçerlidir (Türkçe otomatik aranır). Torrent kaynağında önceki torrent oturumu kapatılır.
+- **Ayarlar > Oynatıcı:** "Sonraki bölümü otomatik oynat" anahtarı (varsayılan açık) ve geri sayım süresi (5 / 10 / 15 sn).
+- Kumanda (TV): kart odaklanır; Tamam "Şimdi oynat", Geri "İptal".
+- **Güncelleme indirmesi arka planda:** indirme artık bildirimde ilerlemeyle (İptal düğmeli) sürer, uygulamadan çıksan da kesilmez; bitince bildirime dokununca kurulum ekranı açılır. Ağ kesilirse ya da uygulama kapanırsa kaldığı yerden devam eder (sunucu desteklemezse baştan başlar); SHA-256 doğrulaması aynen sürer. İndirilemezse "Tekrar dene" var.
+- Android 13+'ta bildirim izni istenir; reddedersen indirme uygulama açıkken yine çalışır.
+
+### English
+- **The next episode plays automatically:** near the end of an episode (last ~20 seconds) a "Next episode: S1 E4 · 10 s" card appears in the corner; when the countdown ends the next episode starts by itself. The card has "Play now" and "Cancel"; cancel it and it won't come back for that episode. No card for movies or a show's last episode.
+- The next episode's source is picked for you: the addon and server you were watching are tried first, then the next source in line. If none opens, the card says "Pick another source" — the screen never stays black. If the episode is downloaded, the downloaded copy plays.
+- The finished episode is marked as watched; your subtitle language and appearance carry over (Turkish is searched automatically). With a torrent source the previous torrent session is closed.
+- **Settings > Player:** an "Autoplay next episode" switch (on by default) and the countdown length (5 / 10 / 15 s).
+- Remote (TV): the card takes focus; OK is "Play now", Back is "Cancel".
+- **Update downloads in the background:** the download now runs with a progress notification (with a Cancel button) and keeps going when you leave the app; tap the notification when it's done to open the installer. If the connection drops or the app closes it resumes where it stopped (or starts over if the server can't resume); SHA-256 verification is unchanged. If it fails there's a "Try again" button.
+- On Android 13+ the notification permission is requested; if you decline, the download still works while the app is open.
+
 ## [1.0.3] — 2026-10-14
 
 ### Türkçe
