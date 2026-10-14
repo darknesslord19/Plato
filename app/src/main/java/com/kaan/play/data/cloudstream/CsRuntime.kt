@@ -127,6 +127,7 @@ class CsRuntime {
                 },
                 subtitles = subs.map { StreamSubtitle(url = it.url, language = it.lang) },
                 language = null,
+                dubbed = com.kaan.play.data.stream.DubDetector.isDubbed(link.name),
                 mimeType = when (link.type) {
                     ExtractorLinkType.M3U8 -> MimeTypes.APPLICATION_M3U8
                     ExtractorLinkType.DASH -> MimeTypes.APPLICATION_MPD

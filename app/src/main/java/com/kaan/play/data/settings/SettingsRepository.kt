@@ -14,8 +14,11 @@ import kotlinx.coroutines.flow.map
 /** Koyu tema varsayılandır. */
 enum class ThemeMode { Dark, Light, System }
 
+/** Oynatıcıda görüntünün ekrana oturma biçimi (seçim kaydedilir): sığdır, doldur (kırp), uzat, 16:9, 4:3. */
+enum class ResizeMode { Fit, Fill, Stretch, Ratio16x9, Ratio4x3 }
+
 /** DataStore'daki uygulama ayarları. Bozuk/bilinmeyen değerler varsayılana düşer. */
-class SettingsRepository(private val store: DataStore<Preferences>) {
+class SettingsRepository(val store: DataStore<Preferences>) {
 
     val themeMode: Flow<ThemeMode> = store.data.map { prefs ->
         ThemeMode.entries.firstOrNull { it.name == prefs[THEME] } ?: DEFAULT_THEME
@@ -44,6 +47,29 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     /** Açıkken yarım kalan içerik soru sorulmadan kaldığı yerden başlar. Varsayılan açık. */
     val alwaysResume: Flow<Boolean> = store.data.map { it[ALWAYS_RESUME] ?: DEFAULT_ALWAYS_RESUME }
+
+    /** Açıkken film/bölüm açılınca kaynak listesi beklenmez: uygun ilk kaynakla oynatma başlar. Varsayılan açık. */
+    val autoSource: Flow<Boolean> = store.data.map { it[AUTO_SOURCE] ?: DEFAULT_AUTO_SOURCE }.distinctUntilChanged()
+
+    /** Açıkken Türkçe dublajlı kaynaklar önce denenir (dublaj yoksa altyazılıyla başlanır). Varsayılan açık. */
+    val preferDub: Flow<Boolean> = store.data.map { it[PREFER_DUB] ?: DEFAULT_PREFER_DUB }.distinctUntilChanged()
+
+    suspend fun setAutoSource(enabled: Boolean) {
+        store.edit { it[AUTO_SOURCE] = enabled }
+    }
+
+    suspend fun setPreferDub(enabled: Boolean) {
+        store.edit { it[PREFER_DUB] = enabled }
+    }
+
+    /** Oynatıcıdaki "Yeniden boyutlandır" seçimi; bilinmeyen değer "sığdır"a düşer. */
+    val resizeMode: Flow<ResizeMode> = store.data.map { prefs ->
+        ResizeMode.entries.firstOrNull { it.name == prefs[RESIZE_MODE] } ?: ResizeMode.Fit
+    }.distinctUntilChanged()
+
+    suspend fun setResizeMode(mode: ResizeMode) {
+        store.edit { it[RESIZE_MODE] = mode.name }
+    }
 
     /** Açıkken dizide bölüm bitmeye yaklaşınca sonraki bölüm geri sayımla kendiliğinden açılır. Varsayılan açık. */
     val autoNext: Flow<Boolean> = store.data.map { it[AUTO_NEXT] ?: DEFAULT_AUTO_NEXT }.distinctUntilChanged()
@@ -121,6 +147,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         const val DEFAULT_ALWAYS_RESUME = true
         const val DEFAULT_DOWNLOAD_WIFI_ONLY = true
         const val DEFAULT_AUTO_NEXT = true
+        const val DEFAULT_AUTO_SOURCE = true
+        const val DEFAULT_PREFER_DUB = true
         const val DEFAULT_AUTO_NEXT_SECONDS = 10
         val AUTO_NEXT_OPTIONS = listOf(5, 10, 15)
         val TIMEOUT_OPTIONS = listOf(10, 15, 30, 60)
@@ -133,6 +161,9 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         private val TORRENT_SERVER = stringPreferencesKey("torrent_server")
         private val DOWNLOAD_WIFI_ONLY = booleanPreferencesKey("download_wifi_only")
         private val AUTO_NEXT = booleanPreferencesKey("auto_next")
+        private val AUTO_SOURCE = booleanPreferencesKey("auto_source")
+        private val PREFER_DUB = booleanPreferencesKey("prefer_dub")
+        private val RESIZE_MODE = stringPreferencesKey("resize_mode")
         private val AUTO_NEXT_SECONDS = intPreferencesKey("auto_next_seconds")
         private val SUB_SIZE = stringPreferencesKey("subtitle_size")
         private val SUB_BOLD = booleanPreferencesKey("subtitle_bold")

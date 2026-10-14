@@ -62,6 +62,8 @@ data class PlayableStream(
     val mimeType: String? = null,
     /** Yalnızca `magnet:` kaynaklarda: torrent içindeki dosya (0 tabanlı); yerleşik motor ya da torrent sunucusu bu dosyayı oynatır. */
     val torrentFileIdx: Int? = null,
+    /** Ad/başlık/açıklamada Türkçe dublaj işareti var ([DubDetector]); belirsizse false = altyazılı. */
+    val dubbed: Boolean = false,
 )
 
 /** Akışla gelen altyazı; [language] addon'un verdiği ham etiket (`eng`, `tur` ...). */

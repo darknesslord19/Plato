@@ -128,6 +128,7 @@ fun PluginStream.toPlayable(source: StreamSource): PlayableStream {
         subtitles = subtitles.map { StreamSubtitle(it.url, subtitleLanguage(it.language ?: it.name)) },
         language = language?.let { StreamLabels.language(it) } ?: StreamLabels.language(text),
         torrentFileIdx = fileIdx,
+        dubbed = com.kaan.play.data.stream.DubDetector.isDubbed(listOfNotNull(text, language).joinToString(" ")),
     )
 }
 
