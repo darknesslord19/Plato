@@ -1,5 +1,35 @@
 # Changelog / Değişiklik günlüğü
 
+## Yayınlanmamış / Unreleased
+
+### Türkçe
+- **Hızlı başlangıç:** filme/bölüme basınca kaynak listesi beklenmez; uygun ilk kaynak bulunur bulunmaz oynatma başlar, kaynaklar arka planda yüklenirken "Kaynaklar yükleniyor…" gösterilir. Eski davranış (önce kaynak listesi) Ayarlar > Oynatıcı > "Kaynağı otomatik seç" kapatılınca geri gelir.
+- **Dublajlı / Altyazılı etiketi:** her kaynak etiketlenir. Dublaj; "TR Dublaj", "Türkçe Dublaj", "Dublajlı", "Dublaj", "TR Dub", "Turkish Dubbed", "Dual Audio TR", "TR-EN" ifadelerinden anlaşılır (büyük/küçük harf ve Türkçe karakter fark etmez); "dublajsız" dublaj sayılmaz; emin olunamayan kaynak "Altyazılı" olur.
+- **Başlangıç sırası:** Türkçe dublajlı kaynak için en çok 3 sn beklenir (Ayarlar > Oynatıcı > "Türkçe dublajı öncele", varsayılan açık). Dublaj yoksa altyazılı başlar ve Türkçe altyazı kendiliğinden açılır (videonun içindeki Türkçe → çevrimiçi Türkçe → videonun içindeki İngilizce). Dublajlı kaynak sonradan gelirse köşede "Dublajlı kaynak bulundu, geçilsin mi?" kartı çıkar; geçiş aynı saniyeden sürer. Elle seçtiğin altyazıya/sese dokunulmaz.
+- **Akıllı sıralama:** doğrudan bağlantı torrent'ten önce gelir; cihazın çözemeyeceği çözünürlükteki (ör. 4K) ve çok büyük (~15 GB+) dosyalar sona kalır; önceki seçimin önde gelir. İlk görüntü 10 sn içinde gelmezse (torrent'te 40 sn) ya da hata olursa sıradaki kaynağa geçilir; hiçbiri açılmazsa "Başka kaynak seç" çıkar, ekran siyah kalmaz. Videoda gömülü Türkçe ses varsa kendiliğinden seçilir ("Dublajlı (gömülü ses)").
+- **Oynatıcı arayüzü:** üstte kaynak adı · çözünürlük · boyut (ör. "Ana Kaynak 1 · 1920×872 · 22 GB") ve altında başlık; ortada −10 / oynat-durdur / +10; altta ilerleme çubuğu. Alt düğmeler: Kilitle, Yeniden boyutlandır (sığdır / doldur / uzat / 16:9 / 4:3; kalıcı), Altyazı senkronu, Kaynak, Parçalar.
+- **Kilit:** dokunuşları ve hareketleri (ses/parlaklık dahil) kapatır; yalnızca kilit açma simgesi görünür.
+- **Kaynak paneli:** eklentiye göre gruplu kaynaklar (etiket, çözünürlük, boyut, doğrudan/torrent, çalıyor işareti), sıralama (Önerilen / Boyut / Çözünürlük) ve süzgeç (Tümü / Dublajlı / Altyazılı); kaynaklar yüklendikçe liste dolar. Sağda altyazılar: "Altyazı yok", videonun içindekiler, "Dosyadan yükle", "İnternetten yükle", "İlk kullanılabiliri yükle". **Uygula**'ya basana kadar hiçbir şey değişmez, **İptal** her şeyi bırakır.
+- **Parçalar paneli:** video kaliteleri ("Otomatik" dahil) ve ses parçaları ("Türkçe • Stereo • AAC").
+- **Kaynak değişince** oynatma aynı saniyeden sürer; yeni kaynak açılmazsa önceki kaynağa dönülür ve kısa bir mesaj çıkar. Elle seçilen kaynak aynı dizinin sonraki bölümünde ilk denenir; torrent'ten ayrılınca eski torrent oturumu kapanır.
+- **Dosya boyutu:** eklentinin verdiği boyut → torrent bilgisi → HTTP HEAD (`Content-Length`); sessizce başarısız olur, oynatmayı geciktirmez. Bilinmiyorsa hiçbir şey yazılmaz ("0 GB" asla çıkmaz).
+- **Çevrimiçi altyazı:** IMDb kimliğiyle (dizide sezon/bölümle) SubDL (anahtar varsa) + OpenSubtitles tek listede; Türkçe önce, sonra İngilizce; sonuçta dil, kaynak adı ve sürüm adı görünür. .zip içinden .srt/.vtt/.ass çıkarılır, kodlama (UTF-8 / Windows-1254) bulunur. Sonuçlar film başına önbelleğe alınır. Ağ hatasında kısa bir mesaj çıkar, oynatma bozulmaz; hiç altyazı yoksa belirgin bir "Çevrimiçi ara" satırı görünür.
+- Kumanda (TV): paneller D-pad ile gezilir, Tamam seçer, Geri paneli kapatır.
+
+### English
+- **Fast start:** opening a movie or episode no longer waits for the source list; playback starts as soon as a suitable first source is found, with "Loading sources…" shown while the rest load in the background. The old behaviour (source list first) returns when Settings > Player > "Pick the source automatically" is off.
+- **Dubbed / Subtitled tag:** every source is tagged. A Turkish dub is recognised from "TR Dublaj", "Türkçe Dublaj", "Dublajlı", "Dublaj", "TR Dub", "Turkish Dubbed", "Dual Audio TR" and "TR-EN" (case and Turkish characters don't matter); "dublajsız" ("no dub") doesn't count; anything unclear is "Subtitled".
+- **Start order:** it waits at most 3 s for a Turkish dubbed source (Settings > Player > "Prefer Turkish dubbing", on by default). With no dub it starts subtitled and opens Turkish subtitles by itself (embedded Turkish → online Turkish → embedded English). If a dubbed source turns up later a corner card asks "Dubbed source found. Switch?"; switching continues from the same second. Subtitles or audio you chose by hand are never touched.
+- **Smart ordering:** direct links come before torrents; sources the device can't decode (e.g. 4K) and very large files (~15 GB+) go last; your previous choice leads. If no first frame appears within 10 s (40 s for torrents) or an error occurs, the next source is tried; if none opens, "Pick another source" appears instead of a black screen. An embedded Turkish audio track is selected automatically ("Dubbed (embedded audio)").
+- **Player UI:** the top bar shows source name · resolution · size (e.g. "Main Source 1 · 1920×872 · 22 GB") with the title underneath; centre −10 / play-pause / +10; seek bar at the bottom. Bottom buttons: Lock, Resize (fit / fill / stretch / 16:9 / 4:3; remembered), Subtitle sync, Source, Tracks.
+- **Lock:** disables touches and gestures (volume/brightness included); only an unlock icon is visible.
+- **Source panel:** sources grouped by addon (tag, resolution, size, direct/torrent, playing marker), sorting (Recommended / Size / Resolution) and a filter (All / Dubbed / Subtitled); the list fills in as sources load. On the right, subtitles: "No subtitles", embedded ones, "Load from file", "Search online", "Load first available". Nothing changes until you press **Apply**; **Cancel** drops everything.
+- **Tracks panel:** video qualities (including "Auto") and audio tracks ("Turkish • Stereo • AAC").
+- **Changing source** resumes from the same second; if the new source fails to open the previous one comes back with a short message. A source picked by hand is tried first in the same show's next episode; leaving a torrent closes its session.
+- **File size:** size from the addon → torrent metadata → HTTP HEAD (`Content-Length`); it fails silently and never delays playback. If unknown nothing is shown (never "0 GB").
+- **Online subtitles:** looked up by IMDb id (plus season/episode) from SubDL (when a key is set) and OpenSubtitles in one list; Turkish first, then English; each result shows language, source name and release name. .srt/.vtt/.ass are extracted from .zip files and the encoding (UTF-8 / Windows-1254) is detected. Results are cached per title. On a network error a short message appears and playback is unaffected; with no subtitles at all a prominent "Search online" row shows.
+- Remote (TV): panels are navigated with the D-pad, OK selects, Back closes the panel.
+
 ## [1.0.4] — 2026-10-14
 
 ### Türkçe
