@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
@@ -131,6 +132,7 @@ class UpdateDownloadService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var observer: Job? = null
     private var lastPercent = Int.MIN_VALUE
+    private var lastNotifyAt = 0L
     private var foreground = false
 
     private val container get() = (application as PlayApp).container
@@ -162,12 +164,18 @@ class UpdateDownloadService : Service() {
                 when (state) {
                     is UpdateState.Downloading -> {
                         val percent = if (state.total > 0) (state.done * 100 / state.total).toInt() else -1
-                        if (percent != lastPercent) {
+                        // Android bildirim güncellemelerini paket başına saniyede ~5 ile sınırlar; aşılırsa bildirimleri (kaldırma
+                        // dahil) atar ve ilerleme bildirimi takılı kalır. Hızlı ağda yüzde değişimi bundan sık olur: saniyede en çok bir.
+                        val now = SystemClock.elapsedRealtime()
+                        if (percent != lastPercent && now - lastNotifyAt >= PROGRESS_MIN_INTERVAL_MS) {
                             lastPercent = percent
+                            lastNotifyAt = now
                             UpdateNotifications.notify(this@UpdateDownloadService, UpdateNotifications.PROGRESS_ID, UpdateNotifications.progress(this@UpdateDownloadService, info, percent))
                         }
                     }
-                    is UpdateState.Ready -> finish(UpdateNotifications.ready(this@UpdateDownloadService, info))
+                    // Pencere ön plandaysa kurulum ekranını zaten açıp durumu kapatmış olabilir: bildirime gerek kalmaz.
+                    is UpdateState.Ready ->
+                        finish(if (flow.state.value is UpdateState.Ready) UpdateNotifications.ready(this@UpdateDownloadService, info) else null)
                     is UpdateState.Failed -> finish(UpdateNotifications.failed(this@UpdateDownloadService))
                     else -> finish(null) // iptal edildi / başka bir duruma geçti
                 }
@@ -195,7 +203,8 @@ class UpdateDownloadService : Service() {
         observer?.cancel()
         observer = null
         if (foreground) ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-        else NotificationManagerCompat.from(this).cancel(UpdateNotifications.PROGRESS_ID)
+        // Kaldırma kesinleşsin: ön plan bildirimi (varsa) ve yarım kalmış ilerleme bildirimi her durumda silinir.
+        NotificationManagerCompat.from(this).cancel(UpdateNotifications.PROGRESS_ID)
         foreground = false
         if (result != null) UpdateNotifications.notify(this, UpdateNotifications.RESULT_ID, result)
         stopSelf()
@@ -208,6 +217,9 @@ class UpdateDownloadService : Service() {
 
     companion object {
         const val ACTION_CANCEL = "com.kaan.play.action.CANCEL_UPDATE_DOWNLOAD"
+
+        /** İlerleme bildirimi en sık bu aralıkla güncellenir (sistem hız sınırının çok altında). */
+        private const val PROGRESS_MIN_INTERVAL_MS = 1_000L
 
         /** Servisi başlatır; sistem engellerse false (çağıran indirmeyi doğrudan sürdürür). */
         fun start(context: Context, info: UpdateInfo): Boolean = try {

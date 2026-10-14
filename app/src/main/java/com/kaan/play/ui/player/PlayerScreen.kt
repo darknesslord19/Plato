@@ -163,6 +163,7 @@ fun PlayerScreen(
     val cardPhase = autoNext?.phase ?: AutoNextPhase.Hidden
     val cardActive = cardPhase != AutoNextPhase.Hidden
     val cardFocus = remember { FocusRequester() }
+    var cardFocused by remember { mutableStateOf(false) }
     val dialogOpen = showSources || showSubtitles || showAppearance || showMenu || showSync || autoNext?.picking == true
     // Senkron paneli açıkken kontroller gizlenir: altyazı (altta) ilerleme çubuğunun altında kalmasın.
     val showControls = (controlsVisible && !showSync) || ui.error != null
@@ -204,6 +205,7 @@ fun PlayerScreen(
     }
     // Odak: kontroller açıkken ilerleme çubuğunda (hata varsa hata düğmesinde), gizliyken kök yüzeyde
     // (yön tuşları orada yakalanır).
+    LaunchedEffect(cardActive) { if (!cardActive) cardFocused = false }
     LaunchedEffect(controlsVisible, ui.error, cardPhase) {
         when {
             ui.error != null -> runCatching { playFocus.requestFocus() }
@@ -235,7 +237,25 @@ fun PlayerScreen(
                 }
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 // Kart açıkken yön tuşları ve Tamam kartın düğmelerine kalır (sarma/oynat-duraklat yerine).
-                if (cardActive && event.key in CARD_KEYS) return@onPreviewKeyEvent false
+                if (cardActive && event.key in CARD_KEYS) {
+                    if (cardFocused) return@onPreviewKeyEvent false
+                    // Odak karta henüz geçmedi (ör. dokunmatik moddayken kumanda tuşuna basıldı): Tamam ana düğmeye basar,
+                    // yön tuşu odağı karta alır; olay kökün "kontrolleri aç/kapat" tıklamasına düşmez.
+                    return@onPreviewKeyEvent when (event.key) {
+                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                            when (cardPhase) {
+                                AutoNextPhase.Countdown -> autoNext?.playNow()
+                                AutoNextPhase.NoSource -> autoNext?.startPicking()
+                                else -> Unit
+                            }
+                            true
+                        }
+                        else -> {
+                            runCatching { cardFocus.requestFocus() }
+                            true
+                        }
+                    }
+                }
                 bump()
                 val repeat = event.nativeKeyEvent.repeatCount
                 // Sarma sürerken (basılı tutma) kontroller açılsa da Sol/Sağ sarmaya devam eder, odağı gezdirmez.
@@ -332,7 +352,8 @@ fun PlayerScreen(
                 primaryFocus = cardFocus,
                 onCancel = onAutoNextCancel,
                 modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 24.dp, bottom = 96.dp)
-                    .gestureZone(zones, "next"),
+                    .gestureZone(zones, "next")
+                    .onFocusChanged { cardFocused = it.hasFocus },
             )
         }
 
