@@ -359,6 +359,33 @@ Logo, Play'in kendi turkuaz işareti (yuvarlatılmış oynat üçgeni + ilerleme
 - **Hakkında:** başlığın altında tam logo, ortalı; yazı açık renkli olduğu için açık temada da okunsun diye koyu zeminli yuvarlak kutuda.
 - **TV:** `drawable-xhdpi/tv_banner.png` (640×360 = 320×180dp), manifestte `android:banner`.
 
+## Sağlayıcı Kataloğu (Faz B)
+Ana sayfa, seçilen eklentinin/sağlayıcının kendi kataloğuyla beslenir. "Tüm sağlayıcılar" seçildiğinde mevcut TMDB akışı aynen korunur; tek veya çoklu sağlayıcı seçildiğinde ise doğrudan ilgili eklentinin yayınladığı bölümler ve afişler gösterilir.
+
+- **Arayüz ve Mimari:**
+  - `ProviderCatalog`: Katalog satırlarını (`CatalogRow`: id, title, type, items, providerName) ve sayfalama (`loadMore`) fonksiyonunu tanımlayan ortak arayüz.
+  - `CatalogRepository`: Seçili sağlayıcı türlerine göre (`CsCatalog`, `NuvioAddonCatalog`) katalogları toplayan, birleştiren ve önbellekleyen koordinatör.
+  - `CatalogCache`: 5 dakikalık iş parçacığı güvenli (thread-safe) bellek içi önbellek.
+  - **Afiş CDN Koruması:** Eklentilerin sunduğu afiş adresleri (Cloudflare, Macellan CDN vb.) standart Android / OkHttp `User-Agent` başlıklarını HTTP 403 Forbidden ile reddettiğinden, `PlayApp` Coil `SingletonImageLoader.Factory`'sine masaüstü tarayıcı `User-Agent` (`Mozilla/5.0...`) enjekte edilmiştir. Tüm afişler temiz bir şekilde yüklenir.
+  - **Afişe Dokunma:** Sağlayıcı afişine basıldığında içerik adı TMDB ile aranır (`searchMulti`). Eşleşme bulunursa doğrudan zengin TMDB Detay ekranı açılır; eşleşme bulunamazsa başlık doldurulmuş şekilde Ara ekranına geçilir.
+
+- **Eklenti Türleri ve Davranışları:**
+  - **CloudStream (.cs3) Eklentileri (`CsCatalog`):** `com.lagradost.cloudstream3` kabuğunda `MainAPI.mainPage: List<MainPageData>`, `getMainPage(page, request)`, `HomePageResponse`, `newHomePageResponse` sınıfları gerçek CloudStream ikili ABI'siyle birebir eşleştirilmiştir. `CsRuntime.mainPage` her ana sayfa bölümü için bağımsız 10 sn `withTimeout` uygular; hata alan bölüm boş geçilir, uygulama asla çökmez.
+  - **Nuvio Stremio Addon'ları (`NuvioAddonCatalog`):** Addon manifest'indeki `catalogs` tanımları okunur ve `{base}/catalog/{type}/{id}.json` (`skip` ile sayfalama) uç noktasından katalog listeleri çekilir.
+  - **Nuvio JS Kazıyıcılar:** Yalnızca video kaynağı kazıma amacıyla tasarlandıkları ve katalog sunmadıkları için seçildiklerinde "Bu eklenti katalog sunmuyor" bilgilendirme kartı gösterilir ve TMDB beslemesine yönlendirilir.
+
+- **Gerçek Cihaz Denemeleri (LDPlayer 1600×900, Android 9):**
+  - **Dizilla (CloudStream): GEÇTİ.** "Trend Diziler" (Reacher, Law & Order SVU vb.) ve "Yeni Eklenen Diziler" (Dustfall, Hollywood Arts vb.) satırları geldi, afişler yüklendi, Reacher kartına dokunulunca TMDB Detay ekranı açıldı.
+  - **SetFilm (CloudStream): GEÇTİ.** "Filmler" (Addams Ailesi 2, Hayatının Aşkı vb.) ve "Diziler" (Sterling Point, Carrie vb.) satırları ve afişleri eksiksiz yüklendi.
+  - **FilmMakinesi (CloudStream): GEÇTİ.** "Son Filmler" (Unutulmuş Ada, 137 Numaralı Dava vb.) ve "Ölmeden İzle" (Avatar, Donnie Brasco vb.) satırları yüksek çözünürlüklü afişleriyle yüklendi.
+  - **DiziBox (CloudStream): GEÇTİ (Hata/Boş Durumu).** DiziBox sitesi Cloudflare HTTP 403 döndürdü; çökme koruması devreye girdi, ekran donmadı, "Katalog içeriği bulunamadı" ve "Yeniden dene" butonlu güvenli boş durum gösterildi.
+  - **Cinemeta (Nuvio Stremio Addon): GEÇTİ.** "Popular - Movies" (Spider-Man vb.) ve "Popular - Series" (Carrie vb.) satırları `/catalog/movie/top.json` üzerinden başarıyla yüklendi.
+  - **DiziPal (Nuvio JS Kazıyıcı): GEÇTİ.** "Bu eklenti katalog sunmuyor" banner'ı gösterildi ve kullanıcı TMDB beslemesine düşürüldü.
+  - **Çoklu Seçim (Uzun Basma): GEÇTİ.** 0.5 sn basılı tutmayla çoklu seçim moduna girildi, birden fazla sağlayıcı seçilip "Uygula" denildiğinde satırlar sağlayıcı rozetleriyle (`it.providerName`) alt alta sıralandı; hap buton `• DiziBox +1` olarak güncellendi.
+  - **Tüm Sağlayıcılar: GEÇTİ.** "Tüm sağlayıcılar" seçildiğinde TMDB trend karuseli ve satırları eksiksiz geri döndü, hap butonda `Eklenti seç` gösterildi.
+
+- **Bilinen Sınırlar:** Cloudflare/bot korumalı bazı sitelerin ana sayfaları doğrudan istekleri engelleyebilir (DiziBox gibi); bu durum uygulama genelini etkilemez.
+
 ## Yayın Hazırlığı
 
 ### 1. Keystore oluşturma (bir kez; şifreler git'e girmez)
