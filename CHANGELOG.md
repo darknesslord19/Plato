@@ -17,6 +17,7 @@
 - Kumanda (TV): paneller D-pad ile gezilir, Tamam seçer, Geri paneli kapatır.
 - **SubDL Türkçe sonuçları:** altyazı dil dil aranır (önce yalnız Türkçe; hiç Türkçe yoksa İngilizce). Eskiden tek istekte iki dil istenince 30'luk sayfa İngilizceyle doluyor, Türkçe çoğu kez tek sonuç kalıyordu (Matrix: 1 → 14). Önbellek film/bölüm ve dil başınadır.
 - **Anahtar önbelleğe yazılmaz:** SubDL cevabındaki adresler `api_key` içerir; artık adreslerden silinir (indirme anonim yapılır), arama önbelleğine yazılmaz, eski önbellek dosyalarında kalan anahtar okunurken temizlenir.
+- **Altyazı otomatik çeviri:** Türkçe altyazı hiçbir kaynakta yoksa ve İngilizce altyazı varsa, İngilizce cihaz üstünde (Google ML Kit, sunucuya metin gitmez) Türkçeye çevrilir. İngilizce hemen görünür, çeviri arka planda biter ("Altyazı çevriliyor… %n"), elle seçmediysen otomatik Türkçeye geçilir; menüde "Türkçe (otomatik çeviri)" ayrı satırdır, gerçek Türkçe her zaman önce gelir. Zamanlar korunur, çeviri önbelleğe alınır (aynı film yeniden çevrilmez), senkron ayarı çalışır. Dil modeli ilk kullanımda bir kez iner (~44 MB, "Sadece Wi-Fi'de indir" ayarına uyar). Ayarlar > Oynatıcı > "Türkçe yoksa İngilizceyi otomatik çevir" (varsayılan açık). APK ABI başına ~6–7,5 MB büyür.
 
 ### English
 - **Fast start:** opening a movie or episode no longer waits for the source list; playback starts as soon as a suitable first source is found, with "Loading sources…" shown while the rest load in the background. The old behaviour (source list first) returns when Settings > Player > "Pick the source automatically" is off.
@@ -33,6 +34,7 @@
 - Remote (TV): panels are navigated with the D-pad, OK selects, Back closes the panel.
 - **SubDL Turkish results:** subtitles are searched one language at a time (Turkish first; English only if there is no Turkish). Asking for two languages in one request used to fill the 30-item page with English, often leaving a single Turkish result (Matrix: 1 → 14). The cache is per title/episode and language.
 - **API key is never cached:** SubDL result addresses contain `api_key`; it is now stripped from the addresses (downloads are anonymous), never written to the search cache, and cleaned out of old cache files when they are read.
+- **Subtitle auto-translation:** if no source has Turkish subtitles but English ones exist, the English is translated to Turkish on the device (Google ML Kit; no subtitle text leaves the device). English shows at once, the translation finishes in the background ("Translating subtitles… n%") and, unless you chose by hand, Turkish is selected automatically; the menu lists "Turkish (auto-translated)" as its own row and real Turkish always wins. Timings are kept, the translation is cached (the same film isn't translated again) and the sync setting works. The language model downloads once on first use (~44 MB, honours "Download on Wi-Fi only"). Settings > Player > "Auto-translate English if no Turkish" (on by default). The APK grows by about 7 MB per ABI.
 
 ## [1.0.4] — 2026-10-14
 
