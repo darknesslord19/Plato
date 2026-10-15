@@ -198,53 +198,86 @@ class CsRuntime {
         page: Int = 1,
         timeoutMs: Long = 10_000L,
     ): List<CsCatalogSection> {
-        val sections = runCatching { api.mainPage }.getOrNull()
+        val sectionsResult = runCatching { api.mainPage }
+        val sections = sectionsResult.getOrNull()
         val results = mutableListOf<CsCatalogSection>()
+
+        if (sectionsResult.isFailure) {
+            val err = sectionsResult.exceptionOrNull()
+            Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: api.mainPage istisna fırlattı -> ${err?.javaClass?.name}: ${err?.message}")
+        } else if (sections.isNullOrEmpty()) {
+            Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: api.mainPage boş liste (hasMainPage=${api.hasMainPage})")
+        } else {
+            Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: api.mainPage dolu, ${sections.size} bölüm bulundu: ${sections.map { it.name }}")
+        }
 
         if (!sections.isNullOrEmpty()) {
             for (section in sections) {
                 val started = System.currentTimeMillis()
                 try {
+                    Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: getMainPage çağrılıyor (sayfa=$page)...")
                     val resp = withTimeout(timeoutMs) {
                         api.getMainPage(page, section.toRequest()) ?: api.getMainPage(page, section)
                     }
-                    if (resp != null && resp.items.isNotEmpty()) {
-                        for (item in resp.items) {
-                            val title = item.name.ifBlank { section.name }
-                            results += CsCatalogSection(
-                                title = title,
-                                items = item.list,
-                                isHorizontalImages = item.isHorizontalImages,
-                                hasNext = resp.hasNext,
-                            )
-                        }
-                        Log.d(TAG, "${api.name}/${section.name}: ${resp.items.sumOf { it.list.size }} öğe (${System.currentTimeMillis() - started} ms)")
+                    if (resp == null) {
+                        Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: getMainPage null döndü (${System.currentTimeMillis() - started} ms)")
+                    } else if (resp.items.isEmpty()) {
+                        Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: resp.items boş liste (hasNext=${resp.hasNext}) (${System.currentTimeMillis() - started} ms)")
                     } else {
-                        Log.d(TAG, "${api.name}/${section.name}: boş yanıt (${System.currentTimeMillis() - started} ms)")
+                        val totalItems = resp.items.sumOf { it.list.size }
+                        if (totalItems == 0) {
+                            Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: resp.items dolu (${resp.items.size} satır) ama içindeki item.list'ler boş (${System.currentTimeMillis() - started} ms)")
+                        } else {
+                            for (item in resp.items) {
+                                val title = item.name.ifBlank { section.name }
+                                results += CsCatalogSection(
+                                    title = title,
+                                    items = item.list,
+                                    isHorizontalImages = item.isHorizontalImages,
+                                    hasNext = resp.hasNext,
+                                )
+                            }
+                            Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: başarılı, $totalItems öğe (${System.currentTimeMillis() - started} ms)")
+                        }
                     }
                 } catch (t: Throwable) {
-                    Log.d(TAG, "${api.name}/${section.name}: hata ${t.javaClass.simpleName}: ${t.message} (${System.currentTimeMillis() - started} ms)")
+                    Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: istisna -> ${t.javaClass.name}: ${t.message} (${System.currentTimeMillis() - started} ms)")
+                    if (t.cause != null) {
+                        Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: kök neden -> ${t.cause?.javaClass?.name}: ${t.cause?.message}")
+                    }
                 }
             }
         } else if (api.hasMainPage) {
             val started = System.currentTimeMillis()
             try {
+                Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: hasMainPage=true, tekil getMainPage çağrılıyor (sayfa=$page)...")
                 val req = com.lagradost.cloudstream3.MainPageRequest(api.name, api.mainUrl)
                 val resp = withTimeout(timeoutMs) { api.getMainPage(page, req) }
-                if (resp != null && resp.items.isNotEmpty()) {
-                    for (item in resp.items) {
-                        results += CsCatalogSection(
-                            title = item.name.ifBlank { api.name },
-                            items = item.list,
-                            isHorizontalImages = item.isHorizontalImages,
-                            hasNext = resp.hasNext,
-                        )
+                if (resp == null) {
+                    Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: hasMainPage ile getMainPage null döndü (${System.currentTimeMillis() - started} ms)")
+                } else if (resp.items.isEmpty()) {
+                    Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: hasMainPage ile resp.items boş (${System.currentTimeMillis() - started} ms)")
+                } else {
+                    val totalItems = resp.items.sumOf { it.list.size }
+                    if (totalItems == 0) {
+                        Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: hasMainPage ile resp.items dolu ama listeler boş (${System.currentTimeMillis() - started} ms)")
+                    } else {
+                        for (item in resp.items) {
+                            results += CsCatalogSection(
+                                title = item.name.ifBlank { api.name },
+                                items = item.list,
+                                isHorizontalImages = item.isHorizontalImages,
+                                hasNext = resp.hasNext,
+                            )
+                        }
+                        Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: hasMainPage başarılı, $totalItems öğe (${System.currentTimeMillis() - started} ms)")
                     }
                 }
-                Log.d(TAG, "${api.name}: hasMainPage ile ${results.size} satır (${System.currentTimeMillis() - started} ms)")
             } catch (t: Throwable) {
-                Log.d(TAG, "${api.name}: hasMainPage hata ${t.javaClass.simpleName}: ${t.message} (${System.currentTimeMillis() - started} ms)")
+                Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: hasMainPage istisna -> ${t.javaClass.name}: ${t.message} (${System.currentTimeMillis() - started} ms)")
             }
+        } else {
+            Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: hem api.mainPage boş hem de hasMainPage=false, katalog yok")
         }
 
         return results
