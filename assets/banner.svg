@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="440" viewBox="0 0 1280 440" role="img" aria-label="Play: sade film ve dizi istemcisi">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B0C10"/>
+      <stop offset="0.55" stop-color="#0E1A1F"/>
+      <stop offset="1" stop-color="#10343A"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0F9B8E"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.22" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2DD4BF" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="440" rx="28" fill="url(#bg)"/>
+  <rect width="1280" height="440" rx="28" fill="url(#glow)"/>
+  <rect x="1.5" y="1.5" width="1277" height="437" rx="27" fill="none" stroke="#2DD4BF" stroke-opacity="0.35" stroke-width="3"/>
+
+  <!-- Oynat simgesi -->
+  <g transform="translate(150 82)">
+    <path d="M30 14 Q30 0 44 8 L228 114 Q246 125 228 136 L44 242 Q30 250 30 236 Z" fill="url(#accent)"/>
+    <rect x="0" y="278" width="268" height="26" rx="13" fill="#2DD4BF" fill-opacity="0.22"/>
+    <rect x="0" y="278" width="118" height="26" rx="13" fill="#2DD4BF"/>
+  </g>
+
+  <!-- Yazılar -->
+  <text x="520" y="232" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="150" font-weight="700" fill="#E8EBF0" letter-spacing="2">Play</text>
+  <rect x="524" y="256" width="96" height="8" rx="4" fill="url(#accent)"/>
+  <text x="522" y="318" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" fill="#9FB3B8">Sade film ve dizi istemcisi. Eklentileri sen eklersin.</text>
+
+  <!-- Etiketler -->
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="600">
+    <rect x="522" y="346" width="150" height="44" rx="22" fill="#0B0C10" stroke="#2DD4BF" stroke-opacity="0.6"/>
+    <text x="597" y="375" text-anchor="middle" fill="#2DD4BF">Nuvio</text>
+    <rect x="688" y="346" width="190" height="44" rx="22" fill="#0B0C10" stroke="#2DD4BF" stroke-opacity="0.6"/>
+    <text x="783" y="375" text-anchor="middle" fill="#2DD4BF">CloudStream</text>
+    <rect x="894" y="346" width="150" height="44" rx="22" fill="#0B0C10" stroke="#2DD4BF" stroke-opacity="0.6"/>
+    <text x="969" y="375" text-anchor="middle" fill="#2DD4BF">Torrent</text>
+    <rect x="1060" y="346" width="150" height="44" rx="22" fill="#0B0C10" stroke="#F472B6" stroke-opacity="0.6"/>
+    <text x="1135" y="375" text-anchor="middle" fill="#F472B6">TV ve tablet</text>
+  </g>
+</svg>

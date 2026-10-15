@@ -1,16 +1,95 @@
-# Play
+<p align="center">
+  <img src="assets/banner.svg" alt="Play: sade film ve dizi istemcisi" width="100%" />
+</p>
 
-Sade, özgün bir Android film/dizi istemcisi (Kotlin, Jetpack Compose, Material 3). Uygulama hiçbir içerik veya addon içermez; addon'lar kullanıcının girdiği manifest URL'lerinden gelir. Ayrıntılı kapsam ve kurallar: [CLAUDE.md](CLAUDE.md).
+<p align="center">
+  <a href="https://github.com/liberta09/Play/releases/latest"><img src="https://img.shields.io/github/v/release/liberta09/Play?style=flat-square&label=s%C3%BCr%C3%BCm&color=2DD4BF&labelColor=0B0C10" alt="Son sürüm" /></a>
+  <img src="https://img.shields.io/badge/Android%207.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white&labelColor=0B0C10" alt="Android 7.0 ve üzeri" />
+  <img src="https://img.shields.io/badge/Telefon%20%C2%B7%20Tablet%20%C2%B7%20TV-0F9B8E?style=flat-square&labelColor=0B0C10" alt="Telefon, tablet ve TV" />
+  <img src="https://img.shields.io/badge/Kotlin%20%C2%B7%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white&labelColor=0B0C10" alt="Kotlin ve Jetpack Compose" />
+  <a href="https://t.me/+o-RFlV4U3UY5NGU8"><img src="https://img.shields.io/badge/Telegram-229ED9?style=flat-square&logo=telegram&logoColor=white&labelColor=0B0C10" alt="Telegram" /></a>
+</p>
 
-## İndirme / Download
+<p align="center">
+  <b>Sade, özgün bir Android film ve dizi istemcisi.<br/>Eklentilerini sen eklersin, Play seçip en iyi kaynakla hemen oynatır.</b>
+</p>
+
+<br/>
+
+<p align="center">
+  <a href="https://github.com/liberta09/Play/releases/download/v1.0.3/Play-1.0.3-arm64-v8a.apk"><img src="https://img.shields.io/badge/APK%20%C4%B0ND%C4%B0R-Play%20(arm64--v8a)-2DD4BF?style=for-the-badge&logo=android&logoColor=0B0C10&labelColor=0B0C10&color=2DD4BF" alt="APK İndir" height="52" /></a>
+  &nbsp;
+  <a href="https://t.me/+o-RFlV4U3UY5NGU8"><img src="https://img.shields.io/badge/TELEGRAM-Kanala%20Kat%C4%B1l-229ED9?style=for-the-badge&logo=telegram&logoColor=white&labelColor=0B0C10" alt="Telegram Kanalına Katıl" height="52" /></a>
+</p>
+
+<p align="center">
+  <sub>Telefonların çoğu <b>arm64-v8a</b> kullanır. Eski 32 bit cihaz ya da TV box için: <a href="https://github.com/liberta09/Play/releases/download/v1.0.3/Play-1.0.3-armeabi-v7a.apk">armeabi-v7a</a> · Emülatör için: <a href="https://github.com/liberta09/Play/releases/download/v1.0.3/Play-1.0.3-x86_64.apk">x86_64</a> · <a href="https://github.com/liberta09/Play/releases">Tüm sürümler</a></sub>
+</p>
+
+<br/>
+
+## ✨ Neler yapabilir?
 
 | | |
 |---|---|
-| 📥 **APK** | [GitHub Releases](https://github.com/liberta09/Play/releases) |
-| 💬 **Telegram** | [t.me/+o-RFlV4U3UY5NGU8](https://t.me/+o-RFlV4U3UY5NGU8) |
+| ⚡ **Hemen oynatır** | Oynat'a basınca kaynak listesi beklenmez; uygun ilk kaynak bulunur bulunmaz film başlar, diğerleri arka planda yüklenir. |
+| 🇹🇷 **Türkçe dublaj önce** | Türkçe dublajlı kaynak varsa ilk o seçilir. Yoksa Türkçe altyazıyla başlar. Her kaynak "Dublajlı" ya da "Altyazılı" diye etiketlenir, boyutu (GB) yanında görünür. |
+| 📝 **Otomatik Türkçe altyazı** | Videoda altyazı yoksa çevrimiçi aranır, Türkçe önce gelir. Elle .srt ekleyebilir, senkronu ve görünümü (boyut, kalın, italik) ayarlayabilirsin. |
+| 🧩 **Nuvio ve CloudStream** | Nuvio addon'larını, Nuvio plugin'lerini ve CloudStream (.cs3) eklenti depolarını kaynak olarak kullanır. Tek listede, eklentiye göre gruplu. |
+| 🧲 **Yerleşik torrent motoru** | Torrent kaynakları için ayrı uygulama, TorrServer ya da Debrid gerekmez. |
+| 🎛️ **Akıllı oynatıcı** | Sağ tarafı kaydırarak ses, sol tarafı kaydırarak parlaklık. Kilit, kaynak, ses ve video kalitesi panelleri. Dizide sonraki bölüm otomatik açılır. |
+| 📥 **Çevrimdışı izle** | Film ve bölümleri indir, internetsiz izle. Kaldığın yerden devam eder. |
+| 📺 **Her ekranda** | Telefon, tablet ve Android TV. Kumandayla ve hava faresiyle gezinme tam desteklenir. |
 
-- **Türkçe:** Son sürümü yukarıdaki bağlantıdan indir (`Play-vX.Y.Z.apk`). Android 7.0+ gerekir; kurmak için "bilinmeyen kaynaklardan yükleme" iznini ver. Güncellemeler ve duyurular için Telegram grubuna katıl.
-- **English:** Download the latest release from the link above (`Play-vX.Y.Z.apk`). Requires Android 7.0+; allow "install unknown apps" to sideload. Join the Telegram group for updates and announcements.
+> **Not:** Play hiçbir içerik, addon ya da eklenti içermez. Kaynakları kendin eklersin. Kendi hakların olmayan içerikleri izlemekten sen sorumlusun.
+
+## 📲 Kurulum
+
+1. Yukarıdaki **APK İNDİR** düğmesine dokun. Dosya doğrudan iner.
+2. İnen `Play-...apk` dosyasını aç.
+3. Uyarı çıkarsa **Ayarlar → Bilinmeyen kaynaklardan yüklemeye izin ver** seçeneğini aç.
+4. **Yükle**'ye dokun. Sonraki sürümlerde uygulama güncellemeyi kendisi indirip kurar.
+
+<details>
+<summary>📺 Android TV ve TV Box</summary>
+
+1. TV'ye Play Store'dan **Downloader** ya da **Send Files to TV** uygulamasını kur.
+2. APK'yı oradan indir (cihazın 32 bit ise `armeabi-v7a`, 64 bit ise `arm64-v8a` sürümünü seç) ve kur.
+3. Kumandanın yön tuşlarıyla gezin, Tamam ile seç, Geri ile panelleri kapat.
+</details>
+
+## 🚀 Eklenti nasıl eklenir?
+
+| | |
+|---|---|
+| **1** | [CloudStream Repo Manager](https://github.com/liberta09/CloudStreamRepoManager)'ı aç. |
+| **2** | İstediğin reponun altındaki **Play'e Aktar** düğmesine dokun. |
+| **3** | Play kendiliğinden açılır. "Eklensin mi?" penceresinde onayla. |
+| **4** | Bir film aç, **Oynat**'a bas. Kaynaklar panelinde eklentilerinden gelenler görünür. |
+
+> **İpucu:** Eklentileri elle de ekleyebilirsin: **Ayarlar → Eklentiler** içinde adresi yapıştır. Play adresin içeriğine bakıp addon mu, plugin deposu mu, CloudStream deposu mu olduğunu kendisi anlar.
+
+## 💬 Destek ve duyurular
+
+Yeni sürümler, duyurular ve hata bildirimleri için Telegram kanalına katıl.
+
+<p align="center">
+  <a href="https://t.me/+o-RFlV4U3UY5NGU8"><img src="https://img.shields.io/badge/Telegram-Kanala%20Kat%C4%B1l-229ED9?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Kanalına Katıl" height="44" /></a>
+</p>
+
+<details>
+<summary>🇬🇧 English</summary>
+
+Play is a simple, original Android movie and TV client (Kotlin, Jetpack Compose). It ships with no content, add-ons or plugins: you add your own Nuvio add-ons, Nuvio plugins and CloudStream (.cs3) repositories. It starts playback right away, prefers Turkish dubbing, finds Turkish subtitles automatically, has a built-in torrent engine, offline downloads, volume/brightness swipe gestures, auto next episode, and works on phones, tablets and Android TV.
+
+**Download:** tap the APK button above (arm64-v8a for most phones). Requires Android 7.0+; allow "install unknown apps" to sideload. Join the Telegram channel for updates.
+</details>
+
+---
+
+## 🛠️ Geliştirici notları
+
+Ayrıntılı kapsam ve kurallar: [CLAUDE.md](CLAUDE.md). Sürüm notları: [CHANGELOG.md](CHANGELOG.md).
 
 Yayın derlemesi / Release build: `local.properties` içine `KEYSTORE_PASSWORD` ve `KEY_PASSWORD` ekle, anahtar dosyası `keystore/play-release.keystore` (alias `play`; git'e girmez), sonra `.\gradlew assembleRelease`. Şifreler yoksa imzasız derlenir. Sürüm notları: [CHANGELOG.md](CHANGELOG.md).
 
