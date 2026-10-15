@@ -21,9 +21,12 @@ data class SubtitleTrack(
     val label: String? = null,
 )
 
-/** [Source]: akışın, eklentinin ya da altyazı addon'unun verdiği; [Online]: yerleşik çevrimiçi arama; [Local]: kullanıcının seçtiği dosya. */
+/**
+ * [Source]: akışın, eklentinin ya da altyazı addon'unun verdiği; [Online]: yerleşik çevrimiçi arama; [Local]: kullanıcının seçtiği
+ * dosya; [Translated]: İngilizceden cihazda çevrilmiş Türkçe (önbellekteki .srt; gerçek Türkçeyle karışmaz).
+ */
 @Serializable
-enum class SubtitleKind { Source, Online, Local }
+enum class SubtitleKind { Source, Online, Local, Translated }
 
 /** Bir altyazı addon'unun cevabı: ya parçalar (boş olabilir) ya da "yanıt vermedi". */
 sealed interface SubtitleResult {

@@ -59,3 +59,12 @@
 -keep class org.libtorrent4j.swig.** { *; }
 -keep class org.libtorrent4j.** { *; }
 -dontwarn org.libtorrent4j.**
+
+# ── ML Kit cihaz üstü çeviri (Türkçe altyazı otomatik çeviri) ────────────────────────────────
+# ML Kit bileşenlerini ComponentDiscovery ile yansıma üzerinden, parametresiz kurucuyla yükler; R8 bu kurucuları
+# silerse çeviri release'te hemen "başarısız" olur (debug'da çalışır). Kaydediciler ve yerel (JNI) çağrılar adla kalır.
+-keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }
+-keep class com.google.mlkit.**.*Registrar { <init>(); }
+-keep class com.google.mlkit.nl.translate.** { *; }
+-keepclasseswithmembernames class * { native <methods>; }
+-dontwarn com.google.mlkit.**

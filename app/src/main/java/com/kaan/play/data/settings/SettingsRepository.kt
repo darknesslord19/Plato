@@ -71,6 +71,14 @@ class SettingsRepository(val store: DataStore<Preferences>) {
         store.edit { it[RESIZE_MODE] = mode.name }
     }
 
+    /** Açıkken Türkçe altyazı yoksa İngilizce altyazı cihazda Türkçeye çevrilir. Varsayılan açık. */
+    val autoTranslateSubtitles: Flow<Boolean> =
+        store.data.map { it[AUTO_TRANSLATE_SUBS] ?: DEFAULT_AUTO_TRANSLATE_SUBS }.distinctUntilChanged()
+
+    suspend fun setAutoTranslateSubtitles(enabled: Boolean) {
+        store.edit { it[AUTO_TRANSLATE_SUBS] = enabled }
+    }
+
     /** Açıkken dizide bölüm bitmeye yaklaşınca sonraki bölüm geri sayımla kendiliğinden açılır. Varsayılan açık. */
     val autoNext: Flow<Boolean> = store.data.map { it[AUTO_NEXT] ?: DEFAULT_AUTO_NEXT }.distinctUntilChanged()
 
@@ -147,6 +155,7 @@ class SettingsRepository(val store: DataStore<Preferences>) {
         const val DEFAULT_ALWAYS_RESUME = true
         const val DEFAULT_DOWNLOAD_WIFI_ONLY = true
         const val DEFAULT_AUTO_NEXT = true
+        const val DEFAULT_AUTO_TRANSLATE_SUBS = true
         const val DEFAULT_AUTO_SOURCE = true
         const val DEFAULT_PREFER_DUB = true
         const val DEFAULT_AUTO_NEXT_SECONDS = 10
@@ -161,6 +170,7 @@ class SettingsRepository(val store: DataStore<Preferences>) {
         private val TORRENT_SERVER = stringPreferencesKey("torrent_server")
         private val DOWNLOAD_WIFI_ONLY = booleanPreferencesKey("download_wifi_only")
         private val AUTO_NEXT = booleanPreferencesKey("auto_next")
+        private val AUTO_TRANSLATE_SUBS = booleanPreferencesKey("auto_translate_subs")
         private val AUTO_SOURCE = booleanPreferencesKey("auto_source")
         private val PREFER_DUB = booleanPreferencesKey("prefer_dub")
         private val RESIZE_MODE = stringPreferencesKey("resize_mode")

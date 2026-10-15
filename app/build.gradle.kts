@@ -138,6 +138,9 @@ dependencies {
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.datasource.okhttp)
 
+    // Cihaz üstünde çeviri (Türkçe altyazı yoksa İngilizceden); model ilk kullanımda iner, metin sunucuya gitmez.
+    implementation(libs.mlkit.translate)
+
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
