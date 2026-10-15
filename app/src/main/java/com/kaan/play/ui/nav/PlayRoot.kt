@@ -1,5 +1,6 @@
 package com.kaan.play.ui.nav
 
+import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
@@ -329,6 +330,7 @@ fun PlayRoot() {
                     onOpenCategory = { navController.navigate(categoryRoute(it)) },
                     onContinue = ::continueWatching,
                     onAddAddon = { openAddons(startAdding = true) },
+                    onOpenSearch = { query -> navController.navigate("search?q=${Uri.encode(query)}") },
                 )
             }
             composable(
@@ -340,7 +342,13 @@ fun PlayRoot() {
                     CategoryScreen(row = row, onBack = { navController.popBackStack() }, onOpenDetail = ::openDetail)
                 }
             }
-            composable(Tab.Search.route) { ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { SearchScreen(onOpenDetail = ::openDetail) } }
+            composable(
+                route = "search?q={q}",
+                arguments = listOf(navArgument("q") { type = NavType.StringType; nullable = true; defaultValue = null }),
+            ) { entry ->
+                val q = entry.arguments?.getString("q")
+                ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { SearchScreen(initialQuery = q, onOpenDetail = ::openDetail) }
+            }
             composable(Tab.Library.route) {
                 ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { LibraryScreen(onOpenDetail = ::openDetail, onPlayEntry = ::playHistory, onPlayDownload = ::playDownload) }
             }

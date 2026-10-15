@@ -65,11 +65,20 @@ import com.kaan.play.ui.tv.rememberInitialFocus
 import com.kaan.play.ui.tv.rememberPlayLayout
 import kotlinx.coroutines.launch
 
+import androidx.compose.runtime.mutableIntStateOf
+import com.kaan.play.data.provider.CatalogItem
+import com.kaan.play.data.provider.CatalogResult
+import com.kaan.play.data.provider.CatalogRow
+import com.kaan.play.data.provider.ProviderItem
+import com.kaan.play.data.tmdb.TmdbRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 private val ScreenPadding = 20.dp
 
 /**
  * Ana sayfa. Hiç eklenti yokken tek cümle + tek buton; eklenti varken kapak karuseli, "devam et" ve TMDB satırları.
- * Sağlayıcı seçildiğinde (Aşama A) seçili sağlayıcı için iskelet yer tutucu ve "Katalog yakında" gösterilir.
+ * Sağlayıcı seçildiğinde seçili sağlayıcı(lar)ın kendi kataloğu gösterilir (Faz B).
  */
 @Composable
 fun HomeScreen(
@@ -77,6 +86,7 @@ fun HomeScreen(
     onOpenCategory: (HomeRow) -> Unit,
     onContinue: (ContinueItem) -> Unit,
     onAddAddon: () -> Unit,
+    onOpenSearch: (String) -> Unit = {},
 ) {
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
@@ -98,7 +108,14 @@ fun HomeScreen(
     Box(Modifier.fillMaxSize()) {
         when {
             hasSource == null -> Box(Modifier.fillMaxSize())
-            !isAllSelected -> ProviderCatalogPlaceholder(providerNames = validSelected.map { it.name })
+            !isAllSelected -> ProviderCatalogView(
+                selectedIds = selectedProviders,
+                validSelected = validSelected,
+                onOpenDetail = onOpenDetail,
+                onOpenSearch = onOpenSearch,
+                onOpenCategory = onOpenCategory,
+                onContinue = onContinue,
+            )
             hasSource == false -> HomeEmptyState(onAddAddon)
             else -> HomeContent(onOpenDetail, onOpenCategory, onContinue)
         }
@@ -355,17 +372,214 @@ internal fun HomeRow.titleRes(): Int = when (this) {
 }
 
 /**
- * Sağlayıcı seçildiğinde (Aşama A) gösterilen katalog iskelet yer tutucu ekranı.
- * Gerçek katalog Aşama B'de eklenecektir; siyah ekranda bırakmaz.
+ * Sağlayıcı kataloğu arayüz durumları.
+ */
+private sealed interface CatalogUiState {
+    data object Loading : CatalogUiState
+    data class Success(val rows: List<CatalogRow>) : CatalogUiState
+    data object NoCatalogProvided : CatalogUiState
+    data object Empty : CatalogUiState
+    data class Error(val message: String? = null) : CatalogUiState
+}
+
+/**
+ * Seçili sağlayıcı(lar)ın kendi kataloğunu gösteren ana sayfa bileşeni (Faz B).
  */
 @Composable
-private fun ProviderCatalogPlaceholder(
-    providerNames: List<String>,
+private fun ProviderCatalogView(
+    selectedIds: Set<String>,
+    validSelected: List<ProviderItem>,
+    onOpenDetail: (MediaType, Int) -> Unit,
+    onOpenSearch: (String) -> Unit,
+    onOpenCategory: (HomeRow) -> Unit,
+    onContinue: (ContinueItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val container = rememberContainer()
+    val scope = rememberCoroutineScope()
     val layout = rememberPlayLayout()
     val cardWidth = if (layout.widthDp >= 600) 152.dp else 132.dp
 
+    var state by remember(selectedIds) { mutableStateOf<CatalogUiState>(CatalogUiState.Loading) }
+    var refreshKey by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(selectedIds, refreshKey) {
+        state = CatalogUiState.Loading
+        val result = container.catalogRepository.loadCatalog(selectedIds, forceRefresh = refreshKey > 0)
+        state = when (result) {
+            is CatalogResult.Success -> CatalogUiState.Success(result.rows)
+            is CatalogResult.NoCatalogProvided -> CatalogUiState.NoCatalogProvided
+            is CatalogResult.Empty -> CatalogUiState.Empty
+            is CatalogResult.Error -> CatalogUiState.Error(result.message)
+        }
+    }
+
+    when (val current = state) {
+        is CatalogUiState.Loading -> {
+            ProviderCatalogSkeleton(
+                providerNames = validSelected.map { it.name },
+                cardWidth = cardWidth,
+                modifier = modifier,
+            )
+        }
+        is CatalogUiState.NoCatalogProvided -> {
+            Column(modifier = modifier.fillMaxSize()) {
+                // Bilgilendirme şeridi
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = ScreenPadding, vertical = 12.dp)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), MaterialTheme.shapes.medium)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.provider_catalog_no_catalog),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                // TMDB akışına düş
+                HomeContent(
+                    onOpenDetail = onOpenDetail,
+                    onOpenCategory = onOpenCategory,
+                    onContinue = onContinue,
+                )
+            }
+        }
+        is CatalogUiState.Empty -> {
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = stringResource(R.string.provider_catalog_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Button(
+                    onClick = { refreshKey++ },
+                    modifier = Modifier.focusRing(MaterialTheme.shapes.medium),
+                ) {
+                    Text(stringResource(R.string.provider_catalog_retry))
+                }
+            }
+        }
+        is CatalogUiState.Error -> {
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = stringResource(R.string.provider_catalog_error),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                )
+                Button(
+                    onClick = { refreshKey++ },
+                    modifier = Modifier.focusRing(MaterialTheme.shapes.medium),
+                ) {
+                    Text(stringResource(R.string.provider_catalog_retry))
+                }
+            }
+        }
+        is CatalogUiState.Success -> {
+            val rows = current.rows
+            val listState = rememberLazyListState()
+
+            LazyColumn(
+                state = listState,
+                modifier = modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(28.dp),
+            ) {
+                items(rows, key = { it.id }) { row ->
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = ScreenPadding),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = row.title,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (validSelected.size > 1) {
+                                    Text(
+                                        text = row.providerName,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                            Text(
+                                text = stringResource(R.string.provider_catalog_show_all),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .clip(MaterialTheme.shapes.small)
+                                    .focusRing(MaterialTheme.shapes.small)
+                                    .clickable { /* Faz C: Tümünü göster yer tutucu */ }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = ScreenPadding),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(row.items, key = { "${row.id}_${it.id}" }) { item ->
+                                PosterCard(
+                                    title = item.title,
+                                    subtitle = item.subtitle,
+                                    imageUrl = item.posterUrl,
+                                    onClick = {
+                                        scope.launch {
+                                            resolveAndOpenPoster(item, container.tmdb, onOpenDetail, onOpenSearch)
+                                        }
+                                    },
+                                    modifier = Modifier.width(cardWidth),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Sağlayıcı kataloğu yüklenirken gösterilen iskelet shimmer yer tutucusu.
+ */
+@Composable
+private fun ProviderCatalogSkeleton(
+    providerNames: List<String>,
+    cardWidth: Dp,
+    modifier: Modifier = Modifier,
+) {
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -378,7 +592,7 @@ private fun ProviderCatalogPlaceholder(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = ScreenPadding),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 val title = if (providerNames.size <= 1) {
                     providerNames.firstOrNull() ?: stringResource(R.string.provider_selector_title)
@@ -389,23 +603,6 @@ private fun ProviderCatalogPlaceholder(
                     text = title,
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onBackground,
-                )
-                Box(
-                    modifier = Modifier
-                        .clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.provider_catalog_coming_soon),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.provider_catalog_coming_soon_desc),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -426,6 +623,31 @@ private fun ProviderCatalogPlaceholder(
                 SkeletonRow(cardWidth = cardWidth)
             }
         }
+    }
+}
+
+/**
+ * Afişe dokunulduğunda: TMDB'de başlıkla aranır, eşleşme varsa detayı açılır,
+ * yoksa o başlıkla Arama ekranı açılır.
+ */
+private suspend fun resolveAndOpenPoster(
+    item: CatalogItem,
+    tmdb: TmdbRepository,
+    onOpenDetail: (MediaType, Int) -> Unit,
+    onOpenSearch: (String) -> Unit,
+) {
+    try {
+        val search = withContext(Dispatchers.IO) { tmdb.search(item.title) }
+        val results = search.items
+        val matched = results.firstOrNull { it.title.equals(item.title, ignoreCase = true) }
+            ?: results.firstOrNull()
+        if (matched != null) {
+            onOpenDetail(matched.type, matched.id)
+        } else {
+            onOpenSearch(item.title)
+        }
+    } catch (_: Throwable) {
+        onOpenSearch(item.title)
     }
 }
 

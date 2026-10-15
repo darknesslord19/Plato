@@ -411,4 +411,9 @@
     <string name="provider_empty_action">Eklenti ekle</string>
     <string name="provider_catalog_coming_soon">Katalog yakında</string>
     <string name="provider_catalog_coming_soon_desc">Bu sağlayıcı için katalog desteği sonraki aşamada eklenecek.</string>
+    <string name="provider_catalog_no_catalog">Bu eklenti katalog sunmuyor</string>
+    <string name="provider_catalog_show_all">Tümünü göster</string>
+    <string name="provider_catalog_error">Katalog yüklenemedi.</string>
+    <string name="provider_catalog_empty">Katalog içeriği bulunamadı.</string>
+    <string name="provider_catalog_retry">Yeniden dene</string>
 </resources>

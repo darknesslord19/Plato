@@ -429,4 +429,9 @@
     <string name="provider_empty_action">Add extension</string>
     <string name="provider_catalog_coming_soon">Catalog coming soon</string>
     <string name="provider_catalog_coming_soon_desc">Catalog support for this provider will be added in the next phase.</string>
+    <string name="provider_catalog_no_catalog">This extension does not provide a catalog</string>
+    <string name="provider_catalog_show_all">Show all</string>
+    <string name="provider_catalog_error">Couldn\'t load catalog.</string>
+    <string name="provider_catalog_empty">No catalog content found.</string>
+    <string name="provider_catalog_retry">Try again</string>
 </resources>

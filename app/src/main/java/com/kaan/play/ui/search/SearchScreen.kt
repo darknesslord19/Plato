@@ -52,9 +52,18 @@ import kotlinx.coroutines.flow.filter
 
 /** Ara: tek büyük arama kutusu ve altında sonuç ızgarası. Filtre/çip yok (kural 5). */
 @Composable
-fun SearchScreen(onOpenDetail: (MediaType, Int) -> Unit) {
+fun SearchScreen(
+    initialQuery: String? = null,
+    onOpenDetail: (MediaType, Int) -> Unit,
+) {
     val vm = containerViewModel(key = "search-${AppLanguage.effective().iso}") { SearchViewModel(it.tmdb) }
     val state by vm.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(initialQuery) {
+        if (!initialQuery.isNullOrBlank() && state.query != initialQuery) {
+            vm.onQueryChange(initialQuery)
+        }
+    }
     val keyboard = LocalSoftwareKeyboardController.current
     // Kumanda: sonuçlarla (geri dönüş) açılırsa son sonuç, aksi halde arama kutusu başlangıç odağını alır.
     val startedWithResults = remember { state.items.isNotEmpty() }
