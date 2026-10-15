@@ -418,4 +418,9 @@
     <string name="provider_catalog_retry">Yeniden dene</string>
     <string name="provider_verifying_site">Site doğrulanıyor…</string>
     <string name="provider_bot_protection_failed">Bu sitenin bot koruması aşılamadı</string>
+    <string name="provider_verification_required">Site doğrulaması gerekiyor</string>
+    <string name="provider_verify_action">Doğrula</string>
+    <string name="provider_verify_title">Güvenlik Doğrulaması</string>
+    <string name="provider_verify_close">Kapat</string>
+    <string name="provider_verify_hint">Lütfen ekrandaki kutucuğu işaretleyin</string>
 </resources>

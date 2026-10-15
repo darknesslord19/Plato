@@ -43,11 +43,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import com.kaan.play.R
 import com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver
 import com.kaan.play.data.library.ContinueItem
 import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.provider.ProviderRules
+import com.kaan.play.ui.cloudflare.CloudflareVerifyActivity
 import com.kaan.play.data.tmdb.TmdbImages
 import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.ui.components.Button
@@ -381,7 +386,12 @@ private sealed interface CatalogUiState {
     data class Success(val rows: List<CatalogRow>) : CatalogUiState
     data object NoCatalogProvided : CatalogUiState
     data object Empty : CatalogUiState
-    data class Error(val message: String? = null, val isBotBlocked: Boolean = false) : CatalogUiState
+    data class Error(
+        val message: String? = null,
+        val isBotBlocked: Boolean = false,
+        val verifyUrl: String? = null,
+        val verifyHost: String? = null,
+    ) : CatalogUiState
 }
 
 /**
@@ -399,11 +409,20 @@ private fun ProviderCatalogView(
 ) {
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val layout = rememberPlayLayout()
     val cardWidth = if (layout.widthDp >= 600) 152.dp else 132.dp
 
     var state by remember(selectedIds) { mutableStateOf<CatalogUiState>(CatalogUiState.Loading) }
     var refreshKey by remember { mutableIntStateOf(0) }
+
+    val verifyLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { res ->
+        if (res.resultCode == Activity.RESULT_OK) {
+            refreshKey++
+        }
+    }
 
     LaunchedEffect(selectedIds, refreshKey) {
         state = CatalogUiState.Loading
@@ -412,7 +431,12 @@ private fun ProviderCatalogView(
             is CatalogResult.Success -> CatalogUiState.Success(result.rows)
             is CatalogResult.NoCatalogProvided -> CatalogUiState.NoCatalogProvided
             is CatalogResult.Empty -> CatalogUiState.Empty
-            is CatalogResult.Error -> CatalogUiState.Error(result.message, result.isBotBlocked)
+            is CatalogResult.Error -> CatalogUiState.Error(
+                message = result.message,
+                isBotBlocked = result.isBotBlocked,
+                verifyUrl = result.verifyUrl,
+                verifyHost = result.verifyHost,
+            )
         }
     }
 
@@ -476,7 +500,7 @@ private fun ProviderCatalogView(
         }
         is CatalogUiState.Error -> {
             val errorText = if (current.isBotBlocked) {
-                stringResource(R.string.provider_bot_protection_failed)
+                stringResource(R.string.provider_verification_required)
             } else {
                 stringResource(R.string.provider_catalog_error)
             }
@@ -491,14 +515,50 @@ private fun ProviderCatalogView(
                 Text(
                     text = errorText,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.error,
+                    color = if (current.isBotBlocked) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center,
                 )
-                Button(
-                    onClick = { refreshKey++ },
-                    modifier = Modifier.focusRing(MaterialTheme.shapes.medium),
-                ) {
-                    Text(stringResource(R.string.provider_catalog_retry))
+                if (current.isBotBlocked) {
+                    Text(
+                        text = stringResource(R.string.provider_bot_protection_failed),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Button(
+                            onClick = {
+                                val verifyUrl = current.verifyUrl ?: "https://${current.verifyHost.orEmpty()}"
+                                val providerName = validSelected.firstOrNull()?.name.orEmpty()
+                                val intent = CloudflareVerifyActivity.intent(
+                                    context = context,
+                                    url = verifyUrl,
+                                    host = current.verifyHost.orEmpty(),
+                                    name = providerName,
+                                )
+                                verifyLauncher.launch(intent)
+                            },
+                            modifier = Modifier.focusRing(MaterialTheme.shapes.medium),
+                        ) {
+                            Text(stringResource(R.string.provider_verify_action))
+                        }
+                        Button(
+                            onClick = { refreshKey++ },
+                            modifier = Modifier.focusRing(MaterialTheme.shapes.medium),
+                        ) {
+                            Text(stringResource(R.string.provider_catalog_retry))
+                        }
+                    }
+                } else {
+                    Button(
+                        onClick = { refreshKey++ },
+                        modifier = Modifier.focusRing(MaterialTheme.shapes.medium),
+                    ) {
+                        Text(stringResource(R.string.provider_catalog_retry))
+                    }
                 }
             }
         }

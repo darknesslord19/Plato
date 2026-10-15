@@ -436,4 +436,9 @@
     <string name="provider_catalog_retry">Try again</string>
     <string name="provider_verifying_site">Verifying site…</string>
     <string name="provider_bot_protection_failed">This site\'s bot protection could not be bypassed</string>
+    <string name="provider_verification_required">Site verification required</string>
+    <string name="provider_verify_action">Verify</string>
+    <string name="provider_verify_title">Security Verification</string>
+    <string name="provider_verify_close">Close</string>
+    <string name="provider_verify_hint">Please check the box on screen</string>
 </resources>

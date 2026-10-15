@@ -16,7 +16,12 @@ import okhttp3.OkHttpClient
 sealed interface CatalogResult {
     data class Success(val rows: List<CatalogRow>) : CatalogResult
     data object NoCatalogProvided : CatalogResult
-    data class Error(val message: String? = null, val isBotBlocked: Boolean = false) : CatalogResult
+    data class Error(
+        val message: String? = null,
+        val isBotBlocked: Boolean = false,
+        val verifyUrl: String? = null,
+        val verifyHost: String? = null,
+    ) : CatalogResult
     data object Empty : CatalogResult
 }
 
@@ -59,6 +64,8 @@ class CatalogRepository(
         var hasAtLeastOneProvider = false
         var hasError = false
         var hasBotBlocked = false
+        var blockedVerifyUrl: String? = null
+        var blockedVerifyHost: String? = null
 
         for (id in validIds) {
             when {
@@ -78,6 +85,9 @@ class CatalogRepository(
                     for (api in apis) {
                         if (com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver.wasBlocked(api.mainUrl)) {
                             hasBotBlocked = true
+                            val host = com.kaan.play.data.cloudstream.cloudflare.CloudflareCache.normalizeHost(api.mainUrl)
+                            blockedVerifyHost = host
+                            blockedVerifyUrl = com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver.getBlockedUrl(host) ?: api.mainUrl
                         }
                     }
                 }
@@ -113,7 +123,11 @@ class CatalogRepository(
             cache.put(cacheKey, allRows)
             CatalogResult.Success(allRows)
         } else if (hasBotBlocked && allRows.isEmpty()) {
-            CatalogResult.Error(isBotBlocked = true)
+            CatalogResult.Error(
+                isBotBlocked = true,
+                verifyUrl = blockedVerifyUrl,
+                verifyHost = blockedVerifyHost,
+            )
         } else if (hasError && allRows.isEmpty()) {
             CatalogResult.Error()
         } else {

@@ -116,10 +116,11 @@ class Requests(private val client: OkHttpClient) {
         headers.forEach { (k, v) -> req.addHeader(k, v) }
         referer?.let { req.addHeader("Referer", it) }
 
-        // User-Agent: başlıkta yoksa önbellekteki UA veya varsayılan
-        if (!headers.keys.any { it.equals("User-Agent", ignoreCase = true) }) {
-            val ua = cachedCf?.userAgent ?: DEFAULT_UA
-            req.addHeader("User-Agent", ua)
+        // User-Agent: cf_clearance çerezi varsa mutlaka o çerezi üreten UA kullanılmalı (Cloudflare UA eşleşmesi şartı)
+        if (cachedCf != null && cachedCf.userAgent.isNotBlank()) {
+            req.header("User-Agent", cachedCf.userAgent)
+        } else if (!headers.keys.any { it.equals("User-Agent", ignoreCase = true) }) {
+            req.addHeader("User-Agent", DEFAULT_UA)
         }
 
         // Çerezler: önbellekteki CF çerezleri + fonksiyon parametresi çerezleri

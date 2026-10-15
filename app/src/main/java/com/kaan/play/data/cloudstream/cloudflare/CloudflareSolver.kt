@@ -25,12 +25,13 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 object CloudflareSolver {
     private const val TAG = "PlayCs"
-    const val DEFAULT_TIMEOUT_MS = 15_000L
+    const val DEFAULT_TIMEOUT_MS = 25_000L
 
     private val _isVerifying = MutableStateFlow(false)
     val isVerifying = _isVerifying.asStateFlow()
 
     private val blockedHosts = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val blockedUrls = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val hostMutexes = java.util.concurrent.ConcurrentHashMap<String, Mutex>()
 
     var customContext: Context? = null
@@ -43,6 +44,17 @@ object CloudflareSolver {
         val host = CloudflareCache.normalizeHost(hostOrUrl)
         val time = blockedHosts[host] ?: return false
         return (System.currentTimeMillis() - time) < 5 * 60 * 1000L
+    }
+
+    fun getBlockedUrl(hostOrUrl: String): String? {
+        val host = CloudflareCache.normalizeHost(hostOrUrl)
+        return blockedUrls[host]
+    }
+
+    fun unblock(hostOrUrl: String) {
+        val host = CloudflareCache.normalizeHost(hostOrUrl)
+        blockedHosts.remove(host)
+        blockedUrls.remove(host)
     }
 
     suspend fun solve(
@@ -74,6 +86,7 @@ object CloudflareSolver {
                         solveInternal(ctx, url, host)
                     } ?: run {
                         blockedHosts[host] = System.currentTimeMillis()
+                        blockedUrls[host] = url
                         Log.w(TAG, "[Cloudflare] Çözümleme zaman aşımına uğradı ($host, ${timeoutMs}ms)")
                         CloudflareResult.Failure("Zaman aşımı: İntraktif Turnstile doğrulaması gerekebilir", isInteractive = true)
                     }
@@ -136,6 +149,7 @@ object CloudflareSolver {
                 val creds = CloudflareCredentials(cookies = cookies, userAgent = ua)
                 CloudflareCache.put(host, creds)
                 blockedHosts.remove(host)
+                blockedUrls.remove(host)
                 cookies.forEach { (k, v) ->
                     cookieManager.setCookie(url, "$k=$v; path=/")
                     cookieManager.setCookie("https://$host", "$k=$v; path=/")

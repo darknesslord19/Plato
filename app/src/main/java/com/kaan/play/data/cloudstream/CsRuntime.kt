@@ -196,7 +196,7 @@ class CsRuntime {
     suspend fun mainPage(
         api: MainAPI,
         page: Int = 1,
-        timeoutMs: Long = 16_000L,
+        timeoutMs: Long = 27_000L,
     ): List<CsCatalogSection> {
         val sectionsResult = runCatching { api.mainPage }
         val sections = sectionsResult.getOrNull()
@@ -290,7 +290,7 @@ class CsRuntime {
     suspend fun mainPage(
         apis: List<MainAPI>,
         page: Int = 1,
-        timeoutMs: Long = 16_000L,
+        timeoutMs: Long = 27_000L,
     ): List<CsCatalogSection> {
         val results = mutableListOf<CsCatalogSection>()
         for (api in apis) {

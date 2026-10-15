@@ -374,12 +374,14 @@ Ana sayfa, seçilen eklentinin/sağlayıcının kendi kataloğuyla beslenir. "T�
   - **Nuvio Stremio Addon'ları (`NuvioAddonCatalog`):** Addon manifest'indeki `catalogs` tanımları okunur ve `{base}/catalog/{type}/{id}.json` (`skip` ile sayfalama) uç noktasından katalog listeleri çekilir.
   - **Nuvio JS Kazıyıcılar:** Yalnızca video kaynağı kazıma amacıyla tasarlandıkları ve katalog sunmadıkları için seçildiklerinde "Bu eklenti katalog sunmuyor" bilgilendirme kartı gösterilir ve TMDB beslemesine yönlendirilir.
 
-- **Cloudflare Koruma ve WebViewResolver Çözücü Mimarisi:**
-  - **CloudflareSolver (`data/cloudstream/cloudflare`):** Ekran dışı gizli bir Android WebView (`Dispatchers.Main`) kullanarak JavaScript challenge'larını çözer, `cf_clearance` çerezini ve tarayıcı User-Agent'ını alır. Aynı alan adına eşzamanlı istekleri `Mutex` ile sıraya koyar; 15 sn zaman aşımı ile kilitlenmeleri önler. İnteraktif Turnstile gerektiren durumları temizce tespit eder ve alanı geçici olarak `wasBlocked` olarak işaretler.
+- **Cloudflare Koruma, Turnstile ve WebViewResolver Çözücü Mimarisi:**
+  - **CloudflareSolver (`data/cloudstream/cloudflare`):** Ekran dışı gizli bir Android WebView (`Dispatchers.Main`) kullanarak JavaScript challenge'larını çözer, `cf_clearance` çerezini ve tarayıcı User-Agent'ını alır. Aynı alan adına eşzamanlı istekleri `Mutex` ile sıraya koyar; 25 sn zaman aşımı ile kilitlenmeleri önler. İnteraktif Turnstile gerektiren durumları tespit eder, hedef URL'yi saklar ve alanı geçici olarak `wasBlocked` olarak işaretler.
+  - **CloudflareVerifyActivity (`ui/cloudflare`):** Gizli çözücü Turnstile kutusunu otomatik geçemediğinde hata kartında çıkan "Doğrula" düğmesi ile başlatılır. Kullanıcıya sade bir üst çubuk (Kapat butonu, site adı, ipucu ve ilerleme çubuğu) ve güvenli bir WebView açar. Kullanıcı Turnstile kutusuna bastığı anda her 350 ms'de çerez kontrol edilir; `cf_clearance` algılandığında kimlik bilgileri `CloudflareCache`'e aktarılır, alan adının blokajı kaldırılır (`unblock`), ekran otomatik `RESULT_OK` ile kapanır ve ana sayfa kataloğu baştan yüklenir. TV kumandası için D-pad yukarı tuşu ile üst çubuk odağı desteklenir.
+  - **User-Agent Kriptografik Eşleşmesi (`NiceHttp` & `CloudflareKiller`):** Cloudflare, `cf_clearance` çerezini challenge'ı çözen tarayıcının `User-Agent` bilgisine bağlar. Eklentinin isteğe statik bir masaüstü UA gömmüş olması durumunda dahi, `CloudflareCache`'te geçerli kimlik bilgisi varsa gerçek WebView User-Agent'ı isteğe enjekte edilerek 403 engeli şeffaf biçimde aşılır.
   - **CloudflareKiller (OkHttp Interceptor):** `CloudflareCache` içindeki geçerli kimlik bilgilerini otomatik olarak isteğe enjekte eder, HTTP 403 challenge yanıtlarında çözücüyü çağırıp isteği tek sefer (`CloudflareRetryTag`) tekrarlar.
   - **WebViewResolver:** `resolveUsingWebView` ikili arayüzünü `CloudflareSolver` motoruna bağlayarak gerçek webview çözümlemesini çalışır hale getirir.
   - **NiceHttp Entegrasyonu:** `Requests.execute` seviyesinde genel challenge tespiti ve tek seferlik şeffaf yeniden deneme sağlar. Dinamik DEX sınıfları için (`Page(html)` gibi tek alanlı veri sınıfları) yansıtıcı ayrıştırma yedeği içerir.
-  - **Kullanıcı Deneyimi:** Doğrulama sırasında iskelet shimmer üzerinde "Site doğrulanıyor…" rozeti ve döner gösterge sunulur. Bot koruması aşılamayan sitelerde "Bu sitenin bot koruması aşılamadı" mesajı ve "Yeniden dene" düğmesi gösterilir; siyah/boş ekran oluşmaz.
+  - **Kullanıcı Deneyimi:** Doğrulama sırasında iskelet shimmer üzerinde "Site doğrulanıyor…" rozeti ve döner gösterge sunulur. Bot koruması gerektiren sitelerde "Site doğrulaması gerekiyor" başlığı, "Doğrula" ve "Yeniden dene" düğmeleri gösterilir; siyah/boş ekran oluşmaz.
 
 - **Gerçek Cihaz Denemeleri & Sağlayıcı Karşılaştırma Tablosu (LDPlayer 1600×900, Android 9, `tools\devtest.ps1`):**
 
@@ -392,11 +394,11 @@ Ana sayfa, seçilen eklentinin/sağlayıcının kendi kataloğuyla beslenir. "T�
 | **FullHDFilmizlesene** | CloudStream | **BAŞARILI** | Yok / Normal 200 | 1.6 MB / 2+ raf | "Son Eklenen Filmler" (Acil İniş vb.) ve "En Çok İzlenen Filmler" (Transformers vb.) afişleriyle geldi. |
 | **YesilcamTV** | CloudStream | **BAŞARILI** | Yok / Normal 200 | 1.7 MB / 2+ raf | "Aile" (Gelinlik Kızlar vb.) ve "Aksiyon" (Babanın Evlatları vb.) nostaljik afişleriyle yüklendi. |
 | **Cinemeta** | Nuvio Addon | **BAŞARILI** | Yok / Stremio HTTP | 1.5 MB / 2 raf | "Popular - Movies" (Spider-Man vb.) ve "Popular - Series" (Carrie vb.) Stremio protokolüyle geldi. |
-| **DiziBox** | CloudStream | **ENGEL (Bot Koruması)** | Tespit Edildi (Turnstile) | 37 KB (Hata Kartı) | Cloudflare Turnstile interaktif bot doğrulaması istedi; "Bu sitenin bot koruması aşılamadı" + "Yeniden dene" gösterildi. Çökme yok. |
+| **DiziBox** | CloudStream | **BAŞARILI (Turnstile)** | Aşıldı (`CloudflareVerifyActivity`) | 1.74 MB / 18 kategori | Turnstile interaktif doğrulama ekranında kutuya tıklandı; `cf_clearance` alındı, tüm sayfalar HTTP 200 OK ile çekildi. |
 | **SelcukFlix** | CloudStream | **HATA (HTTP 405)** | Yok / Sunucu Hatası | 34 KB (Hata Kartı) | Sunucu HTTP 405 Method Not Allowed döndürdü (bilinen site/alan adı sınırı). Çökme yok, hata kartı gösterildi. |
 | **Dizipal** | CloudStream | **HATA (SSL / Ağ)** | Yok / Bağlantı Hatası | 31 KB (Hata Kartı) | SSL Handshake Connection Reset (alan adına ISP/DNS erişim engeli). Çökme yok. |
 
-- **Bilinen Sınırlar:** İnteraktif Turnstile (kullanıcının onay kutusuna tıklamasını gerektiren Cloudflare korumaları, örn. DiziBox) ekran dışı otomatik çözülemez; bu durumda kullanıcıya temiz hata mesajı ve yeniden deneme seçeneği sunulur. Alan adı taşınmış veya sunucu hatası veren siteler (SelcukFlix 405, Dizipal SSL) uygulama genelini etkilemez.
+- **Bilinen Sınırlar:** İnteraktif Turnstile gerektiren sitelerde (örn. DiziBox) ilk istekte kullanıcıya "Doğrula" butonu çıkar; kullanıcı kutucuğa bir kez dokunduğunda çerez önbelleğe alınır ve oturum boyunca tekrar sormaz. Alan adı taşınmış veya sunucu hatası veren siteler (SelcukFlix 405, Dizipal SSL) uygulama genelini etkilemez.
 
 ## Yayın Hazırlığı
 

@@ -36,7 +36,7 @@ class CloudflareKiller : Interceptor {
                 }
                 builder.header("Cookie", merged)
             }
-            if (cached.userAgent.isNotBlank() && originalRequest.header("User-Agent") == null) {
+            if (cached.userAgent.isNotBlank()) {
                 builder.header("User-Agent", cached.userAgent)
             }
             builder.build()

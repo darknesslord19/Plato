@@ -77,6 +77,12 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode"
             android:exported="false" />
 
+        <!-- Cloudflare Turnstile / interaktif bot doğrulama ekranı -->
+        <activity
+            android:name=".ui.cloudflare.CloudflareVerifyActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode"
+            android:exported="false" />
+
         <!-- İndirme servisi: ilerleme bildirimiyle ön planda çalışır; ağ koşulu sağlanınca zamanlayıcı yeniden başlatır. -->
         <service
             android:name=".data.download.PlayDownloadService"
