@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.kotlin.jacksonMapperBuilder
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -70,7 +71,9 @@ class ErrorLoadingException(message: String? = null) : Exception(message)
  * DEĞİL); derlenmiş eklentiler doğrudan Jackson bytecode'una bağlıdır, bu yüzden eklenti uyumluluğu
  * için gerçek Jackson çalışma zamanında bulunur (Play'in kendi kodu hâlâ kotlinx.serialization kullanır).
  */
-val mapper: JsonMapper = jacksonMapperBuilder().build()
+val mapper: JsonMapper = jacksonMapperBuilder()
+    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    .build()
 
 // ---------------------------------------------------------------------------
 // Ana sayfa yardımcıları — eklentiler `override val mainPage = mainPageOf(...)` biçiminde kullanır.

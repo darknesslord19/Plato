@@ -16,7 +16,7 @@ import okhttp3.OkHttpClient
 sealed interface CatalogResult {
     data class Success(val rows: List<CatalogRow>) : CatalogResult
     data object NoCatalogProvided : CatalogResult
-    data class Error(val message: String? = null) : CatalogResult
+    data class Error(val message: String? = null, val isBotBlocked: Boolean = false) : CatalogResult
     data object Empty : CatalogResult
 }
 
@@ -58,6 +58,7 @@ class CatalogRepository(
         val allRows = mutableListOf<CatalogRow>()
         var hasAtLeastOneProvider = false
         var hasError = false
+        var hasBotBlocked = false
 
         for (id in validIds) {
             when {
@@ -72,6 +73,12 @@ class CatalogRepository(
                     } catch (t: Throwable) {
                         Log.e(TAG, "CS katalog hatası ($id): ${t.message}", t)
                         hasError = true
+                    }
+                    val apis = csRepository.loadApis(pluginRowId)
+                    for (api in apis) {
+                        if (com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver.wasBlocked(api.mainUrl)) {
+                            hasBotBlocked = true
+                        }
                     }
                 }
                 id.startsWith("nuvio_addon:") -> {
@@ -105,6 +112,8 @@ class CatalogRepository(
         if (allRows.isNotEmpty()) {
             cache.put(cacheKey, allRows)
             CatalogResult.Success(allRows)
+        } else if (hasBotBlocked && allRows.isEmpty()) {
+            CatalogResult.Error(isBotBlocked = true)
         } else if (hasError && allRows.isEmpty()) {
             CatalogResult.Error()
         } else {

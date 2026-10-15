@@ -50,7 +50,7 @@ GPL-3.0 uyumu: Nuvio gibi yalnızca arayüz uygulandı, kod kopyalanmadı. `com.
 - **Çıkarıcılar:** `registerExtractorAPI` ile kaydedilen çıkarıcıları `loadExtractor` sunucu adına göre seçer. CloudStream'in yerleşik çıkarıcıları yoktur. Eşleşen çıkarıcı yoksa yalnızca doğrudan medya adresi (m3u8/mpd/mp4 …) kaynak olur, gömme sayfası atlanır. `ExtractorLinkType` M3U8/DASH, `PlayableStream.mimeType` alanıyla oynatıcıya geçer.
 - **İş parçacığı:** `CsStreamProvider` akışı `Dispatchers.IO` üzerinde çalışır. `PluginRepository.enabledPlugins()` yalnızca `NUVIO_PLUGIN_REPO` satırlarını döndürür, CS eklentileri JS çalıştırıcısına gitmez.
 - **Release (R8):** `proguard-rules.pro` içinde `com.lagradost.**`, `kotlin.**`, `kotlinx.coroutines.**`, `com.fasterxml.jackson.**`, `org.jsoup.**`, `okhttp3.**` ve `okio.**` korunur. Eklentiler bu sınıflara adla bağlanır, kural yoksa release'te hiçbir CS eklentisi çalışmaz. Bedeli APK'da +1,9 MB.
-- **Bilinen sınırlar:** Cloudflare korumalı siteler (DiziBox 403, SelcukFlix 405/SSL) çalışmaz. `selectXpath` kullanan eklentiler Android 9'un XML DOM'unda NPE verir (FullHDFilmizlesene). Eşleme yalnızca başlıkla yapılır (noktalama yok sayılır, kelime sınırlı içerme).
+- **Cloudflare koruması:** Android WebView tabanlı `CloudflareSolver` + OkHttp `CloudflareKiller` (Interceptor) + `WebViewResolver` ile JS challenge ve `cf_clearance` çözülür. İnteraktif Turnstile gerektiren durumlar (DiziBox gibi) ve sunucu/bağlantı hataları (SelcukFlix 405, Dizipal SSL) temiz hata durumuna düşürülür (çökme yok). Eşleme yalnızca başlıkla yapılır (noktalama yok sayılır, kelime sınırlı içerme).
 
 ## Faz 4 / A — Altyazı (tamam; kullanıcı onayıyla)
 Ayrıntı ve testler README "Altyazı — Faz 4 / A" bölümünde. Bağlayıcı kurallar:

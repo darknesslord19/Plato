@@ -434,4 +434,6 @@
     <string name="provider_catalog_error">Couldn\'t load catalog.</string>
     <string name="provider_catalog_empty">No catalog content found.</string>
     <string name="provider_catalog_retry">Try again</string>
+    <string name="provider_verifying_site">Verifying site…</string>
+    <string name="provider_bot_protection_failed">This site\'s bot protection could not be bypassed</string>
 </resources>

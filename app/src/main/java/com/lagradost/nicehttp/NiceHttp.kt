@@ -1,5 +1,10 @@
 package com.lagradost.nicehttp
 
+import android.util.Log
+import com.kaan.play.data.cloudstream.cloudflare.CloudflareCache
+import com.kaan.play.data.cloudstream.cloudflare.CloudflareDetector
+import com.kaan.play.data.cloudstream.cloudflare.CloudflareResult
+import com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver
 import com.lagradost.cloudstream3.PlayNetworkGuard
 import com.lagradost.cloudstream3.mapper
 import okhttp3.FormBody
@@ -24,6 +29,7 @@ import kotlin.reflect.KClass
  * Bu dosya yalnızca arayüzü uygular; NiceHttp'in kendi kodu kopyalanmaz.
  */
 class Requests(private val client: OkHttpClient) {
+    val baseClient: OkHttpClient get() = client
 
     suspend fun get(
         url: String,
@@ -99,14 +105,46 @@ class Requests(private val client: OkHttpClient) {
         allowRedirects: Boolean,
         timeout: Long,
         interceptor: Interceptor?,
+        isRetry: Boolean = false,
     ): NiceResponse {
         PlayNetworkGuard.checkUrl(url)
+
+        val host = CloudflareCache.normalizeHost(url)
+        val cachedCf = CloudflareCache.get(host)
 
         val req = Request.Builder().url(url).method(method, body)
         headers.forEach { (k, v) -> req.addHeader(k, v) }
         referer?.let { req.addHeader("Referer", it) }
-        if (!headers.containsKey("User-Agent")) req.addHeader("User-Agent", DEFAULT_UA)
-        if (cookies.isNotEmpty()) req.addHeader("Cookie", cookies.entries.joinToString("; ") { (k, v) -> "$k=$v" })
+
+        // User-Agent: başlıkta yoksa önbellekteki UA veya varsayılan
+        if (!headers.keys.any { it.equals("User-Agent", ignoreCase = true) }) {
+            val ua = cachedCf?.userAgent ?: DEFAULT_UA
+            req.addHeader("User-Agent", ua)
+        }
+
+        // Çerezler: önbellekteki CF çerezleri + fonksiyon parametresi çerezleri
+        val mergedCookies = mutableMapOf<String, String>()
+        if (cachedCf != null && cachedCf.cookies.isNotEmpty()) {
+            mergedCookies.putAll(cachedCf.cookies)
+        }
+        mergedCookies.putAll(cookies)
+
+        val existingCookie = headers.entries.firstOrNull { it.key.equals("Cookie", ignoreCase = true) }?.value
+        if (mergedCookies.isNotEmpty() || !existingCookie.isNullOrBlank()) {
+            val finalCookie = when {
+                existingCookie.isNullOrBlank() -> mergedCookies.entries.joinToString("; ") { (k, v) -> "$k=$v" }
+                mergedCookies.isEmpty() -> existingCookie
+                else -> {
+                    val extra = mergedCookies.entries
+                        .filter { (k, _) -> !existingCookie.contains("$k=") }
+                        .joinToString("; ") { (k, v) -> "$k=$v" }
+                    if (extra.isNotEmpty()) "$existingCookie; $extra" else existingCookie
+                }
+            }
+            if (!finalCookie.isNullOrBlank()) {
+                req.header("Cookie", finalCookie)
+            }
+        }
 
         var c = client
         if (!allowRedirects) c = c.newBuilder().followRedirects(false).followSslRedirects(false).build()
@@ -121,6 +159,41 @@ class Requests(private val client: OkHttpClient) {
             })
             cont.invokeOnCancellation { call.cancel() }
         }
+
+        Log.d("PlayCs", "[NiceHttp] $method $url -> HTTP ${resp.code}")
+
+        // Global Cloudflare challenge kontrolü ve otomatik çözümleme (yalnızca 1 kez tekrar denenir)
+        val peek = runCatching { resp.peekBody(4096).string() }.getOrNull()
+        Log.d("PlayCs", "[NiceHttp] body peek (length=${peek?.length}): ${peek?.take(250)}")
+
+        val isCfChallenge = CloudflareDetector.isChallenge(resp.code, resp.headers, peek)
+        if (isCfChallenge) {
+            Log.d("PlayCs", "[NiceHttp] Cloudflare challenge detected! host=$host, code=${resp.code}, isRetry=$isRetry, wasBlocked=${CloudflareSolver.wasBlocked(host)}")
+        }
+
+        if (!isRetry && isCfChallenge && !CloudflareSolver.wasBlocked(host)) {
+            Log.d("PlayCs", "[NiceHttp] Challenge algılandı ($host, HTTP ${resp.code}), çözücü başlatılıyor...")
+            val solveResult = CloudflareSolver.solve(url)
+            if (solveResult is CloudflareResult.Success) {
+                Log.d("PlayCs", "[NiceHttp] Başarıyla çözüldü ($host), istek tekrarlanıyor...")
+                resp.close()
+                return execute(
+                    method = method,
+                    url = url,
+                    headers = headers,
+                    referer = referer,
+                    body = body,
+                    cookies = cookies,
+                    allowRedirects = allowRedirects,
+                    timeout = timeout,
+                    interceptor = interceptor,
+                    isRetry = true,
+                )
+            } else {
+                Log.w("PlayCs", "[NiceHttp] Çözülemedi ($host)")
+            }
+        }
+
         return NiceResponse(resp)
     }
 
@@ -164,5 +237,28 @@ interface ResponseParser {
 
 object DefaultResponseParser : ResponseParser {
     override fun <T : Any> parseSafe(text: String, kClass: KClass<T>): T? =
-        try { mapper.readValue(text, kClass.java) } catch (_: Exception) { null }
+        try {
+            mapper.readValue(text, kClass.java)
+        } catch (e: Exception) {
+            Log.w("PlayCs", "parseSafe primary parser failed for ${kClass.java.name}: ${e.message}")
+            tryFallback(text, kClass)
+        }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T : Any> tryFallback(text: String, kClass: KClass<T>): T? {
+        return try {
+            val root = mapper.readTree(text)
+            val ctor = kClass.java.constructors.firstOrNull() ?: return null
+            val paramTypes = ctor.parameterTypes
+            if (paramTypes.size == 1 && paramTypes[0] == String::class.java) {
+                val html = root.get("html")?.asText() ?: root.asText()
+                ctor.newInstance(html) as? T
+            } else {
+                null
+            }
+        } catch (e: Throwable) {
+            Log.e("PlayCs", "parseSafe fallback also failed for ${kClass.java.name}: ${e.message}")
+            null
+        }
+    }
 }

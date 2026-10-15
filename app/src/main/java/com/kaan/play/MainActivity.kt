@@ -22,6 +22,7 @@ import com.kaan.play.ui.theme.PlayTheme
 import com.kaan.play.ui.addons.DeepLinkHost
 import com.kaan.play.ui.update.UpdateDialog
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 // AppCompatActivity: uygulama başına dil (AppCompatDelegate.setApplicationLocales) için gerekli.
@@ -37,6 +38,12 @@ class MainActivity : AppCompatActivity() {
         container.updateChecker.checkOnce(container.appScope, debugEndpoint)
         // Yalnızca debug derlemede, sahte altyazı servisiyle denemek için: --es play_subs_endpoint http://host:port (SubDL + OpenSubtitles).
         if (BuildConfig.DEBUG) intent.getStringExtra("play_subs_endpoint")?.let { DebugEndpoints.subsBase = it.trimEnd('/') }
+        if (BuildConfig.DEBUG) {
+            intent.getStringExtra("select_provider")?.let { raw ->
+                val ids = raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+                container.appScope.launch { container.providers.setSelectedProviders(ids) }
+            }
+        }
         // Açılışta tek seferlik okuma (milisaniyeler): kayıtlı tema ilk karede doğru çıksın, yanıp sönmesin.
         val initialTheme = runBlocking { settings.themeMode.first() }
 
@@ -78,6 +85,13 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         handleLink(intent)
         handleUpdateIntent(intent)
+        if (BuildConfig.DEBUG) {
+            intent.getStringExtra("select_provider")?.let { raw ->
+                val ids = raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+                val container = (application as PlayApp).container
+                container.appScope.launch { container.providers.setSelectedProviders(ids) }
+            }
+        }
     }
 
     /**

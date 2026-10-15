@@ -11,8 +11,14 @@ class PlayApp : Application(), SingletonImageLoader.Factory {
     lateinit var container: AppContainer
         private set
 
+    companion object {
+        lateinit var appContext: android.content.Context
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
+        appContext = applicationContext
         container = AppContainer(this)
         // İndirme yöneticisi açılışta kurulur: yarım kalan indirmeler (uygulama öldürüldükten sonra) kendiliğinden devam eder.
         container.downloads

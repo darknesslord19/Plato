@@ -416,4 +416,6 @@
     <string name="provider_catalog_error">Katalog yüklenemedi.</string>
     <string name="provider_catalog_empty">Katalog içeriği bulunamadı.</string>
     <string name="provider_catalog_retry">Yeniden dene</string>
+    <string name="provider_verifying_site">Site doğrulanıyor…</string>
+    <string name="provider_bot_protection_failed">Bu sitenin bot koruması aşılamadı</string>
 </resources>

@@ -196,7 +196,7 @@ class CsRuntime {
     suspend fun mainPage(
         api: MainAPI,
         page: Int = 1,
-        timeoutMs: Long = 10_000L,
+        timeoutMs: Long = 16_000L,
     ): List<CsCatalogSection> {
         val sectionsResult = runCatching { api.mainPage }
         val sections = sectionsResult.getOrNull()
@@ -213,6 +213,10 @@ class CsRuntime {
 
         if (!sections.isNullOrEmpty()) {
             for (section in sections) {
+                if (com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver.wasBlocked(api.mainUrl)) {
+                    Log.w(TAG, "[DEBUG_MAINPAGE] ${api.name}: Bot koruması aşılamadığı için kalan bölümler atlanıyor.")
+                    break
+                }
                 val started = System.currentTimeMillis()
                 try {
                     Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: getMainPage çağrılıyor (sayfa=$page)...")
@@ -286,7 +290,7 @@ class CsRuntime {
     suspend fun mainPage(
         apis: List<MainAPI>,
         page: Int = 1,
-        timeoutMs: Long = 10_000L,
+        timeoutMs: Long = 16_000L,
     ): List<CsCatalogSection> {
         val results = mutableListOf<CsCatalogSection>()
         for (api in apis) {

@@ -374,17 +374,29 @@ Ana sayfa, seçilen eklentinin/sağlayıcının kendi kataloğuyla beslenir. "T�
   - **Nuvio Stremio Addon'ları (`NuvioAddonCatalog`):** Addon manifest'indeki `catalogs` tanımları okunur ve `{base}/catalog/{type}/{id}.json` (`skip` ile sayfalama) uç noktasından katalog listeleri çekilir.
   - **Nuvio JS Kazıyıcılar:** Yalnızca video kaynağı kazıma amacıyla tasarlandıkları ve katalog sunmadıkları için seçildiklerinde "Bu eklenti katalog sunmuyor" bilgilendirme kartı gösterilir ve TMDB beslemesine yönlendirilir.
 
-- **Gerçek Cihaz Denemeleri (LDPlayer 1600×900, Android 9):**
-  - **Dizilla (CloudStream): GEÇTİ.** "Trend Diziler" (Reacher, Law & Order SVU vb.) ve "Yeni Eklenen Diziler" (Dustfall, Hollywood Arts vb.) satırları geldi, afişler yüklendi, Reacher kartına dokunulunca TMDB Detay ekranı açıldı.
-  - **SetFilm (CloudStream): GEÇTİ.** "Filmler" (Addams Ailesi 2, Hayatının Aşkı vb.) ve "Diziler" (Sterling Point, Carrie vb.) satırları ve afişleri eksiksiz yüklendi.
-  - **FilmMakinesi (CloudStream): GEÇTİ.** "Son Filmler" (Unutulmuş Ada, 137 Numaralı Dava vb.) ve "Ölmeden İzle" (Avatar, Donnie Brasco vb.) satırları yüksek çözünürlüklü afişleriyle yüklendi.
-  - **DiziBox (CloudStream): GEÇTİ (Hata/Boş Durumu).** DiziBox sitesi Cloudflare HTTP 403 döndürdü; çökme koruması devreye girdi, ekran donmadı, "Katalog içeriği bulunamadı" ve "Yeniden dene" butonlu güvenli boş durum gösterildi.
-  - **Cinemeta (Nuvio Stremio Addon): GEÇTİ.** "Popular - Movies" (Spider-Man vb.) ve "Popular - Series" (Carrie vb.) satırları `/catalog/movie/top.json` üzerinden başarıyla yüklendi.
-  - **DiziPal (Nuvio JS Kazıyıcı): GEÇTİ.** "Bu eklenti katalog sunmuyor" banner'ı gösterildi ve kullanıcı TMDB beslemesine düşürüldü.
-  - **Çoklu Seçim (Uzun Basma): GEÇTİ.** 0.5 sn basılı tutmayla çoklu seçim moduna girildi, birden fazla sağlayıcı seçilip "Uygula" denildiğinde satırlar sağlayıcı rozetleriyle (`it.providerName`) alt alta sıralandı; hap buton `• DiziBox +1` olarak güncellendi.
-  - **Tüm Sağlayıcılar: GEÇTİ.** "Tüm sağlayıcılar" seçildiğinde TMDB trend karuseli ve satırları eksiksiz geri döndü, hap butonda `Eklenti seç` gösterildi.
+- **Cloudflare Koruma ve WebViewResolver Çözücü Mimarisi:**
+  - **CloudflareSolver (`data/cloudstream/cloudflare`):** Ekran dışı gizli bir Android WebView (`Dispatchers.Main`) kullanarak JavaScript challenge'larını çözer, `cf_clearance` çerezini ve tarayıcı User-Agent'ını alır. Aynı alan adına eşzamanlı istekleri `Mutex` ile sıraya koyar; 15 sn zaman aşımı ile kilitlenmeleri önler. İnteraktif Turnstile gerektiren durumları temizce tespit eder ve alanı geçici olarak `wasBlocked` olarak işaretler.
+  - **CloudflareKiller (OkHttp Interceptor):** `CloudflareCache` içindeki geçerli kimlik bilgilerini otomatik olarak isteğe enjekte eder, HTTP 403 challenge yanıtlarında çözücüyü çağırıp isteği tek sefer (`CloudflareRetryTag`) tekrarlar.
+  - **WebViewResolver:** `resolveUsingWebView` ikili arayüzünü `CloudflareSolver` motoruna bağlayarak gerçek webview çözümlemesini çalışır hale getirir.
+  - **NiceHttp Entegrasyonu:** `Requests.execute` seviyesinde genel challenge tespiti ve tek seferlik şeffaf yeniden deneme sağlar. Dinamik DEX sınıfları için (`Page(html)` gibi tek alanlı veri sınıfları) yansıtıcı ayrıştırma yedeği içerir.
+  - **Kullanıcı Deneyimi:** Doğrulama sırasında iskelet shimmer üzerinde "Site doğrulanıyor…" rozeti ve döner gösterge sunulur. Bot koruması aşılamayan sitelerde "Bu sitenin bot koruması aşılamadı" mesajı ve "Yeniden dene" düğmesi gösterilir; siyah/boş ekran oluşmaz.
 
-- **Bilinen Sınırlar:** Cloudflare/bot korumalı bazı sitelerin ana sayfaları doğrudan istekleri engelleyebilir (DiziBox gibi); bu durum uygulama genelini etkilemez.
+- **Gerçek Cihaz Denemeleri & Sağlayıcı Karşılaştırma Tablosu (LDPlayer 1600×900, Android 9, `tools\devtest.ps1`):**
+
+| Sağlayıcı Adı | Platform | Durum | Cloudflare | Ekran / Raf | Notlar |
+|---|---|---|---|---|---|
+| **HDFilmCehennemi** | CloudStream | **BAŞARILI** | Aşıldı (WebViewResolver + Page parser) | 1.2 MB / 6+ raf | "Bugün Ne İzlesem?", "Yeni Eklenen Filmler" vb. tüm raflar ve afişler eksiksiz yüklendi. |
+| **Dizilla** | CloudStream | **BAŞARILI** | Yok / Normal 200 | 1.4 MB / 17 raf | "Trend Diziler" (Reacher, Law & Order vb.), "Yeni Eklenen Diziler" (Dustfall vb.) tüm raflar geldi. |
+| **FilmMakinesi** | CloudStream | **BAŞARILI** | Yok / Normal 200 | 1.3 MB / 2+ raf | "Son Filmler" (Unutulmuş Ada vb.) ve "Ölmeden İzle" (Avatar vb.) yüksek çözünürlüklü afişleriyle yüklendi. |
+| **SetFilm** | CloudStream | **BAŞARILI** | Yok / Normal 200 | 1.3 MB / 2+ raf | "Filmler" (Siccin 9, Addams Ailesi 2 vb.) ve "Diziler" (Sterling Point vb.) eksiksiz listelendi. |
+| **FullHDFilmizlesene** | CloudStream | **BAŞARILI** | Yok / Normal 200 | 1.6 MB / 2+ raf | "Son Eklenen Filmler" (Acil İniş vb.) ve "En Çok İzlenen Filmler" (Transformers vb.) afişleriyle geldi. |
+| **YesilcamTV** | CloudStream | **BAŞARILI** | Yok / Normal 200 | 1.7 MB / 2+ raf | "Aile" (Gelinlik Kızlar vb.) ve "Aksiyon" (Babanın Evlatları vb.) nostaljik afişleriyle yüklendi. |
+| **Cinemeta** | Nuvio Addon | **BAŞARILI** | Yok / Stremio HTTP | 1.5 MB / 2 raf | "Popular - Movies" (Spider-Man vb.) ve "Popular - Series" (Carrie vb.) Stremio protokolüyle geldi. |
+| **DiziBox** | CloudStream | **ENGEL (Bot Koruması)** | Tespit Edildi (Turnstile) | 37 KB (Hata Kartı) | Cloudflare Turnstile interaktif bot doğrulaması istedi; "Bu sitenin bot koruması aşılamadı" + "Yeniden dene" gösterildi. Çökme yok. |
+| **SelcukFlix** | CloudStream | **HATA (HTTP 405)** | Yok / Sunucu Hatası | 34 KB (Hata Kartı) | Sunucu HTTP 405 Method Not Allowed döndürdü (bilinen site/alan adı sınırı). Çökme yok, hata kartı gösterildi. |
+| **Dizipal** | CloudStream | **HATA (SSL / Ağ)** | Yok / Bağlantı Hatası | 31 KB (Hata Kartı) | SSL Handshake Connection Reset (alan adına ISP/DNS erişim engeli). Çökme yok. |
+
+- **Bilinen Sınırlar:** İnteraktif Turnstile (kullanıcının onay kutusuna tıklamasını gerektiren Cloudflare korumaları, örn. DiziBox) ekran dışı otomatik çözülemez; bu durumda kullanıcıya temiz hata mesajı ve yeniden deneme seçeneği sunulur. Alan adı taşınmış veya sunucu hatası veren siteler (SelcukFlix 405, Dizipal SSL) uygulama genelini etkilemez.
 
 ## Yayın Hazırlığı
 

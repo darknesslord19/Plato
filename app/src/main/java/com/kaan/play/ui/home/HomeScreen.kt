@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.R
+import com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver
 import com.kaan.play.data.library.ContinueItem
 import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.provider.ProviderRules
@@ -379,7 +381,7 @@ private sealed interface CatalogUiState {
     data class Success(val rows: List<CatalogRow>) : CatalogUiState
     data object NoCatalogProvided : CatalogUiState
     data object Empty : CatalogUiState
-    data class Error(val message: String? = null) : CatalogUiState
+    data class Error(val message: String? = null, val isBotBlocked: Boolean = false) : CatalogUiState
 }
 
 /**
@@ -410,7 +412,7 @@ private fun ProviderCatalogView(
             is CatalogResult.Success -> CatalogUiState.Success(result.rows)
             is CatalogResult.NoCatalogProvided -> CatalogUiState.NoCatalogProvided
             is CatalogResult.Empty -> CatalogUiState.Empty
-            is CatalogResult.Error -> CatalogUiState.Error(result.message)
+            is CatalogResult.Error -> CatalogUiState.Error(result.message, result.isBotBlocked)
         }
     }
 
@@ -473,6 +475,11 @@ private fun ProviderCatalogView(
             }
         }
         is CatalogUiState.Error -> {
+            val errorText = if (current.isBotBlocked) {
+                stringResource(R.string.provider_bot_protection_failed)
+            } else {
+                stringResource(R.string.provider_catalog_error)
+            }
             Column(
                 modifier = modifier
                     .fillMaxSize()
@@ -482,7 +489,7 @@ private fun ProviderCatalogView(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = stringResource(R.string.provider_catalog_error),
+                    text = errorText,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center,
@@ -580,6 +587,8 @@ private fun ProviderCatalogSkeleton(
     cardWidth: Dp,
     modifier: Modifier = Modifier,
 ) {
+    val isVerifying by CloudflareSolver.isVerifying.collectAsStateWithLifecycle()
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -604,6 +613,27 @@ private fun ProviderCatalogSkeleton(
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
+                if (isVerifying) {
+                    Row(
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.small)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(12.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.provider_verifying_site),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
             }
         }
 
