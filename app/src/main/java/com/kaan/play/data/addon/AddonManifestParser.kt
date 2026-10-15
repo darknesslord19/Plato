@@ -38,6 +38,7 @@ object AddonManifestParser {
             types = root.stringList("types", required = true)!!,
             resources = root.resources(),
             idPrefixes = root.stringList("idPrefixes", required = false),
+            catalogs = root.catalogs(),
         )
 
         // Akış ya da altyazı sunan addon kabul edilir (yalnızca altyazı verenler kaynak listesinde görünmez, altyazı seçicisinde kullanılır).
@@ -111,5 +112,17 @@ object AddonManifestParser {
         val v = this[field]
         if (v == null || v is JsonNull) return null
         return stringsOf(v, "resources")
+    }
+
+    private fun JsonObject.catalogs(): List<ManifestCatalog> {
+        val value = this["catalogs"] ?: return emptyList()
+        if (value !is JsonArray) return emptyList()
+        return value.mapNotNull { item ->
+            if (item !is JsonObject) return@mapNotNull null
+            val type = (item["type"] as? JsonPrimitive)?.content?.trim() ?: return@mapNotNull null
+            val id = (item["id"] as? JsonPrimitive)?.content?.trim() ?: return@mapNotNull null
+            val name = (item["name"] as? JsonPrimitive)?.content?.trim()
+            ManifestCatalog(type = type, id = id, name = name)
+        }
     }
 }

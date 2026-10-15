@@ -16,7 +16,7 @@ abstract class MainAPI {
     /** Eklentinin desteklediği içerik türleri. */
     open val supportedTypes: Set<TvType> = setOf(TvType.Movie, TvType.TvSeries)
 
-    open val hasMainPage: Boolean = false
+    open val hasMainPage: Boolean get() = mainPage.isNotEmpty()
     open val hasChromecastSupport: Boolean = true
     open val hasDownloadSupport: Boolean = false
     open val hasQuickSearch: Boolean = false
@@ -45,15 +45,20 @@ abstract class MainAPI {
     ): Boolean = false
 
     /**
-     * Ana sayfa bölümleri (opsiyonel). Play tarafından kullanılmaz; eklenti uyumluluğu için stub.
+     * Ana sayfa bölümleri. Play sağlayıcı ana sayfasında bu akışı gösterir.
      */
     open suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? = null
+    open suspend fun getMainPage(page: Int, request: MainPageData): HomePageResponse? = getMainPage(page, request.toRequest())
 
-    open val mainPage: List<MainPageRequest> get() = emptyList()
+    open val mainPage: List<MainPageData> get() = emptyList()
 }
 
-data class MainPageRequest(val name: String, val data: String, val horizontalImages: Boolean = false)
-data class MainPageData(val name: String, val data: String, val horizontalImages: Boolean = false)
+data class MainPageData(val name: String, val data: String, val horizontalImages: Boolean = false) {
+    fun toRequest(): MainPageRequest = MainPageRequest(name, data, horizontalImages)
+}
+data class MainPageRequest(val name: String, val data: String, val horizontalImages: Boolean = false) {
+    fun toData(): MainPageData = MainPageData(name, data, horizontalImages)
+}
 data class HomePageResponse(val items: List<HomePageList>, val hasNext: Boolean = false)
 data class HomePageList(val name: String, val list: List<SearchResponse>, val isHorizontalImages: Boolean = false)
 
@@ -83,7 +88,29 @@ fun newHomePageResponse(name: String, list: List<SearchResponse>, hasNext: Boole
     HomePageResponse(listOf(HomePageList(name, list)), hasNext == true)
 
 fun newHomePageResponse(request: MainPageRequest, list: List<SearchResponse>, hasNext: Boolean? = null): HomePageResponse =
-    HomePageResponse(listOf(HomePageList(request.name, list)), hasNext == true)
+    HomePageResponse(listOf(HomePageList(request.name, list, request.horizontalImages)), hasNext == true)
+
+fun newHomePageResponse(request: MainPageData, list: List<SearchResponse>, hasNext: Boolean? = null): HomePageResponse =
+    HomePageResponse(listOf(HomePageList(request.name, list, request.horizontalImages)), hasNext == true)
+
+fun newHomePageResponse(items: List<HomePageList>, hasNext: Boolean? = null): HomePageResponse =
+    HomePageResponse(items, hasNext == true)
+
+@JvmName("newHomePageResponsePrimitive")
+fun newHomePageResponse(name: String, list: List<SearchResponse>, hasNext: Boolean): HomePageResponse =
+    HomePageResponse(listOf(HomePageList(name, list)), hasNext)
+
+@JvmName("newHomePageResponseRequestPrimitive")
+fun newHomePageResponse(request: MainPageRequest, list: List<SearchResponse>, hasNext: Boolean): HomePageResponse =
+    HomePageResponse(listOf(HomePageList(request.name, list, request.horizontalImages)), hasNext)
+
+@JvmName("newHomePageResponseDataPrimitive")
+fun newHomePageResponse(request: MainPageData, list: List<SearchResponse>, hasNext: Boolean): HomePageResponse =
+    HomePageResponse(listOf(HomePageList(request.name, list, request.horizontalImages)), hasNext)
+
+@JvmName("newHomePageResponseItemsPrimitive")
+fun newHomePageResponse(items: List<HomePageList>, hasNext: Boolean): HomePageResponse =
+    HomePageResponse(items, hasNext)
 
 // ---------------------------------------------------------------------------
 // Metin/URL yardımcıları

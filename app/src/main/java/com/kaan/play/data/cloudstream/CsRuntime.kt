@@ -188,6 +188,80 @@ class CsRuntime {
         else -> 2160
     }
 
+    /**
+     * Eklentinin ana sayfa satırlarını çeker.
+     * Her [MainPageData] girdisi için ayrı [withTimeout] uygulanır;
+     * hata olursa o satır atlanır / uygulama asla çökmez.
+     */
+    suspend fun mainPage(
+        api: MainAPI,
+        page: Int = 1,
+        timeoutMs: Long = 10_000L,
+    ): List<CsCatalogSection> {
+        val sections = runCatching { api.mainPage }.getOrNull()
+        val results = mutableListOf<CsCatalogSection>()
+
+        if (!sections.isNullOrEmpty()) {
+            for (section in sections) {
+                val started = System.currentTimeMillis()
+                try {
+                    val resp = withTimeout(timeoutMs) {
+                        api.getMainPage(page, section.toRequest()) ?: api.getMainPage(page, section)
+                    }
+                    if (resp != null && resp.items.isNotEmpty()) {
+                        for (item in resp.items) {
+                            val title = item.name.ifBlank { section.name }
+                            results += CsCatalogSection(
+                                title = title,
+                                items = item.list,
+                                isHorizontalImages = item.isHorizontalImages,
+                                hasNext = resp.hasNext,
+                            )
+                        }
+                        Log.d(TAG, "${api.name}/${section.name}: ${resp.items.sumOf { it.list.size }} öğe (${System.currentTimeMillis() - started} ms)")
+                    } else {
+                        Log.d(TAG, "${api.name}/${section.name}: boş yanıt (${System.currentTimeMillis() - started} ms)")
+                    }
+                } catch (t: Throwable) {
+                    Log.d(TAG, "${api.name}/${section.name}: hata ${t.javaClass.simpleName}: ${t.message} (${System.currentTimeMillis() - started} ms)")
+                }
+            }
+        } else if (api.hasMainPage) {
+            val started = System.currentTimeMillis()
+            try {
+                val req = com.lagradost.cloudstream3.MainPageRequest(api.name, api.mainUrl)
+                val resp = withTimeout(timeoutMs) { api.getMainPage(page, req) }
+                if (resp != null && resp.items.isNotEmpty()) {
+                    for (item in resp.items) {
+                        results += CsCatalogSection(
+                            title = item.name.ifBlank { api.name },
+                            items = item.list,
+                            isHorizontalImages = item.isHorizontalImages,
+                            hasNext = resp.hasNext,
+                        )
+                    }
+                }
+                Log.d(TAG, "${api.name}: hasMainPage ile ${results.size} satır (${System.currentTimeMillis() - started} ms)")
+            } catch (t: Throwable) {
+                Log.d(TAG, "${api.name}: hasMainPage hata ${t.javaClass.simpleName}: ${t.message} (${System.currentTimeMillis() - started} ms)")
+            }
+        }
+
+        return results
+    }
+
+    suspend fun mainPage(
+        apis: List<MainAPI>,
+        page: Int = 1,
+        timeoutMs: Long = 10_000L,
+    ): List<CsCatalogSection> {
+        val results = mutableListOf<CsCatalogSection>()
+        for (api in apis) {
+            results += mainPage(api, page, timeoutMs)
+        }
+        return results
+    }
+
     private companion object {
         const val TAG = "PlayCs"
         val TURKISH: java.util.Locale = java.util.Locale.forLanguageTag("tr")
@@ -195,3 +269,11 @@ class CsRuntime {
         val SPACES = Regex("\\s+")
     }
 }
+
+/** CS ana sayfa satırı sonucu (başlık + SearchResponse listesi). */
+data class CsCatalogSection(
+    val title: String,
+    val items: List<SearchResponse>,
+    val isHorizontalImages: Boolean = false,
+    val hasNext: Boolean = false,
+)
