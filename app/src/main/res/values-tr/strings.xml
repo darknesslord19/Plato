@@ -389,4 +389,26 @@
     <string name="settings_auto_source">Kaynağı otomatik seç</string>
     <string name="settings_prefer_dub">Türkçe dublajı öncele</string>
     <string name="settings_auto_translate_subs">Türkçe yoksa İngilizceyi otomatik çevir</string>
+
+    <!-- Sağlayıcı seçici ve ana sayfa sağlayıcı görünümü -->
+    <string name="provider_pill_select">Eklenti seç</string>
+    <string name="provider_pill_multiple">%1$s +%2$d</string>
+    <string name="provider_selector_title">Bir uzantı seçin</string>
+    <string name="provider_selector_desc">Ana sayfa içeriğini besleyecek sağlayıcıyı seçin</string>
+    <string name="provider_search_hint">Uzantıları ara…</string>
+    <string name="provider_search_clear">Aramayı temizle</string>
+    <string name="provider_tab_all">Hepsi</string>
+    <string name="provider_tab_cloudstream" translatable="false">CloudStream</string>
+    <string name="provider_tab_nuvio" translatable="false">Nuvio</string>
+    <string name="provider_section_title">Sağlayıcılar</string>
+    <string name="provider_all_providers">Tüm sağlayıcılar</string>
+    <string name="provider_all_providers_desc">Varsayılan akış</string>
+    <string name="provider_pin">Sabitle</string>
+    <string name="provider_unpin">Sabitlemeyi kaldır</string>
+    <string name="provider_apply">Uygula</string>
+    <string name="provider_selected_count">%1$d seçildi</string>
+    <string name="provider_empty_message">Hiç sağlayıcı eklentisi bulunamadı.</string>
+    <string name="provider_empty_action">Eklenti ekle</string>
+    <string name="provider_catalog_coming_soon">Katalog yakında</string>
+    <string name="provider_catalog_coming_soon_desc">Bu sağlayıcı için katalog desteği sonraki aşamada eklenecek.</string>
 </resources>

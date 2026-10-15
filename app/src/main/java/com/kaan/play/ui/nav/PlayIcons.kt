@@ -357,4 +357,31 @@ object PlayIcons {
             }
         }
     }
+
+    /** Sağlayıcı seçici: iğneleme / sabitleme ikonu (çizgi stilinde). */
+    val Pin: ImageVector by lazy {
+        icon("Pin") {
+            line {
+                moveTo(9f, 4f); horizontalLineTo(15f)
+                moveTo(10f, 4f); verticalLineTo(7f)
+                moveTo(14f, 4f); verticalLineTo(7f)
+                moveTo(10f, 7f); lineTo(7f, 13f); horizontalLineTo(17f); lineTo(14f, 7f)
+                moveTo(12f, 13f); verticalLineTo(20f)
+            }
+        }
+    }
+
+    /** Sağlayıcı seçici: sabitlenmiş (dolu gövdeli) iğne ikonu. */
+    val PinFilled: ImageVector by lazy {
+        icon("PinFilled") {
+            line {
+                moveTo(9f, 4f); horizontalLineTo(15f)
+                moveTo(12f, 13f); verticalLineTo(20f)
+            }
+            solid {
+                moveTo(10f, 4f); verticalLineTo(7f); lineTo(7f, 13f); horizontalLineTo(17f); lineTo(14f, 7f); verticalLineTo(4f); close()
+            }
+        }
+    }
 }
+

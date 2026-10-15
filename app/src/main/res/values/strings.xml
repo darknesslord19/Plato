@@ -407,4 +407,26 @@
     <string name="settings_auto_source">Pick the source automatically</string>
     <string name="settings_prefer_dub">Prefer Turkish dubbing</string>
     <string name="settings_auto_translate_subs">Auto-translate English if no Turkish</string>
+
+    <!-- Sağlayıcı seçici ve ana sayfa sağlayıcı görünümü -->
+    <string name="provider_pill_select">Select extension</string>
+    <string name="provider_pill_multiple">%1$s +%2$d</string>
+    <string name="provider_selector_title">Select an extension</string>
+    <string name="provider_selector_desc">Choose a provider to feed the home catalog</string>
+    <string name="provider_search_hint">Search extensions…</string>
+    <string name="provider_search_clear">Clear search</string>
+    <string name="provider_tab_all">All</string>
+    <string name="provider_tab_cloudstream" translatable="false">CloudStream</string>
+    <string name="provider_tab_nuvio" translatable="false">Nuvio</string>
+    <string name="provider_section_title">Providers</string>
+    <string name="provider_all_providers">All providers</string>
+    <string name="provider_all_providers_desc">Default feed</string>
+    <string name="provider_pin">Pin</string>
+    <string name="provider_unpin">Unpin</string>
+    <string name="provider_apply">Apply</string>
+    <string name="provider_selected_count">%1$d selected</string>
+    <string name="provider_empty_message">No provider extensions found.</string>
+    <string name="provider_empty_action">Add extension</string>
+    <string name="provider_catalog_coming_soon">Catalog coming soon</string>
+    <string name="provider_catalog_coming_soon_desc">Catalog support for this provider will be added in the next phase.</string>
 </resources>
