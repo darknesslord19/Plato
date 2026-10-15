@@ -8,6 +8,7 @@ import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.stream.StreamSource
 import com.kaan.play.data.subtitle.SubtitleCue
+import com.kaan.play.data.subtitle.SubtitleDiag
 import com.kaan.play.data.subtitle.SubtitleItem
 import com.kaan.play.data.subtitle.SubtitleKind
 import com.kaan.play.data.subtitle.SubtitleLanguages
@@ -20,12 +21,20 @@ import com.kaan.play.data.subtitle.SubtitleResult
 import com.kaan.play.data.subtitle.SubtitleSelection
 import com.kaan.play.data.subtitle.SubtitleTimeline
 import com.kaan.play.data.subtitle.SubtitleTrack
+import com.kaan.play.data.subtitle.translate.ModelPrep
+import com.kaan.play.data.subtitle.translate.SubtitleTranslation
+import com.kaan.play.data.subtitle.translate.TranslatedSubtitleStore
+import com.kaan.play.data.subtitle.translate.TranslationEngine
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Altyazı katmanının oynatıcıdan ihtiyaç duyduğu şeyler ([PlaybackController] uygular; testlerde sahtesi kullanılır). */
 interface SubtitleHost {
@@ -40,6 +49,19 @@ interface SubtitleHost {
 
 /** Altyazı yükleme durumu (yalnızca oynatıcıda küçük bir bildirim olarak görünür). */
 enum class SubtitleStatus { Idle, Loading, Failed }
+
+/** Otomatik çeviri durumu (oynatıcıda küçük bir gösterge olarak görünür; [Failed] kısa süre sonra kalkar). */
+sealed interface TranslationState {
+    data object Idle : TranslationState
+
+    /** Dil modeli ilk kullanımda iniyor (bir kez). */
+    data object DownloadingModel : TranslationState
+
+    data class Translating(val percent: Int) : TranslationState
+
+    /** [needsWifi]: model "yalnızca Wi-Fi" ayarı yüzünden indirilemedi. İngilizce altyazı olduğu gibi kalır. */
+    data class Failed(val needsWifi: Boolean) : TranslationState
+}
 
 /**
  * Oynatıcının altyazı katmanı. Altyazı kaynakları tek listede toplanır: videonun içindekiler, akışın kendi altyazıları ve
@@ -65,6 +87,11 @@ class SubtitleController(
     private val preferredLanguage: suspend () -> String,
     /** Etkinlik kapansa da tamamlanması gereken yazmalar (kalıcı hafıza) için uygulama kapsamı. */
     private val persist: CoroutineScope,
+    /** Türkçe yoksa İngilizceyi cihazda Türkçeye çeviren katman; null: çeviri yok (indirilmiş kopya, testler). */
+    private val translation: TranslationEngine? = null,
+    private val translationStore: TranslatedSubtitleStore? = null,
+    /** Önbellek dosyalarının okunup yazıldığı dispatcher (testlerde sanal zamanlı olanı verilir). */
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
     /** Menüde gösterilen tüm seçenekler (aynı adresler ayıklanmış). */
@@ -90,6 +117,10 @@ class SubtitleController(
     var menuLanguages by mutableStateOf<List<String>>(emptyList())
         private set
 
+    /** Otomatik çeviri durumu. */
+    var translationState by mutableStateOf<TranslationState>(TranslationState.Idle)
+        private set
+
     /** Cevap vermeyen altyazı addon'ları. */
     var failedSources by mutableStateOf<List<StreamSource>>(emptyList())
         private set
@@ -98,6 +129,9 @@ class SubtitleController(
     private var streamTracks: List<SubtitleTrack> = emptyList()
     private var addonTracks: List<SubtitleTrack> = emptyList()
     private var localTracks: List<SubtitleTrack> = emptyList()
+    private var translatedTracks: List<SubtitleTrack> = emptyList()
+    private var translateStarted = false
+    private var translateJob: Job? = null
     private val badUrls = HashSet<String>()
 
     private var preferred: List<String> = emptyList()
@@ -140,6 +174,7 @@ class SubtitleController(
             preferred = SubtitleSelection.preferredLanguages(remembered, language)
             ready = true
             autoSelect()
+            maybeTranslate()
         }
         collectProvider()
         scope.launch {
@@ -155,7 +190,10 @@ class SubtitleController(
         searching = true
         searchJob = scope.launch {
             provider.subtitles(request)
-                .onCompletion { searching = false }
+                .onCompletion {
+                    searching = false
+                    maybeTranslate()
+                }
                 .collect { result ->
                     when (result) {
                         is SubtitleResult.Found -> {
@@ -286,7 +324,7 @@ class SubtitleController(
         val (online, fromAddons) = addonTracks.partition { it.kind == SubtitleKind.Online }
         // Çevrimiçi sonuçlarda sağlayıcı sırası sabit: önce SubDL, sonra OpenSubtitles (cevap geliş sırası değil).
         val onlineOrdered = online.sortedBy { onlineRank(it.origin) }
-        val all = embedded + (streamTracks + localTracks + fromAddons + onlineOrdered).map(SubtitleItem::External)
+        val all = embedded + (streamTracks + localTracks + fromAddons + onlineOrdered + translatedTracks).map(SubtitleItem::External)
         items = SubtitleSelection.dedupe(all)
         // Açık videonun-içi parça artık yoksa (kaynak değişti), seçim düşer ve otomatik seçim yeniden değerlendirilir.
         val current = selected
@@ -296,6 +334,82 @@ class SubtitleController(
             autoRank = null
         }
         autoSelect()
+        maybeTranslate()
+    }
+
+    // ---- otomatik çeviri ----
+
+    /**
+     * Hiçbir kaynakta (videonun içi dahil) Türkçe yoksa ve İngilizce harici altyazı varsa, İngilizceyi arka planda Türkçeye çevirir.
+     * Altyazı aramaları bitmeden başlamaz (geç gelen gerçek Türkçe çeviriyi gereksiz kılar); bu sırada İngilizce zaten gösterilir.
+     * Gerçek Türkçe gelirse süren çeviri bırakılır. Kullanıcının elle seçimine ve dublajlı kaynaktaki bastırmaya dokunmaz. Oturum
+     * başına bir deneme: başarısızsa İngilizce kalır, tekrar tekrar denenmez.
+     */
+    private fun maybeTranslate() {
+        val engine = translation ?: return
+        val store = translationStore ?: return
+        if (!ready) return
+        if (SubtitleTranslation.hasRealTarget(items)) {
+            if (translateJob?.isActive == true) {
+                translateJob?.cancel()
+                translationState = TranslationState.Idle
+            }
+            return
+        }
+        if (translateStarted || searching || userChose || (autoSuppressed && !rememberedExplicit)) return
+        val sources = SubtitleTranslation.candidates(items.filter { it !is SubtitleItem.External || it.track.url !in badUrls }, preferred)
+        if (sources.isEmpty()) return
+        translateStarted = true
+        translateJob = scope.launch { runTranslation(engine, store, sources) }
+    }
+
+    private suspend fun runTranslation(engine: TranslationEngine, store: TranslatedSubtitleStore, sources: List<SubtitleTrack>) {
+        try {
+            if (!engine.enabled()) return
+            val cached = withContext(io) { sources.firstNotNullOfOrNull { store.cached(request, it) } }
+            if (cached != null) return addTranslated(cached)
+            if (!engine.isModelReady()) {
+                translationState = TranslationState.DownloadingModel
+                when (engine.prepareModel()) {
+                    ModelPrep.Ready -> Unit
+                    ModelPrep.NeedsWifi -> return failTranslation(needsWifi = true)
+                    ModelPrep.Failed -> return failTranslation(needsWifi = false)
+                }
+            }
+            translationState = TranslationState.Translating(0)
+            for (source in sources) {
+                val loaded = loader.load(source) as? SubtitleLoad.Loaded ?: continue
+                val startedAt = System.currentTimeMillis()
+                val cues = engine.translate(loaded.cues) { percent ->
+                    // Çeviri iş parçacıklarından gelir; durum yalnızca burada (ana iş parçacığı) yazılır.
+                    scope.launch { if (translationState is TranslationState.Translating) translationState = TranslationState.Translating(percent) }
+                }
+                SubtitleDiag.d("çeviri bitti satır=${cues.size} süre=${System.currentTimeMillis() - startedAt} ms")
+                val track = store.trackFor(request, source)
+                if (!withContext(io) { store.write(track, cues) }) return failTranslation(needsWifi = false)
+                return addTranslated(track)
+            }
+            translationState = TranslationState.Idle // İngilizce altyazı zaten yüklenemedi; ayrı bir çeviri mesajı gerekmez.
+        } catch (e: CancellationException) {
+            translationState = TranslationState.Idle
+            throw e
+        } catch (e: Exception) {
+            failTranslation(needsWifi = false)
+        }
+    }
+
+    private fun addTranslated(track: SubtitleTrack) {
+        translationState = TranslationState.Idle
+        translatedTracks = translatedTracks + track
+        rebuild()
+    }
+
+    private fun failTranslation(needsWifi: Boolean) {
+        translationState = TranslationState.Failed(needsWifi)
+    }
+
+    fun clearTranslationNotice() {
+        if (translationState is TranslationState.Failed) translationState = TranslationState.Idle
     }
 
     private fun autoSelect() {
@@ -392,9 +506,16 @@ class SubtitleController(
 
         private const val RANK_STEP = 10
 
-        /** Aynı dilde kaynak sırası: videonun içindekiler/akış/addon 0, çevrimiçi 1 + sağlayıcı sırası. */
-        private fun sourceRank(item: SubtitleItem): Int =
-            if (item is SubtitleItem.External && item.track.kind == SubtitleKind.Online) 1 + onlineRank(item.track.origin) else 0
+        /** Aynı dilde kaynak sırası: videonun içindekiler/akış/addon 0, çevrimiçi 1 + sağlayıcı sırası, otomatik çeviri en sonda. */
+        private fun sourceRank(item: SubtitleItem): Int = when {
+            item !is SubtitleItem.External -> 0
+            item.track.kind == SubtitleKind.Online -> 1 + onlineRank(item.track.origin)
+            // Gerçek Türkçe (her kaynaktan) her zaman çeviriden önce gelir.
+            item.track.kind == SubtitleKind.Translated -> TRANSLATED_RANK
+            else -> 0
+        }
+
+        private const val TRANSLATED_RANK = 5
 
         /** Çevrimiçi sağlayıcı önceliği: SubDL, OpenSubtitles, diğerleri. */
         internal fun onlineRank(origin: String): Int = when (origin) {

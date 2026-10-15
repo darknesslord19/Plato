@@ -46,6 +46,9 @@ import com.kaan.play.data.subtitle.SubtitleLoader
 import com.kaan.play.data.subtitle.SubtitleSearchCache
 import com.kaan.play.data.subtitle.SubtitleMemory
 import com.kaan.play.data.subtitle.SubtitleProvider
+import com.kaan.play.data.subtitle.translate.MlKitTranslationEngine
+import com.kaan.play.data.subtitle.translate.TranslatedSubtitleStore
+import com.kaan.play.data.subtitle.translate.TranslationEngine
 import com.kaan.play.data.tmdb.TmdbRepository
 import com.kaan.play.data.torrent.TorrentEngine
 import com.kaan.play.data.torrent.TorrentHttpServer
@@ -288,6 +291,18 @@ class AppContainer(context: Context) {
                 out.toByteArray()
             }
         })
+    }
+
+    /** Çevrilmiş (İngilizce -> Türkçe) altyazıların önbelleği: `cacheDir/subtitles/tr-*.srt`. */
+    val translatedSubtitles: TranslatedSubtitleStore by lazy { TranslatedSubtitleStore(File(appContext.cacheDir, "subtitles")) }
+
+    /** Cihaz üstü çeviri (ML Kit); metin sunucuya gitmez. Model ilk kullanımda iner ("yalnızca Wi-Fi" ayarına uyar). */
+    val translationEngine: TranslationEngine by lazy {
+        MlKitTranslationEngine(
+            context = appContext,
+            enabledSetting = { settings.autoTranslateSubtitles.first() },
+            wifiOnlySetting = { settings.downloadWifiOnly.first() },
+        )
     }
 
     /** Seçilen altyazı dili (film/dizi başına) ve elle senkron kaydırması (içerik + altyazı başına). */

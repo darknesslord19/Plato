@@ -53,6 +53,8 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_DOWNLOAD_WIFI_ONLY)
     val subtitleLanguage by container.settings.subtitleLanguage
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_SUBTITLE_LANGUAGE)
+    val autoTranslate by container.settings.autoTranslateSubtitles
+        .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_AUTO_TRANSLATE_SUBS)
     val autoSource by container.settings.autoSource
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_AUTO_SOURCE)
     val preferDub by container.settings.preferDub
@@ -79,6 +81,10 @@ fun PlayerSettingsScreen(onBack: () -> Unit) {
                 value = SubtitleLanguages.displayName(subtitleLanguage, uiLanguage),
                 onClick = { pickLanguage = true },
             )
+            // Türkçe altyazı hiçbir kaynakta yoksa İngilizce, cihaz üstünde (sunucuya metin gitmeden) Türkçeye çevrilir.
+            SwitchRow(stringResource(R.string.settings_auto_translate_subs), autoTranslate) {
+                scope.launch { container.settings.setAutoTranslateSubtitles(it) }
+            }
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             // Kaynağı otomatik seç: kapalıyken eski davranış (önce kaynak listesi). Türkçe dublaj: dublajlı kaynak önce denenir.
             SwitchRow(stringResource(R.string.settings_auto_source), autoSource) {

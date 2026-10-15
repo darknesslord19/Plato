@@ -217,6 +217,11 @@
     <string name="subtitle_searching">Altyazı aranıyor…</string>
     <string name="subtitle_loading">Altyazı yükleniyor…</string>
     <string name="subtitle_load_failed">Bu altyazı yüklenemedi</string>
+    <string name="subtitle_translating">Altyazı çevriliyor… %%%1$d</string>
+    <string name="subtitle_translate_model">Çeviri modeli indiriliyor (yalnızca bir kez)…</string>
+    <string name="subtitle_translate_wifi">Çeviri modelini indirmek için Wi-Fi gerekli</string>
+    <string name="subtitle_translate_failed">Altyazı çevrilemedi, İngilizce kalıyor</string>
+    <string name="subtitle_auto_translated">%1$s (otomatik çeviri)</string>
     <string name="subtitle_sync">Senkron</string>
     <string name="subtitle_sync_value">%1$s sn</string>
     <string name="subtitle_sync_hint">Eksi altyazıyı öne alır, artı geciktirir.</string>
@@ -383,4 +388,5 @@
     <string name="tracks_none">Seçenek yok</string>
     <string name="settings_auto_source">Kaynağı otomatik seç</string>
     <string name="settings_prefer_dub">Türkçe dublajı öncele</string>
+    <string name="settings_auto_translate_subs">Türkçe yoksa İngilizceyi otomatik çevir</string>
 </resources>

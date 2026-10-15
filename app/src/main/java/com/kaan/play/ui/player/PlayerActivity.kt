@@ -136,13 +136,16 @@ class PlayerActivity : AppCompatActivity() {
                         if (SubtitleLoader.isLocal(track.url)) container.subtitleLoader.load(track) else downloaded.load(track)
                     }
                 } else {
-                    container.subtitleLoader
+                    container.translatedSubtitles.loader(container.subtitleLoader)
                 },
             ),
             memory = container.subtitleMemory,
             provider = if (offline != null) SubtitleProvider { emptyFlow() } else SubtitleDiag.provider(container.subtitleProvider),
             preferredLanguage = { container.settings.subtitleLanguage.first() },
             persist = container.appScope,
+            // İndirilmiş kopyada çevrimiçi altyazı da aranmaz; otomatik çeviri yalnızca çevrimiçi izlemede.
+            translation = if (offline == null) container.translationEngine else null,
+            translationStore = if (offline == null) container.translatedSubtitles else null,
         )
         subtitles.start()
         // Teşhis (yalnızca debug): videonun içindeki parçalar ve geçerli seçim.

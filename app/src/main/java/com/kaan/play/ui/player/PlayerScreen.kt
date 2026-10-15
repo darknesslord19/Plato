@@ -246,6 +246,13 @@ fun PlayerScreen(
             subtitles.clearStatus()
         }
     }
+    // "Altyazı çevrilemedi" kısa süre görünür.
+    LaunchedEffect(subtitles.translationState) {
+        if (subtitles.translationState is TranslationState.Failed) {
+            delay(NOTICE_MS)
+            subtitles.clearTranslationNotice()
+        }
+    }
     // Kaynak bildirimi ("kaynak açılamadı, önceki kaynağa dönüldü") kısa süre görünür.
     LaunchedEffect(coordinator?.notice) {
         if (coordinator?.notice != null) {
@@ -402,6 +409,19 @@ fun PlayerScreen(
             SubtitleNotice(
                 text = stringResource(if (status == SubtitleStatus.Loading) R.string.subtitle_loading else R.string.subtitle_load_failed),
                 modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 96.dp),
+            )
+        }
+
+        subtitles.translationState.takeIf { it != TranslationState.Idle }?.let { state ->
+            SubtitleNotice(
+                text = when (state) {
+                    TranslationState.DownloadingModel -> stringResource(R.string.subtitle_translate_model)
+                    is TranslationState.Translating -> stringResource(R.string.subtitle_translating, state.percent)
+                    is TranslationState.Failed ->
+                        stringResource(if (state.needsWifi) R.string.subtitle_translate_wifi else R.string.subtitle_translate_failed)
+                    TranslationState.Idle -> ""
+                },
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 144.dp),
             )
         }
 

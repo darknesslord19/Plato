@@ -374,7 +374,12 @@ fun SourcePanel(
                         OptionRow(selected = item == effectiveSub, onClick = { subChoice = SubChoice.Item(item) }) {
                             val label = when (item) {
                                 is SubtitleItem.Embedded -> stringResource(R.string.subs_embedded_row, group.name)
-                                is SubtitleItem.External -> stringResource(R.string.dot_join, group.name, item.track.label ?: item.track.origin)
+                                is SubtitleItem.External ->
+                                    if (item.track.kind == SubtitleKind.Translated) {
+                                        stringResource(R.string.subtitle_auto_translated, group.name)
+                                    } else {
+                                        stringResource(R.string.dot_join, group.name, item.track.label ?: item.track.origin)
+                                    }
                             }
                             Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }

@@ -236,6 +236,11 @@
     <string name="subtitle_searching">Looking for subtitles…</string>
     <string name="subtitle_loading">Loading subtitles…</string>
     <string name="subtitle_load_failed">Couldn\'t load these subtitles</string>
+    <string name="subtitle_translating">Translating subtitles… %1$d%%</string>
+    <string name="subtitle_translate_model">Downloading the translation model (one time)…</string>
+    <string name="subtitle_translate_wifi">The translation model needs Wi-Fi to download</string>
+    <string name="subtitle_translate_failed">Couldn\'t translate the subtitles; English stays on</string>
+    <string name="subtitle_auto_translated">%1$s (auto-translated)</string>
     <string name="subtitle_sync">Sync</string>
     <string name="subtitle_sync_value">%1$s s</string>
     <string name="subtitle_sync_hint">Minus shows the subtitles earlier, plus later.</string>
@@ -401,4 +406,5 @@
     <string name="tracks_none">No options</string>
     <string name="settings_auto_source">Pick the source automatically</string>
     <string name="settings_prefer_dub">Prefer Turkish dubbing</string>
+    <string name="settings_auto_translate_subs">Auto-translate English if no Turkish</string>
 </resources>

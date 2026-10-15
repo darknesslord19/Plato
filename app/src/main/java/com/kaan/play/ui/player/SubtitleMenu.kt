@@ -213,7 +213,8 @@ private fun rowLabels(group: SubtitleGroup): List<String> {
     val joined = R.string.dot_join
     val bases = group.items.map {
         when (it) {
-            is SubtitleItem.External -> it.track.origin
+            is SubtitleItem.External ->
+                if (it.track.kind == SubtitleKind.Translated) stringResource(R.string.subtitle_auto_translated, group.name) else it.track.origin
             is SubtitleItem.Embedded -> it.label?.let { label -> stringResource(joined, embedded, label) } ?: embedded
         }
     }
