@@ -184,6 +184,11 @@ class AppContainer(context: Context) {
     /** "Eklenti ekle": adresin içeriğine bakıp addon mu eklenti deposu mu CloudStream deposu mu olduğunu kendisi anlar. */
     val sourceInstaller: SourceInstaller by lazy { SourceInstaller(addons, plugins, csRepos, OkHttpManifestFetcher(httpClient)) }
 
+    /** Sağlayıcı merkezli ana sayfa için sağlayıcı listesi ve seçim durumu (Aşama A). */
+    val providers: com.kaan.play.data.provider.ProviderRepository by lazy {
+        com.kaan.play.data.provider.ProviderRepository(database.addonDao(), database.pluginDao(), settings.store)
+    }
+
     /**
      * JS kazıyıcı çalıştırıcısı (QuickJS). Gerçek TMDB anahtarı yalnızca ağ köprüsüne verilir, eklentilere yer tutucu görünür.
      * Aynı anda en çok [PluginStreamProvider.MAX_PARALLEL] eklenti çalışır (her biri ayrı bir QuickJS örneği).
