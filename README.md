@@ -36,6 +36,7 @@
 | 🇹🇷 **Türkçe dublaj önce** | Türkçe dublajlı kaynak varsa ilk o seçilir. Yoksa Türkçe altyazıyla başlar. Her kaynak "Dublajlı" ya da "Altyazılı" diye etiketlenir, boyutu (GB) yanında görünür. |
 | 📝 **Otomatik Türkçe altyazı** | Videoda altyazı yoksa çevrimiçi aranır, Türkçe önce gelir. Elle .srt ekleyebilir, senkronu ve görünümü (boyut, kalın, italik) ayarlayabilirsin. |
 | 🧩 **Nuvio ve CloudStream** | Nuvio addon'larını, Nuvio plugin'lerini ve CloudStream (.cs3) eklenti depolarını kaynak olarak kullanır. Tek listede, eklentiye göre gruplu. |
+| 🧭 **Sağlayıcı seçici** | Ana sayfa eklenti merkezli çalışabilir. Sağ alttaki hap butonla sağlayıcı seçilir; arama, Hepsi/CloudStream/Nuvio filtreleri, sabitleme ve çoklu seçim desteklenir. |
 | 🧲 **Yerleşik torrent motoru** | Torrent kaynakları için ayrı uygulama, TorrServer ya da Debrid gerekmez. |
 | 🎛️ **Akıllı oynatıcı** | Sağ tarafı kaydırarak ses, sol tarafı kaydırarak parlaklık. Kilit, kaynak, ses ve video kalitesi panelleri. Dizide sonraki bölüm otomatik açılır. |
 | 📥 **Çevrimdışı izle** | Film ve bölümleri indir, internetsiz izle. Kaldığın yerden devam eder. |
@@ -114,6 +115,7 @@ SUBDL_API_KEY=<isteğe bağlı: subdl.com ücretsiz anahtarı>
 - **Faz 3 (CloudStream `.cs3` eklenti depoları) tamam:** `com.lagradost.cloudstream3` stub'ları, DEX yükleme (`CsDexLoader`/`CsDexStore`), çalışma zamanı (`CsRuntime`), depo yönetimi (`CsRepository`), kaynak listesine bağlama (`CsStreamProvider`); Ayarlar > Eklentiler > "CloudStream Depoları". Ayrıntılar ve bilinen sınırlar CLAUDE.md "Faz 3" bölümünde.
 - **Faz 4 / A (altyazı) tamam:** altyazı addon'ları, tek altyazı seçici (dil grupları, varsayılan seçim, dizide hatırlama), karakter kodlaması (windows-1254 dahil) ve elle senkron; ayrıntı aşağıda "Altyazı — Faz 4 / A". Otomatik altyazı üretme/senkron en sona ertelendi.
 - **Faz 4 / B (indirme, çevrimdışı izleme) tamam:** kaynak listesinde satır sonunda indir simgesi, Media3 `DownloadManager` + ön plan servisi, Kütüphane > İndirilenler, çevrimdışı oynatma (altyazılarıyla); ayrıntı ve bilinen sınırlar aşağıda "İndirme — Faz 4 / B". Logo/ikon entegrasyonu tamam (aşağıda "Logo ve ikon").
+- **Sağlayıcı merkezli ana sayfa (Aşama A) tamam:** ana sayfa sağ alt yüzen hap buton, "Bir uzantı seçin" modal seçici ekranı (arama, Hepsi / CloudStream / Nuvio sekmeleri, sabitleme, tek dokunuş / uzun basış çoklu seçim), DataStore kalıcılığı, katalog iskelet yer tutucusu ve B aşaması için `ProviderCatalog` arayüzü.
 - **Yayın hazırlığı devam ediyor:** ProGuard kuralları tamamlandı, keystore dizini hazır; keystore üretimi ve Play Store gönderimi için aşağıdaki "Yayın Hazırlığı" bölümüne bak.
 - TV ve tablet desteği 9. adımda yapıldı (leanback girişi + banner, kumanda odağı, yan menü, iki sütunlu Detay); sınırları ve kurallar aşağıda "TV, tablet ve kumanda (9. adım)" notunda. Hava (air) kumanda imleci için ekstra bir şey yapılmadı.
 
