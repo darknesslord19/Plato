@@ -68,8 +68,18 @@ class CloudflareKiller : Interceptor {
                         .header("User-Agent", result.credentials.userAgent)
                         .build()
                     response = chain.proceed(retryReq)
+                    // Çerezle de engel sayfası geldiyse çerez geçersizdir (çoğunlukla WebView deposunda
+                    // kalan eski cf_clearance): sil ve kullanıcıya "Doğrula" gösterilsin.
+                    val retryPeek = runCatching { response.peekBody(4096).string() }.getOrNull()
+                    if (CloudflareDetector.isChallenge(response.code, response.headers, retryPeek)) {
+                        Log.w(TAG, "[CloudflareKiller] Çerezle de engel sayfası geldi ($host); eski çerez siliniyor")
+                        CloudflareSolver.invalidate(host, url)
+                        CloudflareSolver.markBlocked(host, url)
+                        CloudflareSolver.noteUnresolved(host, url)
+                    }
                 } else {
                     Log.w(TAG, "[CloudflareKiller] Çözülemedi ($host)")
+                    CloudflareSolver.noteUnresolved(host, url)
                 }
             }
         }

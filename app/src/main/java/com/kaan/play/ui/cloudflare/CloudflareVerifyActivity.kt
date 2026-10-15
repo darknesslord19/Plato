@@ -81,6 +81,8 @@ class CloudflareVerifyActivity : AppCompatActivity() {
     private var isCompleted = false
     private var targetHost: String = ""
     private var targetUrl: String = ""
+    /** Ekran açılmadan önce depoda duran (geçersiz) cf_clearance; yeni değer gelmeden "çözüldü" sayılmaz. */
+    private var staleClearance: String? = null
 
     private var loading by mutableStateOf(true)
     private var pageProgress by mutableIntStateOf(0)
@@ -232,6 +234,10 @@ class CloudflareVerifyActivity : AppCompatActivity() {
             }
         })
 
+        // Eski (geçersiz) çerez depoda kalırsa ekran kullanıcı hiçbir şey yapmadan kapanıp
+        // aynı engel sayfasına dönüyordu: önce onu sil, yalnızca yeni çıkan çerezi kabul et.
+        staleClearance = CloudflareSolver.storedClearance(targetUrl)
+        CloudflareSolver.invalidate(targetHost, targetUrl)
         view.loadUrl(targetUrl)
     }
 
@@ -239,7 +245,8 @@ class CloudflareVerifyActivity : AppCompatActivity() {
         if (isCompleted || view == null) return false
         val cookieManager = CookieManager.getInstance()
         val cookieStr = cookieManager.getCookie(targetUrl)
-        if (!cookieStr.isNullOrBlank() && cookieStr.contains("cf_clearance=")) {
+        val clearance = CloudflareSolver.parseCookieString(cookieStr)["cf_clearance"]
+        if (!clearance.isNullOrBlank() && clearance != staleClearance) {
             isCompleted = true
             handler.removeCallbacksAndMessages(null)
             val cookies = CloudflareSolver.parseCookieString(cookieStr)

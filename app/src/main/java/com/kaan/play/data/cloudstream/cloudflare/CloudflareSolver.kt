@@ -55,7 +55,58 @@ object CloudflareSolver {
         val host = CloudflareCache.normalizeHost(hostOrUrl)
         blockedHosts.remove(host)
         blockedUrls.remove(host)
+        unresolved.remove(host)
     }
+
+    /** Çözücü denendi ama site hâlâ engel sayfası veriyor: kullanıcıya "Doğrula" gösterilsin. */
+    fun markBlocked(hostOrUrl: String, url: String) {
+        val host = CloudflareCache.normalizeHost(hostOrUrl)
+        blockedHosts[host] = System.currentTimeMillis()
+        blockedUrls[host] = url
+    }
+
+    /**
+     * Engel sayfasıyla dönen son yanıtlar (alan adı → zaman, adres). Eklentiler çoğu zaman
+     * `mainUrl`'den farklı bir alan adına (güncel alan adı listesi, yönlendirme) istek atar;
+     * bu yüzden "engellendi mi" sorusu `mainUrl` yerine bu kayıtla yanıtlanır.
+     */
+    private val unresolved = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, String>>()
+
+    fun noteUnresolved(hostOrUrl: String, url: String) {
+        val host = CloudflareCache.normalizeHost(hostOrUrl)
+        unresolved[host] = System.currentTimeMillis() to url
+    }
+
+    /** [sinceMs]'ten beri engel sayfasıyla kalan en son alan adı ve adresi; yoksa null. */
+    fun unresolvedSince(sinceMs: Long): Pair<String, String>? =
+        unresolved.entries
+            .filter { it.value.first >= sinceMs }
+            .maxByOrNull { it.value.first }
+            ?.let { it.key to it.value.second }
+
+    /**
+     * Alan adının `cf_clearance` çerezini her yerden siler: bellek önbelleği + WebView çerez deposu.
+     * WebView çerezleri uygulama yeniden açılınca da kalır; geçersiz kalmış eski bir çerez
+     * çözücüde ve doğrulama ekranında "çözüldü" sanılıp sonsuz boş sonuca yol açıyordu.
+     */
+    fun invalidate(hostOrUrl: String, url: String? = null) {
+        val host = CloudflareCache.normalizeHost(hostOrUrl)
+        CloudflareCache.clear(host)
+        runCatching {
+            val cm = CookieManager.getInstance()
+            val targets = listOfNotNull(url, "https://$host", "https://www.$host", "http://$host")
+            for (t in targets) {
+                cm.setCookie(t, "cf_clearance=; Max-Age=0; path=/")
+                cm.setCookie(t, "cf_clearance=; Max-Age=0; path=/; domain=.$host")
+            }
+            cm.flush()
+        }.onFailure { Log.w(TAG, "[Cloudflare] Çerez silinemedi ($host): ${it.javaClass.simpleName}") }
+    }
+
+    /** WebView deposundaki mevcut `cf_clearance` değeri (yoksa null). Değer loglanmaz. */
+    fun storedClearance(url: String): String? = runCatching {
+        parseCookieString(CookieManager.getInstance().getCookie(url))["cf_clearance"]
+    }.getOrNull()
 
     suspend fun solve(
         url: String,

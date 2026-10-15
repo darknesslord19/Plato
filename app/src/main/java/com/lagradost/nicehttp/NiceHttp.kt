@@ -106,6 +106,7 @@ class Requests(private val client: OkHttpClient) {
         timeout: Long,
         interceptor: Interceptor?,
         isRetry: Boolean = false,
+        freshTried: Boolean = false,
     ): NiceResponse {
         PlayNetworkGuard.checkUrl(url)
 
@@ -193,8 +194,35 @@ class Requests(private val client: OkHttpClient) {
             } else {
                 Log.w("PlayCs", "[NiceHttp] Çözülemedi ($host)")
             }
+        } else if (isRetry && isCfChallenge) {
+            // Çözücü "başarılı" dedi ama site hâlâ engel sayfası veriyor: elimizdeki çerez geçersiz
+            // (çoğunlukla uygulama yeniden açılınca WebView deposunda kalan eski cf_clearance).
+            // Eski çerezi her yerden sil ve bir kez gerçekten taze çöz; o da olmazsa kullanıcıya "Doğrula".
+            Log.w("PlayCs", "[NiceHttp] Çerezle de engel sayfası geldi ($host); eski çerez siliniyor (freshTried=$freshTried)")
+            CloudflareSolver.invalidate(host, url)
+            if (!freshTried) {
+                val fresh = CloudflareSolver.solve(url)
+                if (fresh is CloudflareResult.Success) {
+                    resp.close()
+                    return execute(
+                        method = method,
+                        url = url,
+                        headers = headers,
+                        referer = referer,
+                        body = body,
+                        cookies = cookies,
+                        allowRedirects = allowRedirects,
+                        timeout = timeout,
+                        interceptor = interceptor,
+                        isRetry = true,
+                        freshTried = true,
+                    )
+                }
+            }
+            CloudflareSolver.markBlocked(host, url)
         }
 
+        if (isCfChallenge) CloudflareSolver.noteUnresolved(host, url)
         return NiceResponse(resp)
     }
 

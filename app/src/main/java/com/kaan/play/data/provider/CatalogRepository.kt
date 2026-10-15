@@ -73,6 +73,7 @@ class CatalogRepository(
                     val pluginRowId = id.removePrefix("cs:").toLongOrNull() ?: continue
                     val plugin = pluginDao.byId(pluginRowId) ?: continue
                     hasAtLeastOneProvider = true
+                    val providerStarted = System.currentTimeMillis()
                     try {
                         val catalog = CsCatalog(pluginRowId, plugin.name, csRepository, csRuntime)
                         val rows = catalog.rows().first()
@@ -80,6 +81,13 @@ class CatalogRepository(
                     } catch (t: Throwable) {
                         Log.e(TAG, "CS katalog hatası ($id): ${t.message}", t)
                         hasError = true
+                    }
+                    // Eklenti mainUrl dışındaki bir alan adında engel sayfasına takıldıysa da "Doğrula" göster.
+                    val stuck = com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver.unresolvedSince(providerStarted)
+                    if (stuck != null) {
+                        hasBotBlocked = true
+                        blockedVerifyHost = stuck.first
+                        blockedVerifyUrl = stuck.second
                     }
                     val apis = csRepository.loadApis(pluginRowId)
                     for (api in apis) {

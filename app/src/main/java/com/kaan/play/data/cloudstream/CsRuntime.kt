@@ -211,9 +211,12 @@ class CsRuntime {
             Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: api.mainPage dolu, ${sections.size} bölüm bulundu: ${sections.map { it.name }}")
         }
 
+        val mainPageStarted = System.currentTimeMillis()
         if (!sections.isNullOrEmpty()) {
             for (section in sections) {
-                if (com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver.wasBlocked(api.mainUrl)) {
+                // Eklenti mainUrl'den farklı (güncel) bir alan adına gidebilir: engeli o istekten öğren.
+                val cf = com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver
+                if (cf.wasBlocked(api.mainUrl) || cf.unresolvedSince(mainPageStarted)?.let { cf.wasBlocked(it.first) } == true) {
                     Log.w(TAG, "[DEBUG_MAINPAGE] ${api.name}: Bot koruması aşılamadığı için kalan bölümler atlanıyor.")
                     break
                 }
