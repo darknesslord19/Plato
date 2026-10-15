@@ -189,6 +189,17 @@ class AppContainer(context: Context) {
         com.kaan.play.data.provider.ProviderRepository(database.addonDao(), database.pluginDao(), settings.store)
     }
 
+    /** Sağlayıcı merkezli ana sayfa için katalog çekme ve önbellek yöneticisi (Aşama B). */
+    val catalogRepository: com.kaan.play.data.provider.CatalogRepository by lazy {
+        com.kaan.play.data.provider.CatalogRepository(
+            addonDao = database.addonDao(),
+            pluginDao = database.pluginDao(),
+            csRepository = csRepos,
+            csRuntime = csRuntime,
+            httpClient = httpClient,
+        )
+    }
+
     /**
      * JS kazıyıcı çalıştırıcısı (QuickJS). Gerçek TMDB anahtarı yalnızca ağ köprüsüne verilir, eklentilere yer tutucu görünür.
      * Aynı anda en çok [PluginStreamProvider.MAX_PARALLEL] eklenti çalışır (her biri ayrı bir QuickJS örneği).

@@ -1,5 +1,8 @@
 package com.kaan.play.data.provider
 
+import com.kaan.play.data.model.MediaType
+import kotlinx.coroutines.flow.Flow
+
 enum class ProviderTab { All, CloudStream, Nuvio }
 
 enum class ProviderKind { CloudStream, NuvioAddon, NuvioPlugin }
@@ -19,12 +22,42 @@ data class ProviderItem(
 )
 
 /**
- * B aşamasında (katalog çekme) eklentinin kendi ana sayfa verilerini sağlaması için ince arayüz.
- * CloudStream `getMainPage` veya Nuvio katalog akışı bu arayüze bağlanacak.
+ * Sağlayıcı kataloğundaki tek bir içerik (kart).
+ */
+data class CatalogItem(
+    val id: String,
+    val title: String,
+    val subtitle: String? = null,
+    val posterUrl: String? = null,
+    val posterHeaders: Map<String, String>? = null,
+    val mediaType: MediaType = MediaType.Movie,
+    val providerId: String,
+    val rawUrl: String? = null,
+)
+
+/**
+ * Sağlayıcı ana sayfasındaki tek bir içerik satırı (başlık + afiş şeridi).
+ */
+data class CatalogRow(
+    val id: String,
+    val title: String,
+    val items: List<CatalogItem>,
+    val hasNext: Boolean = false,
+    val page: Int = 1,
+    val isHorizontalImages: Boolean = false,
+    val providerId: String,
+    val providerName: String,
+)
+
+/**
+ * Eklentinin kendi ana sayfa verilerini sağlaması için katalog arayüzü.
+ * CloudStream getMainPage veya Nuvio Stremio katalog akışı bu arayüzü uygular.
  */
 interface ProviderCatalog {
     val providerId: String
     val name: String
+    fun rows(): Flow<List<CatalogRow>>
+    suspend fun loadMore(rowId: String, page: Int): List<CatalogItem>
 }
 
 object ProviderConstants {
