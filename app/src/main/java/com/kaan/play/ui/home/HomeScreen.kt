@@ -79,43 +79,8 @@ fun HomeScreen(
     onAddAddon: () -> Unit,
 ) {
     val container = rememberContainer()
-    val hasSource by container.hasAnySource.collectAsStateWithLifecycle(initialValue = null)
-
-    // Hiç addon ve hiç eklenti deposu yokken boş durum; biri varsa içerik (null: yükleniyor, boş durum yanıp sönmesin).
-    when (hasSource) {
-        null -> Box(Modifier.fillMaxSize())
-        false -> HomeEmptyState(onAddAddon)
-        true -> HomeContent(onOpenDetail, onOpenCategory, onContinue, onAddAddon)
-    }
-}
-
-@Composable
-private fun HomeEmptyState(onAddAddon: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = stringResource(R.string.home_empty_message),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        val focus = rememberInitialFocus()
-        Button(onClick = onAddAddon, modifier = Modifier.focusRequester(focus)) { Text(stringResource(R.string.home_empty_action)) }
-    }
-}
-
-@Composable
-private fun HomeContent(
-    onOpenDetail: (MediaType, Int) -> Unit,
-    onOpenCategory: (HomeRow) -> Unit,
-    onContinue: (ContinueItem) -> Unit,
-    onAddAddon: () -> Unit,
-) {
-    val container = rememberContainer()
     val scope = rememberCoroutineScope()
+    val hasSource by container.hasAnySource.collectAsStateWithLifecycle(initialValue = null)
     val selectedProviders by container.providers.selectedProviders.collectAsStateWithLifecycle(initialValue = emptySet())
     val allProviders by container.providers.allProviders.collectAsStateWithLifecycle(initialValue = emptyList())
     var showProviderSelector by remember { mutableStateOf(false) }
@@ -131,107 +96,11 @@ private fun HomeContent(
     }
 
     Box(Modifier.fillMaxSize()) {
-        if (!isAllSelected) {
-            ProviderCatalogPlaceholder(providerNames = validSelected.map { it.name })
-        } else {
-            // Dil değişince (etkinlik yeniden kurulur) yeni dille taze bir ViewModel: satırlar yeni dilde yüklenir.
-            val vm = containerViewModel(key = "home-${AppLanguage.effective().iso}") { HomeViewModel(it.tmdb, it.continueWatching) }
-            val rows by vm.rows.collectAsStateWithLifecycle()
-            val hero by vm.hero.collectAsStateWithLifecycle()
-            // Durum kompozisyon kapsamında okunur (LazyColumn DSL bloğunda değil): değişince bu ekran yeniden çizilir.
-            val continueWatching = vm.continueWatching.collectAsStateWithLifecycle().value
-            val layout = rememberPlayLayout()
-            val cardWidth = if (layout.widthDp >= 600) 152.dp else 132.dp
-            val heroHeight = heroHeightFor(layout.widthDp, layout.heightDp)
-
-            val heroItems = (hero as? Loadable.Ready)?.value.orEmpty()
-            val hasHero = heroItems.isNotEmpty()
-            val hasContinue = continueWatching.isNotEmpty()
-            // Kumanda: başlangıç odağı kapak düğmesinde (yoksa devam et / ilk satırın ilk kartında); geri dönünce son odaklanan öğe.
-            // Kapak yüklenirken beklenir ki odak sonradan eklenen öğenin altına düşmesin.
-            val firstReady = hero !is Loadable.Loading && (hasHero || hasContinue || rows.getValue(HomeRow.TrendingMovies) is Loadable.Ready)
-            val focus = rememberFocusMemory(enabled = firstReady)
-
-            // LazyColumn anahtar bazlı konumu korur: en üste sonradan eklenen "devam et" satırı ekranın üstüne itilirdi.
-            val listState = rememberLazyListState()
-            LaunchedEffect(hasContinue) { if (hasContinue) listState.scrollToItem(0) }
-
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-            ) {
-                item(key = "hero") {
-                    when {
-                        hasHero -> HeroCarousel(
-                            items = heroItems,
-                            height = heroHeight,
-                            focus = focus,
-                            isDefaultFocus = true,
-                            onOpen = onOpenDetail,
-                        )
-                        // Yükleniyor: aynı boyutta sönük kutu (yerleşim zıplamasın). Başarısızsa kapak hiç çıkmaz.
-                        hero is Loadable.Loading -> Box(Modifier.fillMaxWidth().height(heroHeight).background(MaterialTheme.colorScheme.surfaceVariant))
-                        else -> Spacer(Modifier.statusBarsPadding().height(8.dp))
-                    }
-                }
-                if (hasContinue) {
-                    item(key = "continue") {
-                        Section(title = stringResource(R.string.home_row_continue)) {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = ScreenPadding),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                items(continueWatching, key = { "${it.entry.type}-${it.entry.tmdbId}" }) { item ->
-                                    ContinueCard(
-                                        item,
-                                        modifier = Modifier.focusMemory(
-                                            focus, "c-${item.entry.type}-${item.entry.tmdbId}",
-                                            isDefault = !hasHero && item === continueWatching.first(),
-                                        ),
-                                        width = cardWidth,
-                                    ) { onContinue(item) }
-                                }
-                            }
-                        }
-                    }
-                }
-                HomeRow.entries.forEach { row ->
-                    item(key = row.name) {
-                        Section(
-                            title = stringResource(row.titleRes()),
-                            onSeeAll = { onOpenCategory(row) },
-                            headerModifier = Modifier.focusMemory(focus, "h-${row.name}"),
-                        ) {
-                            when (val state = rows.getValue(row)) {
-                                Loadable.Loading -> SkeletonRow(cardWidth)
-                                is Loadable.Failed -> ErrorMessage(state.error, onRetry = { vm.load(row) }, modifier = Modifier.fillMaxWidth())
-                                is Loadable.Ready -> LazyRow(
-                                    contentPadding = PaddingValues(horizontal = ScreenPadding),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                ) {
-                                    items(state.value, key = { "${it.type}-${it.id}" }) { media ->
-                                        PosterCard(
-                                            title = media.title,
-                                            subtitle = media.year?.toString(),
-                                            imageUrl = media.posterUrl(),
-                                            onClick = { onOpenDetail(media.type, media.id) },
-                                            modifier = Modifier
-                                                .width(cardWidth)
-                                                .focusMemory(
-                                                    focus,
-                                                    "${row.name}-${media.type}-${media.id}",
-                                                    isDefault = !hasHero && !hasContinue && row == HomeRow.TrendingMovies && media == state.value.first(),
-                                                ),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        when {
+            hasSource == null -> Box(Modifier.fillMaxSize())
+            !isAllSelected -> ProviderCatalogPlaceholder(providerNames = validSelected.map { it.name })
+            hasSource == false -> HomeEmptyState(onAddAddon)
+            else -> HomeContent(onOpenDetail, onOpenCategory, onContinue)
         }
 
         StatusBarScrim()
@@ -262,6 +131,130 @@ private fun HomeContent(
                 onDismiss = { showProviderSelector = false },
                 onAddExtension = onAddAddon,
             )
+        }
+    }
+}
+
+@Composable
+private fun HomeEmptyState(onAddAddon: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = stringResource(R.string.home_empty_message),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        val focus = rememberInitialFocus()
+        Button(onClick = onAddAddon, modifier = Modifier.focusRequester(focus)) { Text(stringResource(R.string.home_empty_action)) }
+    }
+}
+
+@Composable
+private fun HomeContent(
+    onOpenDetail: (MediaType, Int) -> Unit,
+    onOpenCategory: (HomeRow) -> Unit,
+    onContinue: (ContinueItem) -> Unit,
+) {
+    // Dil değişince (etkinlik yeniden kurulur) yeni dille taze bir ViewModel: satırlar yeni dilde yüklenir.
+    val vm = containerViewModel(key = "home-${AppLanguage.effective().iso}") { HomeViewModel(it.tmdb, it.continueWatching) }
+    val rows by vm.rows.collectAsStateWithLifecycle()
+    val hero by vm.hero.collectAsStateWithLifecycle()
+    // Durum kompozisyon kapsamında okunur (LazyColumn DSL bloğunda değil): değişince bu ekran yeniden çizilir.
+    val continueWatching = vm.continueWatching.collectAsStateWithLifecycle().value
+    val layout = rememberPlayLayout()
+    val cardWidth = if (layout.widthDp >= 600) 152.dp else 132.dp
+    val heroHeight = heroHeightFor(layout.widthDp, layout.heightDp)
+
+    val heroItems = (hero as? Loadable.Ready)?.value.orEmpty()
+    val hasHero = heroItems.isNotEmpty()
+    val hasContinue = continueWatching.isNotEmpty()
+    // Kumanda: başlangıç odağı kapak düğmesinde (yoksa devam et / ilk satırın ilk kartında); geri dönünce son odaklanan öğe.
+    // Kapak yüklenirken beklenir ki odak sonradan eklenen öğenin altına düşmesin.
+    val firstReady = hero !is Loadable.Loading && (hasHero || hasContinue || rows.getValue(HomeRow.TrendingMovies) is Loadable.Ready)
+    val focus = rememberFocusMemory(enabled = firstReady)
+
+    // LazyColumn anahtar bazlı konumu korur: en üste sonradan eklenen "devam et" satırı ekranın üstüne itilirdi.
+    val listState = rememberLazyListState()
+    LaunchedEffect(hasContinue) { if (hasContinue) listState.scrollToItem(0) }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 80.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+    ) {
+        item(key = "hero") {
+            when {
+                hasHero -> HeroCarousel(
+                    items = heroItems,
+                    height = heroHeight,
+                    focus = focus,
+                    isDefaultFocus = true,
+                    onOpen = onOpenDetail,
+                )
+                // Yükleniyor: aynı boyutta sönük kutu (yerleşim zıplamasın). Başarısızsa kapak hiç çıkmaz.
+                hero is Loadable.Loading -> Box(Modifier.fillMaxWidth().height(heroHeight).background(MaterialTheme.colorScheme.surfaceVariant))
+                else -> Spacer(Modifier.statusBarsPadding().height(8.dp))
+            }
+        }
+        if (hasContinue) {
+            item(key = "continue") {
+                Section(title = stringResource(R.string.home_row_continue)) {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = ScreenPadding),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(continueWatching, key = { "${it.entry.type}-${it.entry.tmdbId}" }) { item ->
+                            ContinueCard(
+                                item,
+                                modifier = Modifier.focusMemory(
+                                    focus, "c-${item.entry.type}-${item.entry.tmdbId}",
+                                    isDefault = !hasHero && item === continueWatching.first(),
+                                ),
+                                width = cardWidth,
+                            ) { onContinue(item) }
+                        }
+                    }
+                }
+            }
+        }
+        HomeRow.entries.forEach { row ->
+            item(key = row.name) {
+                Section(
+                    title = stringResource(row.titleRes()),
+                    onSeeAll = { onOpenCategory(row) },
+                    headerModifier = Modifier.focusMemory(focus, "h-${row.name}"),
+                ) {
+                    when (val state = rows.getValue(row)) {
+                        Loadable.Loading -> SkeletonRow(cardWidth)
+                        is Loadable.Failed -> ErrorMessage(state.error, onRetry = { vm.load(row) }, modifier = Modifier.fillMaxWidth())
+                        is Loadable.Ready -> LazyRow(
+                            contentPadding = PaddingValues(horizontal = ScreenPadding),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(state.value, key = { "${it.type}-${it.id}" }) { media ->
+                                PosterCard(
+                                    title = media.title,
+                                    subtitle = media.year?.toString(),
+                                    imageUrl = media.posterUrl(),
+                                    onClick = { onOpenDetail(media.type, media.id) },
+                                    modifier = Modifier
+                                        .width(cardWidth)
+                                        .focusMemory(
+                                            focus,
+                                            "${row.name}-${media.type}-${media.id}",
+                                            isDefault = !hasHero && !hasContinue && row == HomeRow.TrendingMovies && media == state.value.first(),
+                                        ),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
