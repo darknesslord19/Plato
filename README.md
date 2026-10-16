@@ -395,9 +395,16 @@ Ana sayfa, seçilen eklentinin/sağlayıcının kendi kataloğuyla beslenir. "T�
 | **YesilcamTV** | CloudStream | **BAŞARILI** | Yok / Normal 200 | 1.7 MB / 2+ raf | "Aile" (Gelinlik Kızlar vb.) ve "Aksiyon" (Babanın Evlatları vb.) nostaljik afişleriyle yüklendi. |
 | **Cinemeta** | Nuvio Addon | **BAŞARILI** | Yok / Stremio HTTP | 1.5 MB / 2 raf | "Popular - Movies" (Spider-Man vb.) ve "Popular - Series" (Carrie vb.) Stremio protokolüyle geldi. |
 | **DiziBox** | CloudStream | **BAŞARILI (Turnstile)** | Aşıldı (`CloudflareVerifyActivity`) | 1.74 MB / 18 kategori | Turnstile interaktif doğrulama ekranında kutuya tıklandı; `cf_clearance` alındı, tüm sayfalar HTTP 200 OK ile çekildi. |
+| **Hint Film Izle** | CloudStream | **BAŞARILI** | Aşıldı (`.network.CloudflareKiller`) | 1.8 MB / 20+ raf | Çift paket CloudflareKiller ve `BasePlugin` desteğiyle çözüldü; Aile, Aksiyon, Animasyon, Belgesel rafları afişleriyle geldi. |
+| **WebteIzle** | CloudStream | **BAŞARILI** | Normal 200 (Windows-1254) | 1.4 MB / 4+ raf | Otomatik karakter seti algılama ile Türkçe karakterler (`ı, ş, ğ, ü, ö, ç`) bozulmadan ("Fırtına Geliyor", "Hayatının Aşkı") yüklendi. |
 | **SelcukFlix** | CloudStream | **HATA (HTTP 405)** | Yok / Sunucu Hatası | 34 KB (Hata Kartı) | Sunucu HTTP 405 Method Not Allowed döndürdü (bilinen site/alan adı sınırı). Çökme yok, hata kartı gösterildi. |
 | **Dizipal** | CloudStream | **HATA (SSL / Ağ)** | Yok / Bağlantı Hatası | 31 KB (Hata Kartı) | SSL Handshake Connection Reset (alan adına ISP/DNS erişim engeli). Çökme yok. |
 
+- **Yeni Eklentiler İçin Evrensel ABI Uyumluluğu ve Çözümler:**
+  - **İki Farklı CloudflareKiller Paketi:** CloudStream ekosistemindeki eklentiler `CloudflareKiller`'ı iki farklı paketten (`com.lagradost.cloudstream3` ve `com.lagradost.cloudstream3.network`) import edebilmektedir. Her iki pakete de ikili arayüz shimi eklenerek tüm eklentilerin sorunsuz çalışması sağlandı.
+  - **Otomatik Karakter Kodlaması Algılama (`NiceHttp`):** Bazı yerel Türkçe sitelerin (ör. WebteIzle) Windows-1254 / ISO-8859-9 kodlaması kullanması nedeniyle oluşan Türkçe karakter bozulmaları (`?`), HTTP yanıt başlığı ve HTML meta charset ayrıştırıcısıyla çözüldü.
+  - **40 Eklentilik Kapsamlı DEX ABI Taraması:** Cihazdaki tüm 40 DEX eklentisi taranarak eksik kalan CloudStream sınıfları (`BasePlugin`, `@CloudstreamPlugin`, `M3u8Helper.generateM3u8`, `AesHelper.cryptoAESHandler`, `StringUtils.decodeUri`, `DubStatus`, `SyncIdName`) kabuğa dahil edildi.
+  - **Sıralı İstek Sınırlandırması:** 20'den fazla kategori sunan eklentilerde ardışık istekler arasına 100 ms gecikme eklenerek sitelerin bot korumasının HTTP 429 tetiklemesi engellendi.
 - **Bilinen Sınırlar:** İnteraktif Turnstile gerektiren sitelerde (örn. DiziBox) ilk istekte kullanıcıya "Doğrula" butonu çıkar; kullanıcı kutucuğa bir kez dokunduğunda çerez önbelleğe alınır ve oturum boyunca tekrar sormaz. Alan adı taşınmış veya sunucu hatası veren siteler (SelcukFlix 405, Dizipal SSL) uygulama genelini etkilemez.
 
 ## Yayın Hazırlığı

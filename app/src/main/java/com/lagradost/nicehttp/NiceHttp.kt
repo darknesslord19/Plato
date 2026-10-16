@@ -249,16 +249,37 @@ class NiceResponse(private val resp: Response) : AutoCloseable {
     private val bodyBytes: ByteArray by lazy {
         try { resp.body?.bytes() ?: ByteArray(0) } finally { resp.close() }
     }
+    private val charset: java.nio.charset.Charset by lazy {
+        val headerCharset = runCatching {
+            resp.body?.contentType()?.charset()
+        }.getOrNull()
+        if (headerCharset != null) return@lazy headerCharset
+
+        val peek = String(bodyBytes.take(2048).toByteArray(), Charsets.ISO_8859_1)
+        val match = Regex("""charset=["']?([a-zA-Z0-9_\-]+)""", RegexOption.IGNORE_CASE).find(peek)
+        val name = match?.groupValues?.get(1)
+        if (name != null) {
+            runCatching { java.nio.charset.Charset.forName(name) }.getOrNull() ?: Charsets.UTF_8
+        } else {
+            Charsets.UTF_8
+        }
+    }
+
     val text: String get() {
-        val raw = bodyBytes.toString(Charsets.UTF_8)
+        val raw = try { bodyBytes.toString(charset) } catch (_: Exception) { bodyBytes.toString(Charsets.UTF_8) }
         return if (raw.contains("poster-article")) {
             raw.replace("poster-article", "poster-article article-series-poster detailed-article")
         } else {
             raw
         }
     }
+
     val document: Document get() {
-        val doc = Jsoup.parse(text, url)
+        val doc = try {
+            Jsoup.parse(java.io.ByteArrayInputStream(bodyBytes), charset.name(), url)
+        } catch (_: Exception) {
+            Jsoup.parse(text, url)
+        }
         val posterArticles = doc.select("article.poster-article")
         if (posterArticles.isNotEmpty()) {
             posterArticles.addClass("article-series-poster detailed-article")

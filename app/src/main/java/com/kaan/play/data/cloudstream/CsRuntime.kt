@@ -222,6 +222,9 @@ class CsRuntime {
                 }
                 val started = System.currentTimeMillis()
                 try {
+                    if (results.isNotEmpty()) {
+                        kotlinx.coroutines.delay(100L)
+                    }
                     Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: getMainPage çağrılıyor (sayfa=$page)...")
                     val resp = withTimeout(timeoutMs) {
                         api.getMainPage(page, section.toRequest()) ?: api.getMainPage(page, section)

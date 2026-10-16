@@ -16,7 +16,7 @@ import okhttp3.Response
  * CloudflareKiller interceptor'ı. Gerçek CloudStream ikili arayüzü ile uyumlu olarak
  * [Interceptor] uygular ve Cloudflare challenge sayfalarını çözer.
  */
-class CloudflareKiller : Interceptor {
+open class CloudflareKiller : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
