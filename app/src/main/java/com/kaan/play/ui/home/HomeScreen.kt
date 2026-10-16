@@ -718,6 +718,42 @@ private fun ProviderCatalogSkeleton(
 }
 
 /**
+ * Katalog öğesi başlığındaki eklentiye özgü bölüm/sezon/kalite etiketlerini temizler:
+ * "S4B11 - LINK CLICK" -> "LINK CLICK"
+ * "1. Sezon 5. Bölüm - Stranger Things" -> "Stranger Things"
+ * "Dizi Adı - 12. Bölüm" -> "Dizi Adı"
+ * "Film (Türkçe Dublaj)" -> "Film"
+ */
+internal fun cleanCatalogTitle(raw: String): String {
+    var cleaned = raw.trim()
+    // 1) Başlangıçtaki bölüm/sezon kalıpları: "S4B11 - ", "S01E05 : ", "1. Sezon 2. Bölüm - ", "12. Bölüm - "
+    cleaned = cleaned.replace(
+        Regex("""^(?:S\d+\s*[BEbe]\d+|S\d+|(?:(?:\d+\s*\.)?\s*[Ss]ezon\s*)?(?:\d+\s*\.)?\s*[Bb]ölüm|(?:Episode|Ep\.?)\s*\d+)\s*[-:]\s*""", RegexOption.IGNORE_CASE),
+        ""
+    )
+    // 2) Sondaki bölüm/sezon kalıpları: " - S4B11", " - 12. Bölüm", " - 1. Sezon 2. Bölüm", " 12. Bölüm"
+    cleaned = cleaned.replace(
+        Regex("""\s*[-:]\s*(?:S\d+\s*[BEbe]\d+|S\d+|(?:(?:\d+\s*\.)?\s*[Ss]ezon\s*)?(?:\d+\s*\.)?\s*[Bb]ölüm|(?:Episode|Ep\.?)\s*\d+).*$""", RegexOption.IGNORE_CASE),
+        ""
+    )
+    cleaned = cleaned.replace(
+        Regex("""\s+(?:(?:\d+\s*\.)?\s*[Ss]ezon\s*)?\d+\.\s*[Bb]ölüm$""", RegexOption.IGNORE_CASE),
+        ""
+    )
+    cleaned = cleaned.replace(
+        Regex("""\s*[-:]\s*(?:(?:\d+\s*\.)?\s*[Ss]ezon|(?:Sezon\s+)?Finali?)$""", RegexOption.IGNORE_CASE),
+        ""
+    )
+    // 3) Parantez/köşeli parantez içindeki etiketler: (Türkçe Dublaj), [Altyazılı], (1080p), [Dual], vb.
+    cleaned = cleaned.replace(
+        Regex("""\s*[\(\[](?:Türkçe\s+)?(?:Dublaj|Altyazı(?:lı)?|Dual|TR|ENG|1080p|720p|4K|HD)[^\)\]]*[\)\]]""", RegexOption.IGNORE_CASE),
+        ""
+    )
+    cleaned = cleaned.trim()
+    return if (cleaned.isNotBlank()) cleaned else raw.trim()
+}
+
+/**
  * Afişe dokunulduğunda: TMDB'de başlıkla aranır, eşleşme varsa detayı açılır,
  * yoksa o başlıkla Arama ekranı açılır.
  */
@@ -727,18 +763,23 @@ private suspend fun resolveAndOpenPoster(
     onOpenDetail: (MediaType, Int) -> Unit,
     onOpenSearch: (String) -> Unit,
 ) {
+    val clean = cleanCatalogTitle(item.title)
     try {
-        val search = withContext(Dispatchers.IO) { tmdb.search(item.title) }
+        var search = withContext(Dispatchers.IO) { tmdb.search(clean) }
+        if (search.items.isEmpty() && clean != item.title) {
+            search = withContext(Dispatchers.IO) { tmdb.search(item.title) }
+        }
         val results = search.items
-        val matched = results.firstOrNull { it.title.equals(item.title, ignoreCase = true) }
+        val matched = results.firstOrNull { it.title.equals(clean, ignoreCase = true) }
+            ?: results.firstOrNull { it.title.equals(item.title, ignoreCase = true) }
             ?: results.firstOrNull()
         if (matched != null) {
             onOpenDetail(matched.type, matched.id)
         } else {
-            onOpenSearch(item.title)
+            onOpenSearch(clean)
         }
     } catch (_: Throwable) {
-        onOpenSearch(item.title)
+        onOpenSearch(clean)
     }
 }
 

@@ -136,6 +136,16 @@ fun PlayRoot() {
     val currentRoute = backStack?.destination?.route
 
     fun openTab(tab: Tab) {
+        if (tab == Tab.Home) {
+            val popped = navController.popBackStack(Tab.Home.route, inclusive = false)
+            if (!popped) {
+                navController.navigate(Tab.Home.route) {
+                    popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+            return
+        }
         navController.navigate(tab.route) {
             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
             launchSingleTop = true
@@ -270,7 +280,7 @@ fun PlayRoot() {
         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    fun selected(tab: Tab) = currentRoute == tab.route || currentRoute?.startsWith(tab.route + "/") == true
+    fun selected(tab: Tab) = currentRoute == tab.route || currentRoute?.startsWith(tab.route + "/") == true || currentRoute?.startsWith(tab.route + "?") == true
 
     // Ana sayfa (kapak karuseli) ve Detay (arka plan görseli) durum çubuğunun arkasına kadar uzanır; diğer ekranlar altına girmez.
     val bleedsUnderStatusBar = currentRoute == Tab.Home.route || currentRoute == DETAIL_ROUTE
@@ -330,7 +340,11 @@ fun PlayRoot() {
                     onOpenCategory = { navController.navigate(categoryRoute(it)) },
                     onContinue = ::continueWatching,
                     onAddAddon = { openAddons(startAdding = true) },
-                    onOpenSearch = { query -> navController.navigate("search?q=${Uri.encode(query)}") },
+                    onOpenSearch = { query ->
+                        navController.navigate("search?q=${Uri.encode(query)}") {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
             composable(

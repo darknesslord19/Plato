@@ -3,6 +3,12 @@
 ## Yayınlanmamış / Unreleased
 
 ### Türkçe
+- **Navigasyon ve Arama Ekranında Kalma Sorunu Düzeltmesi:**
+  - Arama veya alt ekranlardayken menüden (alt menü / yan menü) "Ana sayfa" sekmesine tıklandığında Navigation Compose'un startDestination üzerindeki kayıtlı çocuk yığınını geri yüklemesi sebebiyle ekranın Arama ekranında takılı kalması giderildi; `openTab(Tab.Home)` doğrudan `popBackStack(Tab.Home.route, inclusive = false)` ile ana sayfaya geri dönecek şekilde düzenlendi.
+  - Sekme seçim kontrolü (`selected`) sorgu parametresi içeren yollar (`search?q=...`) için güncellendi.
+- **Katalog Afiş Başlık Temizleme ve TMDB Eşleştirme İyileştirmesi:**
+  - AnimeciX gibi sağlayıcıların afiş başlıklarına eklediği bölüm/sezon kalıpları (`S4B11 - LINK CLICK`, `1. Sezon 5. Bölüm - ...`, `... - 12. Bölüm`, `[Altyazılı]`, vb.) `cleanCatalogTitle` ile temizlenerek TMDB aramasına iletilmesi sağlandı.
+  - Bu sayede afişe tıklandığında dizinin doğrudan Detay ekranı açılır; TMDB'de doğrudan eşleşme bulunamaması durumunda ise arama kutusuna temizlenmiş dizi adı yazılarak sıfır sonuçlu boş arama ekranı açılması engellendi.
 - **DiziKorea ve Mükerrer Katalog Öğeleri Arayüz Çökmesi Düzeltmesi:**
   - Bazı sağlayıcıların (ör. DiziKorea "Çin Dizileri" rafı) aynı içerik kartını birden fazla kez döndürmesi durumunda Jetpack Compose'un `LazyRow` bileşeninde tetiklenen `IllegalArgumentException: Key was already used` hatası ve uygulamanın kapanması giderildi.
   - `CsCatalog` ve `NuvioAddonCatalog` katmanında öğeler `distinctBy` ile temizlendi.
@@ -37,6 +43,12 @@
 - **Altyazı otomatik çeviri:** Türkçe altyazı hiçbir kaynakta yoksa ve İngilizce altyazı varsa, İngilizce cihaz üstünde (Google ML Kit, sunucuya metin gitmez) Türkçeye çevrilir. İngilizce hemen görünür, çeviri arka planda biter ("Altyazı çevriliyor… %n"), elle seçmediysen otomatik Türkçeye geçilir; menüde "Türkçe (otomatik çeviri)" ayrı satırdır, gerçek Türkçe her zaman önce gelir. Zamanlar korunur, çeviri önbelleğe alınır (aynı film yeniden çevrilmez), senkron ayarı çalışır. Dil modeli ilk kullanımda bir kez iner (~44 MB, "Sadece Wi-Fi'de indir" ayarına uyar). Ayarlar > Oynatıcı > "Türkçe yoksa İngilizceyi otomatik çevir" (varsayılan açık). APK ABI başına ~6–7,5 MB büyür.
 
 ### English
+- **Navigation Trap & Home Tab Backstack Fix:**
+  - Fixed an issue where tapping the "Home" tab while on the Search screen (or sub-routes) trapped the user on Search due to Navigation Compose's start destination restoring saved child backstack state; `openTab(Tab.Home)` now explicitly calls `popBackStack(Tab.Home.route, inclusive = false)` to unconditionally return to the home screen.
+  - Tab selection logic (`selected`) now properly matches parameterized query routes (`search?q=...`).
+- **Catalog Item Title Cleansing & TMDB Matching:**
+  - Added `cleanCatalogTitle` to strip episode/season prefixes (e.g. `S4B11 - LINK CLICK`), suffixes (` - 12. Bölüm`), and quality/dub/sub tags before querying TMDB.
+  - Clicking catalog posters directly resolves and opens the show's DetailScreen; if TMDB yields no match, search opens with the sanitized title rather than raw unmatchable episode tags.
 - **DiziKorea & Duplicate Catalog Item Crash Fix:**
   - Resolved `IllegalArgumentException: Key was already used` in Jetpack Compose `LazyRow` triggered when providers return duplicate items in the same section (e.g. DiziKorea "Çin Dizileri").
   - Deduplicated item lists in `CsCatalog` and `NuvioAddonCatalog` using `distinctBy`.
