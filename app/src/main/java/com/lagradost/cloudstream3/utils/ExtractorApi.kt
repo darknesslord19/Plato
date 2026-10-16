@@ -107,7 +107,30 @@ suspend fun newExtractorLink(
 }
 
 /** Görünen ad metninden kalite tahmini ("1080p", "HD", "CAM" vb.). */
-fun getQualityFromName(name: String?): Int = getQualityFromString(name)
+fun getQualityFromName(name: String?): Int {
+    if (name.isNullOrBlank()) return Qualities.Unknown.value
+    val match = Regex("""(\d{3,4})[pP]?""").find(name)
+    val num = match?.groupValues?.get(1)?.toIntOrNull()
+    if (num != null) return num
+    val lower = name.lowercase()
+    return when {
+        lower.contains("4k") || lower.contains("2160") -> Qualities.P2160.value
+        lower.contains("1440") || lower.contains("2k") -> Qualities.P1440.value
+        lower.contains("1080") || lower.contains("fhd") -> Qualities.P1080.value
+        lower.contains("720") || lower.contains("hd") -> Qualities.P720.value
+        lower.contains("480") || lower.contains("sd") -> Qualities.P480.value
+        lower.contains("360") -> Qualities.P360.value
+        else -> Qualities.Unknown.value
+    }
+}
+
+val INFER_TYPE: ExtractorLinkType = ExtractorLinkType.VIDEO
+
+fun ExtractorApi.fixUrl(url: String): String {
+    if (url.startsWith("http://") || url.startsWith("https://")) return url
+    if (url.startsWith("//")) return "https:$url"
+    return "${this.mainUrl.trimEnd('/')}/${url.trimStart('/')}"
+}
 
 /**
  * `eval(function(p,a,c,k,e,d){...})` biçimindeki paketlenmiş (Dean Edwards "packer") JS'i açar.

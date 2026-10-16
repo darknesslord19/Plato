@@ -53,6 +53,8 @@ class AnimeSearchResponse(
     type: TvType? = TvType.Anime,
 ) : SearchResponseBase(name, url, apiName, type) {
     var dubStatus: Set<String>? = null
+    var sub: Int? = null
+    var dub: Int? = null
 }
 
 class LiveSearchResponse(

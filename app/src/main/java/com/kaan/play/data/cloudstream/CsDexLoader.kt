@@ -5,6 +5,7 @@ import android.util.Log
 import com.kaan.play.data.net.PlayJson
 import com.lagradost.cloudstream3.APIHolder
 import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import dalvik.system.PathClassLoader
 import kotlinx.coroutines.sync.Mutex
@@ -80,12 +81,18 @@ class CsDexLoader(private val context: Context) : PluginDexLoader {
         return@withLock try {
             val clazz = cl.loadClass(className)
             val apis = when {
-                // Desen A: Plugin alt sınıfı
-                Plugin::class.java.isAssignableFrom(clazz) -> {
-                    val plugin = clazz.getDeclaredConstructor().newInstance() as Plugin
-                    plugin.__context = context
-                    plugin.load(context)
-                    // Hem Plugin.sourceProviders hem APIHolder üzerinden kayıtları topla
+                // Desen A: BasePlugin (veya Plugin) alt sınıfı
+                BasePlugin::class.java.isAssignableFrom(clazz) -> {
+                    val plugin = clazz.getDeclaredConstructor().newInstance() as BasePlugin
+                    if (plugin is Plugin) {
+                        plugin.__context = context
+                    }
+                    runCatching {
+                        clazz.getMethod("load", Context::class.java).invoke(plugin, context)
+                    }.recoverCatching {
+                        clazz.getMethod("load").invoke(plugin)
+                    }
+                    // Hem plugin.sourceProviders hem APIHolder üzerinden kayıtları topla
                     (plugin.sourceProviders + APIHolder.allProviders).distinctBy { it.name }
                 }
                 // Desen B: Doğrudan MainAPI alt sınıfı

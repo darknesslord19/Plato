@@ -26,11 +26,24 @@ interface LoadResponse {
     var contentRating: String?
     var backgroundPosterUrl: String?
     var logoUrl: String?
+    var imdbId: String?
 
     companion object {
         /** Oyuncu listesini yanıta ekler. */
         fun addActors(responseBuilder: LoadResponse, actors: List<ActorData>?) {
             responseBuilder.actors = actors
+        }
+
+        fun addActorNames(responseBuilder: LoadResponse, actors: List<String>?) {
+            responseBuilder.actors = actors?.map { ActorData(Actor(it)) }
+        }
+
+        fun addActorsOnly(responseBuilder: LoadResponse, actors: List<String>?) {
+            responseBuilder.actors = actors?.map { ActorData(Actor(it)) }
+        }
+
+        fun addImdbId(responseBuilder: LoadResponse, imdbId: String?) {
+            responseBuilder.imdbId = imdbId
         }
 
         /** Fragman adresi ekler (bu stub'da ek bir ağ isteği yapmaz; adres doğrudan saklanır). */
@@ -55,6 +68,7 @@ abstract class LoadResponseBase(
 ) : LoadResponse {
     override var posterUrl: String? = null
     override var posterHeaders: Map<String, String>? = null
+    override var imdbId: String? = null
     override var year: Int? = null
     override var plot: String? = null
     override var score: Score? = null

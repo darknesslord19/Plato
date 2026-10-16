@@ -1,5 +1,7 @@
 package com.lagradost.cloudstream3.utils
 
+import com.lagradost.cloudstream3.SubtitleFile
+
 /** Oynatıcıya iletilecek akış türü. */
 enum class ExtractorLinkType { VIDEO, M3U8, DASH, TORRENT, MAGNET }
 
@@ -11,12 +13,19 @@ class ExtractorLink(
     val source: String,
     val name: String,
     var url: String,
+    var referer: String = "",
+    var quality: Int = Qualities.Unknown.value,
+    var headers: Map<String, String> = emptyMap(),
+    var extractorData: String? = null,
     var type: ExtractorLinkType = ExtractorLinkType.VIDEO,
+    var subtitles: List<SubtitleFile> = emptyList(),
 ) {
-    var referer: String = ""
-    var quality: Int = Qualities.Unknown.value
-    var headers: Map<String, String> = emptyMap()
-    var extractorData: String? = null
+    constructor(
+        source: String,
+        name: String,
+        url: String,
+        type: ExtractorLinkType,
+    ) : this(source, name, url, referer = "", quality = Qualities.Unknown.value, headers = emptyMap(), extractorData = null, type = type)
 
     val isM3u8: Boolean get() = type == ExtractorLinkType.M3U8
     val isDash: Boolean get() = type == ExtractorLinkType.DASH

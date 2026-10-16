@@ -1,6 +1,16 @@
 package com.lagradost.cloudstream3.utils
 
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.mapper
+
+object AppUtils {
+    @JvmStatic
+    fun toJson(obj: Any?): String = try {
+        if (obj == null) "null" else mapper.writeValueAsString(obj)
+    } catch (_: Exception) {
+        obj.toString()
+    }
+}
 
 /** Yardımcı uzantı işlevleri — eklentiler bu paketten fonksiyonlar çağırabilir. */
 
@@ -23,7 +33,6 @@ fun String.fixUrl(baseUrl: String): String {
 
 /**
  * Metin kalite etiketlerini sayısal çözünürlüğe çevirir.
- * Eklentiler "1080p", "720p" vb. metinler kullanabilir.
  */
 fun getQualityFromString(quality: String?): Int {
     return when {
@@ -39,7 +48,6 @@ fun getQualityFromString(quality: String?): Int {
 
 /**
  * Bir `List<TvType>` değerini Play'in kullandığı türlere dönüştürür.
- * Animeleri TvSeries olarak işler; bilinmeyenler Movie olarak döner.
  */
 fun Set<TvType>.toPlayTypes(): Set<String> = flatMapTo(mutableSetOf()) { type ->
     when (type) {
@@ -50,3 +58,4 @@ fun Set<TvType>.toPlayTypes(): Set<String> = flatMapTo(mutableSetOf()) { type ->
         else -> listOf("movie")
     }
 }
+

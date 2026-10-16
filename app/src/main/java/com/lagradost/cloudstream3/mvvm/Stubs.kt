@@ -9,10 +9,6 @@ sealed class Resource<T> {
     class Loading<T> : Resource<T>()
 }
 
-/** Hata bilgisi iletimi için yardımcı — no-op. */
-fun logError(e: Throwable?) {
-    // Play'de eklenti hatası CsRuntime tarafından yakalanıp yutulur
-}
 
 /** Sonucu ya boşsa uyarır ya da döndürür. */
 fun <T> Resource<T>.some(): T? = (this as? Resource.Success)?.value

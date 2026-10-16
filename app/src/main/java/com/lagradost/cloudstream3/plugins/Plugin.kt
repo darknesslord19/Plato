@@ -13,6 +13,7 @@ open class BasePlugin {
     var filename: String = ""
     val sourceProviders: MutableList<MainAPI> = mutableListOf()
 
+    open fun load() {}
     open fun beforeUnload() {}
 
     fun registerMainAPI(mainAPI: MainAPI) {

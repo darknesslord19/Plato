@@ -155,8 +155,8 @@ fun MainAPI.newEpisode(data: Any?, initializer: Episode.() -> Unit = {}): Episod
 suspend fun MainAPI.newMovieLoadResponse(
     name: String,
     url: String,
-    type: TvType,
-    dataUrl: String,
+    type: TvType = TvType.Movie,
+    dataUrl: String = url,
     initializer: suspend MovieLoadResponse.() -> Unit = {},
 ): MovieLoadResponse {
     val response = MovieLoadResponse(name = name, url = url, apiName = this.name, type = type, dataUrl = dataUrl)
@@ -164,14 +164,34 @@ suspend fun MainAPI.newMovieLoadResponse(
     return response
 }
 
-suspend fun MainAPI.newTvSeriesLoadResponse(
+suspend fun MainAPI.newMovieLoadResponse(
     name: String,
     url: String,
     type: TvType,
-    episodes: List<Episode>,
+    dataUrl: Any,
+    initializer: suspend MovieLoadResponse.() -> Unit = {},
+): MovieLoadResponse = newMovieLoadResponse(name, url, type, dataUrl.toString(), initializer)
+
+suspend fun MainAPI.newTvSeriesLoadResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.TvSeries,
+    episodes: List<Episode> = emptyList(),
     initializer: suspend TvSeriesLoadResponse.() -> Unit = {},
 ): TvSeriesLoadResponse {
     val response = TvSeriesLoadResponse(name = name, url = url, apiName = this.name, type = type, episodes = episodes)
+    response.initializer()
+    return response
+}
+
+suspend fun MainAPI.newAnimeLoadResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.Anime,
+    fix: Boolean = true,
+    initializer: suspend AnimeLoadResponse.() -> Unit = {},
+): AnimeLoadResponse {
+    val response = AnimeLoadResponse(name = name, url = if (fix) fixUrl(url) else url, apiName = this.name, type = type)
     response.initializer()
     return response
 }
@@ -203,6 +223,50 @@ fun MainAPI.newTvSeriesSearchResponse(
     response.initializer()
     return response
 }
+
+fun MainAPI.newAnimeSearchResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.Anime,
+    fix: Boolean = true,
+    initializer: AnimeSearchResponse.() -> Unit = {},
+): AnimeSearchResponse {
+    val response = AnimeSearchResponse(name = name, url = if (fix) fixUrl(url) else url, apiName = this.name, type = type)
+    response.initializer()
+    return response
+}
+
+fun MainAPI.newLiveSearchResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.Live,
+    fix: Boolean = true,
+    initializer: LiveSearchResponse.() -> Unit = {},
+): LiveSearchResponse {
+    val response = LiveSearchResponse(name = name, url = if (fix) fixUrl(url) else url, apiName = this.name, type = type)
+    response.initializer()
+    return response
+}
+
+fun AnimeSearchResponse.addSub(sub: Int?) {
+    this.sub = sub
+}
+
+fun AnimeSearchResponse.addDub(dub: Int?) {
+    this.dub = dub
+}
+
+fun AnimeLoadResponse.addEpisodes(status: DubStatus, episodes: List<Episode>) {
+    val cur = this.episodes.toMutableMap()
+    cur[status.name] = (cur[status.name] ?: emptyList()) + episodes
+    this.episodes = cur
+}
+
+fun Episode.addDate(date: String?, format: String? = null) {
+    this.date = date
+}
+
+val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; isLenient = true }
 
 // ---------------------------------------------------------------------------
 // Altyazı kurucusu

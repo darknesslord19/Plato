@@ -16,6 +16,8 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import java.util.concurrent.TimeUnit
@@ -300,6 +302,7 @@ class NiceResponse(private val resp: Response) : AutoCloseable {
         return doc
     }
     val parser: ResponseParser get() = DefaultResponseParser
+    val body: ResponseBody get() = bodyBytes.toResponseBody(resp.body?.contentType())
 
     fun text(): String = text
 

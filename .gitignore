@@ -33,3 +33,9 @@ referans/
 release/
 ekran_*.png
 *.dex
+screen_*.png
+tools/__pycache__/
+*.html
+*.pb
+test_dizibox.py
+tools/*.txt
