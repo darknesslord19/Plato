@@ -69,19 +69,107 @@ suspend fun loadExtractor(
     val isM3u8 = lower.contains("m3u8")
     val isDash = path.endsWith(".mpd")
     val isFile = MEDIA_EXTENSIONS.any { path.endsWith(it) }
-    if (!isM3u8 && !isDash && !isFile) {
-        Log.d("PlayCs", "loadExtractor: çıkarıcı yok, atlandı ← ${hostOf(url)}")
-        return false
+    if (isM3u8 || isDash || isFile) {
+        callback(
+            ExtractorLink(
+                source = "Direct",
+                name = "Direct",
+                url = url,
+                type = when { isM3u8 -> ExtractorLinkType.M3U8; isDash -> ExtractorLinkType.DASH; else -> ExtractorLinkType.VIDEO },
+            ).apply { this.referer = referer ?: "" },
+        )
+        return true
     }
-    callback(
-        ExtractorLink(
-            source = "Direct",
-            name = "Direct",
-            url = url,
-            type = when { isM3u8 -> ExtractorLinkType.M3U8; isDash -> ExtractorLinkType.DASH; else -> ExtractorLinkType.VIDEO },
-        ).apply { this.referer = referer ?: "" },
-    )
-    return true
+
+    // Doğrudan medya uzantısı değilse gömülü sayfa (VidMoly, Streamtape, paketli JS vb.) ayrıştırması dene
+    val host = hostOf(url) ?: return false
+    Log.d("PlayCs", "loadExtractor: çıkarıcı yok, HTML ayrıştırılıyor ← $host")
+    val extracted = extractFromHtmlPage(url, referer, subtitleCallback, callback)
+    if (extracted) return true
+
+    Log.d("PlayCs", "loadExtractor: çıkarıcı yok, atlandı ← $host")
+    return false
+}
+
+private suspend fun extractFromHtmlPage(
+    url: String,
+    referer: String?,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+): Boolean {
+    val host = hostOf(url) ?: return false
+    return runCatching {
+        val app = com.lagradost.cloudstream3.app
+        val headers = buildMap {
+            if (!referer.isNullOrBlank()) put("Referer", referer)
+        }
+        val response = app.get(url, headers = headers, timeout = 10)
+        val rawHtml = response.text
+        if (rawHtml.isBlank()) return false
+        val html = JsUnpacker.unpackAll(rawHtml)
+
+        // 1. m3u8 bağlantısını ara
+        val m3u8Regex = Regex("""["'](https?://[^"'\s\\]+\.m3u8[^"'\s\\]*)["']""")
+        val m3u8Match = m3u8Regex.find(html)
+        if (m3u8Match != null) {
+            val streamUrl = m3u8Match.groupValues[1].replace("\\/", "/")
+            Log.d("PlayCs", "extractFromHtmlPage: m3u8 bulundu ($host) -> $streamUrl")
+            callback(
+                ExtractorLink(
+                    source = host,
+                    name = host,
+                    url = streamUrl,
+                    referer = url,
+                    quality = Qualities.P1080.value,
+                    type = ExtractorLinkType.M3U8,
+                )
+            )
+            return true
+        }
+
+        // 2. Streamtape robotlink / get_video
+        if (host.contains("streamtape") || host.contains("strcloud")) {
+            val robotRegex = Regex("""id=['"]robotlink['"][^>]*>([^<]+)<""")
+            val robotMatch = robotRegex.find(html)
+            if (robotMatch != null) {
+                var streamUrl = robotMatch.groupValues[1]
+                if (!streamUrl.startsWith("http")) streamUrl = "https:$streamUrl"
+                Log.d("PlayCs", "extractFromHtmlPage: streamtape video bulundu -> $streamUrl")
+                callback(
+                    ExtractorLink(
+                        source = host,
+                        name = host,
+                        url = streamUrl,
+                        referer = url,
+                        quality = Qualities.P1080.value,
+                        type = ExtractorLinkType.VIDEO,
+                    )
+                )
+                return true
+            }
+        }
+
+        // 3. mp4 bağlantısını ara
+        val mp4Regex = Regex("""["'](https?://[^"'\s\\]+\.mp4[^"'\s\\]*)["']""")
+        val mp4Match = mp4Regex.find(html)
+        if (mp4Match != null) {
+            val streamUrl = mp4Match.groupValues[1].replace("\\/", "/")
+            Log.d("PlayCs", "extractFromHtmlPage: mp4 bulundu ($host) -> $streamUrl")
+            callback(
+                ExtractorLink(
+                    source = host,
+                    name = host,
+                    url = streamUrl,
+                    referer = url,
+                    quality = Qualities.P1080.value,
+                    type = ExtractorLinkType.VIDEO,
+                )
+            )
+            return true
+        }
+
+        false
+    }.getOrDefault(false)
 }
 
 private val MEDIA_EXTENSIONS = listOf(".mp4", ".mkv", ".webm", ".m4v", ".mov", ".ts")

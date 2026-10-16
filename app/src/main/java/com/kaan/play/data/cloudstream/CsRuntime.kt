@@ -167,16 +167,61 @@ class CsRuntime {
         is MovieLoadResponse -> resp.dataUrl
         is LiveStreamLoadResponse -> resp.dataUrl
         is TvSeriesLoadResponse -> {
-            val s = request.season ?: return null
-            val e = request.episode ?: return null
-            resp.episodes.firstOrNull { it.season == s && it.episode == e }?.data
-                ?: resp.episodes.firstOrNull { it.episode == e }?.data
+            val s = request.season
+            val e = request.episode
+            findEpisodeData(resp.episodes, s, e)
         }
         is AnimeLoadResponse -> {
-            val e = request.episode ?: return null
-            resp.episodes.values.flatten().firstOrNull { it.episode == e }?.data
+            val s = request.season
+            val e = request.episode
+            val allEpisodes = resp.episodes.values.flatten()
+            findEpisodeData(allEpisodes, s, e)
         }
         else -> null
+    }
+
+    private fun findEpisodeData(episodes: List<com.lagradost.cloudstream3.Episode>, season: Int?, episode: Int?): String? {
+        if (episodes.isEmpty()) return null
+        if (episode == null) return episodes.firstOrNull()?.data
+
+        // 1. Exact match on season and episode
+        if (season != null) {
+            val match = episodes.firstOrNull { it.season == season && it.episode == episode }
+            if (match != null) return match.data
+        }
+
+        // 2. Match on episode directly
+        val epMatch = episodes.firstOrNull { it.episode == episode }
+        if (epMatch != null) return epMatch.data
+
+        // 3. Fallback: extract episode number from name or data URL
+        val extractedMatch = episodes.firstOrNull { ep ->
+            val num = extractEpisodeNum(ep)
+            num == episode && (season == null || ep.season == null || ep.season == season)
+        }
+        if (extractedMatch != null) return extractedMatch.data
+
+        // 4. Fallback if index-based: e.g. episode 1 is index 0
+        if (season == null || episodes.all { it.season == null || it.season == season }) {
+            val index = episode - 1
+            if (index in episodes.indices) {
+                return episodes[index].data
+            }
+        }
+
+        return null
+    }
+
+    private fun extractEpisodeNum(ep: com.lagradost.cloudstream3.Episode): Int? {
+        if (ep.episode != null && ep.episode!! > 0) return ep.episode
+        val name = ep.name ?: ""
+        val nameMatch = Regex("""(?:bölüm|episode|ep\.?)\s*(\d+)|\b(\d+)\s*\.\s*bölüm""", RegexOption.IGNORE_CASE).find(name)
+        if (nameMatch != null) {
+            val numStr = nameMatch.groupValues[1].ifEmpty { nameMatch.groupValues[2] }
+            numStr.toIntOrNull()?.let { return it }
+        }
+        val dataMatch = Regex("""(?:bölüm|bolum|ep)\D*?(\d+)""", RegexOption.IGNORE_CASE).find(ep.data)
+        return dataMatch?.groupValues?.get(1)?.toIntOrNull()
     }
 
     private fun qualityToResolution(quality: Int): Int? = when {

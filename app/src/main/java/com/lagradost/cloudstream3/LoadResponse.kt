@@ -30,16 +30,40 @@ interface LoadResponse {
 
     companion object {
         /** Oyuncu listesini yanıta ekler. */
-        fun addActors(responseBuilder: LoadResponse, actors: List<ActorData>?) {
-            responseBuilder.actors = actors
+        fun addActors(responseBuilder: LoadResponse, actors: List<*>?) {
+            responseBuilder.actors = actors?.mapNotNull { item ->
+                when (item) {
+                    is ActorData -> item
+                    is Actor -> ActorData(item)
+                    is String -> ActorData(Actor(item))
+                    null -> null
+                    else -> ActorData(Actor(item.toString()))
+                }
+            }
         }
 
-        fun addActorNames(responseBuilder: LoadResponse, actors: List<String>?) {
-            responseBuilder.actors = actors?.map { ActorData(Actor(it)) }
+        fun addActorNames(responseBuilder: LoadResponse, actors: List<*>?) {
+            responseBuilder.actors = actors?.mapNotNull { item ->
+                when (item) {
+                    is ActorData -> item
+                    is Actor -> ActorData(item)
+                    is String -> ActorData(Actor(item))
+                    null -> null
+                    else -> ActorData(Actor(item.toString()))
+                }
+            }
         }
 
-        fun addActorsOnly(responseBuilder: LoadResponse, actors: List<String>?) {
-            responseBuilder.actors = actors?.map { ActorData(Actor(it)) }
+        fun addActorsOnly(responseBuilder: LoadResponse, actors: List<*>?) {
+            responseBuilder.actors = actors?.mapNotNull { item ->
+                when (item) {
+                    is ActorData -> item
+                    is Actor -> ActorData(item)
+                    is String -> ActorData(Actor(item))
+                    null -> null
+                    else -> ActorData(Actor(item.toString()))
+                }
+            }
         }
 
         fun addImdbId(responseBuilder: LoadResponse, imdbId: String?) {

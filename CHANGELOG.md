@@ -3,6 +3,10 @@
 ## Yayınlanmamış / Unreleased
 
 ### Türkçe
+- **CloudStream Eklentileri Video Akışı & Çıkarıcı (Extractor) Düzeltmesi:**
+  - **`LoadResponse.addActorsOnly` ClassCastException Düzeltmesi:** AnimeciX ve DiziBox eklentilerinin `load()` aşamasında `List<Actor>` nesnelerini eklerken JVM üzerinde `Actor cannot be cast to String` hatasıyla çökmesi ve video aramasını durdurması giderildi; `addActors`, `addActorNames` ve `addActorsOnly` yöntemleri tüm aktör türlerini (`ActorData`, `Actor`, `String`) güvenle işleyecek şekilde güncellendi.
+  - **Gelişmiş Sezon/Bölüm Eşleme (`resolveData`):** Eklentilerden dönen bölümlerin (`AnimeLoadResponse` ve `TvSeriesLoadResponse`) sezon/bölüm numaralarının bulunamadığı durumlarda tam eşleşme, başlık/URL üzerinden bölüm numarası çıkarma ve indeks tabanlı akıllı eşleme mantığı eklendi.
+  - **Genel Web & Paketli JS Çıkarıcı Desteği (`JsUnpacker`):** VidMoly, Streamtape, FileLions ve genel gömülü oynatıcılarda kullanılan Dean Edwards packed JS (`eval(p,a,c,k,e,d)`) kodlarını çözen `JsUnpacker` eklendi; `loadExtractor` yerleşik çıkarıcısı olmayan kaynaklarda HTML ve paketli betikleri analiz ederek `.m3u8` ve `.mp4` video bağlantılarını otomatik olarak çıkarır hale getirildi. AnimeciX (TauVideo) ve DiziBox üzerinde Hanma Baki S1 B1 video oynatması LDPlayer üzerinde test edilip doğrulandı.
 - **Navigasyon ve Arama Ekranında Kalma Sorunu Düzeltmesi:**
   - Arama veya alt ekranlardayken menüden (alt menü / yan menü) "Ana sayfa" sekmesine tıklandığında Navigation Compose'un startDestination üzerindeki kayıtlı çocuk yığınını geri yüklemesi sebebiyle ekranın Arama ekranında takılı kalması giderildi; `openTab(Tab.Home)` doğrudan `popBackStack(Tab.Home.route, inclusive = false)` ile ana sayfaya geri dönecek şekilde düzenlendi.
   - Sekme seçim kontrolü (`selected`) sorgu parametresi içeren yollar (`search?q=...`) için güncellendi.
@@ -43,6 +47,10 @@
 - **Altyazı otomatik çeviri:** Türkçe altyazı hiçbir kaynakta yoksa ve İngilizce altyazı varsa, İngilizce cihaz üstünde (Google ML Kit, sunucuya metin gitmez) Türkçeye çevrilir. İngilizce hemen görünür, çeviri arka planda biter ("Altyazı çevriliyor… %n"), elle seçmediysen otomatik Türkçeye geçilir; menüde "Türkçe (otomatik çeviri)" ayrı satırdır, gerçek Türkçe her zaman önce gelir. Zamanlar korunur, çeviri önbelleğe alınır (aynı film yeniden çevrilmez), senkron ayarı çalışır. Dil modeli ilk kullanımda bir kez iner (~44 MB, "Sadece Wi-Fi'de indir" ayarına uyar). Ayarlar > Oynatıcı > "Türkçe yoksa İngilizceyi otomatik çevir" (varsayılan açık). APK ABI başına ~6–7,5 MB büyür.
 
 ### English
+- **CloudStream Plugins Video Extraction & Playback Fixes:**
+  - **`LoadResponse.addActorsOnly` ClassCastException Fix:** Resolved a `ClassCastException` in AnimeciX and DiziBox when passing `List<Actor>` to `addActorsOnly`, which crashed the `load()` step and prevented video discovery.
+  - **Smart Episode Resolution (`resolveData`):** Added fuzzy episode number extraction from titles/URLs and index-based fallbacks for `TvSeriesLoadResponse` and `AnimeLoadResponse`.
+  - **Generic Web & Packed JS Stream Extraction (`JsUnpacker`):** Added `JsUnpacker` for unpacking Dean Edwards packed JavaScript (`eval(p,a,c,k,e,d)`); updated `loadExtractor` to automatically parse embed pages (such as VidMoly, Streamtape, FileLions) for direct `.m3u8` and `.mp4` streams. Verified video playback with AnimeciX (TauVideo) and DiziBox on LDPlayer.
 - **Navigation Trap & Home Tab Backstack Fix:**
   - Fixed an issue where tapping the "Home" tab while on the Search screen (or sub-routes) trapped the user on Search due to Navigation Compose's start destination restoring saved child backstack state; `openTab(Tab.Home)` now explicitly calls `popBackStack(Tab.Home.route, inclusive = false)` to unconditionally return to the home screen.
   - Tab selection logic (`selected`) now properly matches parameterized query routes (`search?q=...`).
