@@ -32,25 +32,27 @@ class CsCatalog(
         }
         val sections = runtime.mainPage(apis, page = 1)
         val rows = sections.mapIndexed { index, section ->
-            val items = section.items.map { s ->
-                CatalogItem(
-                    id = "${s.name}_${s.url}",
-                    title = s.name,
-                    subtitle = when (s.type) {
-                        TvType.TvSeries -> "Dizi"
-                        TvType.Anime -> "Anime"
-                        else -> null
-                    },
-                    posterUrl = s.posterUrl,
-                    posterHeaders = s.posterHeaders,
-                    mediaType = when (s.type) {
-                        TvType.TvSeries, TvType.Anime -> MediaType.Tv
-                        else -> MediaType.Movie
-                    },
-                    providerId = providerId,
-                    rawUrl = s.url,
-                )
-            }
+            val items = section.items
+                .distinctBy { it.url.ifBlank { it.name } }
+                .map { s ->
+                    CatalogItem(
+                        id = "${s.name}_${s.url}",
+                        title = s.name,
+                        subtitle = when (s.type) {
+                            TvType.TvSeries -> "Dizi"
+                            TvType.Anime -> "Anime"
+                            else -> null
+                        },
+                        posterUrl = s.posterUrl,
+                        posterHeaders = s.posterHeaders,
+                        mediaType = when (s.type) {
+                            TvType.TvSeries, TvType.Anime -> MediaType.Tv
+                            else -> MediaType.Movie
+                        },
+                        providerId = providerId,
+                        rawUrl = s.url,
+                    )
+                }
             CatalogRow(
                 id = "${section.title}_$index",
                 title = section.title,
@@ -70,29 +72,31 @@ class CsCatalog(
         if (apis.isEmpty()) return@withContext emptyList()
 
         for (api in apis) {
-            val matching = api.mainPage.firstOrNull { rowId.startsWith(it.name) }
+            val matching = api.mainPage.firstOrNull { rowId.contains(it.name) || rowId.startsWith(it.name) }
             if (matching != null) {
                 val req = MainPageRequest(matching.name, matching.data, matching.horizontalImages)
                 val resp = try { api.getMainPage(page, req) } catch (_: Throwable) { null }
-                val items = resp?.items?.flatMap { it.list }?.map { s ->
-                    CatalogItem(
-                        id = "${s.name}_${s.url}",
-                        title = s.name,
-                        subtitle = when (s.type) {
-                            TvType.TvSeries -> "Dizi"
-                            TvType.Anime -> "Anime"
-                            else -> null
-                        },
-                        posterUrl = s.posterUrl,
-                        posterHeaders = s.posterHeaders,
-                        mediaType = when (s.type) {
-                            TvType.TvSeries, TvType.Anime -> MediaType.Tv
-                            else -> MediaType.Movie
-                        },
-                        providerId = providerId,
-                        rawUrl = s.url,
-                    )
-                } ?: emptyList()
+                val items = resp?.items?.flatMap { it.list }
+                    ?.distinctBy { it.url.ifBlank { it.name } }
+                    ?.map { s ->
+                        CatalogItem(
+                            id = "${s.name}_${s.url}",
+                            title = s.name,
+                            subtitle = when (s.type) {
+                                TvType.TvSeries -> "Dizi"
+                                TvType.Anime -> "Anime"
+                                else -> null
+                            },
+                            posterUrl = s.posterUrl,
+                            posterHeaders = s.posterHeaders,
+                            mediaType = when (s.type) {
+                                TvType.TvSeries, TvType.Anime -> MediaType.Tv
+                                else -> MediaType.Movie
+                            },
+                            providerId = providerId,
+                            rawUrl = s.url,
+                        )
+                    } ?: emptyList()
                 return@withContext items
             }
         }

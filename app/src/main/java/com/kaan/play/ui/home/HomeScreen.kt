@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -574,7 +575,7 @@ private fun ProviderCatalogView(
                 contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(28.dp),
             ) {
-                items(rows, key = { it.id }) { row ->
+                itemsIndexed(rows, key = { index, row -> "${row.providerId}_${row.id}_$index" }) { _, row ->
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -617,7 +618,7 @@ private fun ProviderCatalogView(
                             contentPadding = PaddingValues(horizontal = ScreenPadding),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            items(row.items, key = { "${row.id}_${it.id}" }) { item ->
+                            itemsIndexed(row.items, key = { index, item -> "${row.id}_${item.id}_$index" }) { _, item ->
                                 PosterCard(
                                     title = item.title,
                                     subtitle = item.subtitle,

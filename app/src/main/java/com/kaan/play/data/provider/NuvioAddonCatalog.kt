@@ -48,24 +48,26 @@ class NuvioAddonCatalog(
             try {
                 val jsonText = fetchAddonText(client, httpUrl, timeout, MAX_BYTES)
                 val response = PlayJson.decodeFromString(StremioCatalogResponse.serializer(), jsonText)
-                val items = response.metas.map { meta ->
-                    CatalogItem(
-                        id = meta.id,
-                        title = meta.name,
-                        subtitle = when (meta.type.lowercase()) {
-                            "series", "tv" -> "Dizi"
-                            else -> null
-                        },
-                        posterUrl = meta.poster,
-                        posterHeaders = null,
-                        mediaType = when (meta.type.lowercase()) {
-                            "series", "tv" -> MediaType.Tv
-                            else -> MediaType.Movie
-                        },
-                        providerId = providerId,
-                        rawUrl = null,
-                    )
-                }
+                val items = response.metas
+                    .distinctBy { it.id }
+                    .map { meta ->
+                        CatalogItem(
+                            id = meta.id,
+                            title = meta.name,
+                            subtitle = when (meta.type.lowercase()) {
+                                "series", "tv" -> "Dizi"
+                                else -> null
+                            },
+                            posterUrl = meta.poster,
+                            posterHeaders = null,
+                            mediaType = when (meta.type.lowercase()) {
+                                "series", "tv" -> MediaType.Tv
+                                else -> MediaType.Movie
+                            },
+                            providerId = providerId,
+                            rawUrl = null,
+                        )
+                    }
 
                 if (items.isNotEmpty()) {
                     val rowTitle = cat.name ?: when (cat.id) {

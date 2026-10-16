@@ -3,6 +3,10 @@
 ## Yayınlanmamış / Unreleased
 
 ### Türkçe
+- **DiziKorea ve Mükerrer Katalog Öğeleri Arayüz Çökmesi Düzeltmesi:**
+  - Bazı sağlayıcıların (ör. DiziKorea "Çin Dizileri" rafı) aynı içerik kartını birden fazla kez döndürmesi durumunda Jetpack Compose'un `LazyRow` bileşeninde tetiklenen `IllegalArgumentException: Key was already used` hatası ve uygulamanın kapanması giderildi.
+  - `CsCatalog` ve `NuvioAddonCatalog` katmanında öğeler `distinctBy` ile temizlendi.
+  - `HomeScreen` üzerinde katalog satırları ve afiş kartları için `itemsIndexed` kullanılarak anahtarlara benzersiz liste indeksi eklendi (`${row.id}_${item.id}_$index`), mükerrer veri gelse dahi arayüzün çökmesi kesin olarak önlendi.
 - **CloudStream Eklentileri Evrensel ABI ve AnimeciX Düzeltmeleri:**
   - **AnimeciX & Anime Yanıt Desteği:** `AnimeSearchResponse` sınıfına `sub` ve `dub` alanları, `MainAPI` sınıfına `newAnimeSearchResponse` ve `newAnimeLoadResponse` fabrika yöntemleri eklenerek AnimeciX'in `NoSuchMethodError: newAnimeSearchResponse$default` hatası giderildi; "Son Eklenen Bölümler", "Seriler" ve "Filmler" rafları afişleriyle yüklendi.
   - **40 CloudStream DEX Eklentisi Kapsamlı Otomasyon Denetimi:** Cihazdaki 40 eklentinin tamamı otomatik test aracıyla denendi; 38 eklenti %100 başarıyla onlarca raf ve yüzlerce afiş listeledi. Yalnızca 2 eklentide dış servis kaynaklı sınırlama (Dizipal ISP bağlantı sıfırlama, SineWix kapatılan API sunucusu) tespit edildi, sıfır çökme sağlandı.
@@ -33,6 +37,10 @@
 - **Altyazı otomatik çeviri:** Türkçe altyazı hiçbir kaynakta yoksa ve İngilizce altyazı varsa, İngilizce cihaz üstünde (Google ML Kit, sunucuya metin gitmez) Türkçeye çevrilir. İngilizce hemen görünür, çeviri arka planda biter ("Altyazı çevriliyor… %n"), elle seçmediysen otomatik Türkçeye geçilir; menüde "Türkçe (otomatik çeviri)" ayrı satırdır, gerçek Türkçe her zaman önce gelir. Zamanlar korunur, çeviri önbelleğe alınır (aynı film yeniden çevrilmez), senkron ayarı çalışır. Dil modeli ilk kullanımda bir kez iner (~44 MB, "Sadece Wi-Fi'de indir" ayarına uyar). Ayarlar > Oynatıcı > "Türkçe yoksa İngilizceyi otomatik çevir" (varsayılan açık). APK ABI başına ~6–7,5 MB büyür.
 
 ### English
+- **DiziKorea & Duplicate Catalog Item Crash Fix:**
+  - Resolved `IllegalArgumentException: Key was already used` in Jetpack Compose `LazyRow` triggered when providers return duplicate items in the same section (e.g. DiziKorea "Çin Dizileri").
+  - Deduplicated item lists in `CsCatalog` and `NuvioAddonCatalog` using `distinctBy`.
+  - Updated `HomeScreen` catalog lists to use `itemsIndexed` with unique index-suffixed keys (`${row.id}_${item.id}_$index`), ensuring complete resilience against duplicate items across all providers.
 - **Universal CloudStream ABI & AnimeciX Fixes:**
   - **AnimeciX & Anime Response Support:** Added `sub` and `dub` properties to `AnimeSearchResponse` and factory functions `newAnimeSearchResponse` and `newAnimeLoadResponse` to `MainAPI`, resolving AnimeciX's `NoSuchMethodError` and loading its episodes, series, and movie rows with posters.
   - **40 CloudStream DEX Plugins Comprehensive Device Audit:** Automated device testing across all 40 installed DEX plugins confirmed 38 plugins 100% operational with full catalogs. Only 2 plugins experienced external upstream server issues (Dizipal ISP connection reset, SineWix deprecated API route), with zero app crashes.
