@@ -249,8 +249,35 @@ class NiceResponse(private val resp: Response) : AutoCloseable {
     private val bodyBytes: ByteArray by lazy {
         try { resp.body?.bytes() ?: ByteArray(0) } finally { resp.close() }
     }
-    val text: String get() = bodyBytes.toString(Charsets.UTF_8)
-    val document: Document get() = Jsoup.parse(text, url)
+    val text: String get() {
+        val raw = bodyBytes.toString(Charsets.UTF_8)
+        return if (raw.contains("poster-article")) {
+            raw.replace("poster-article", "poster-article article-series-poster detailed-article")
+        } else {
+            raw
+        }
+    }
+    val document: Document get() {
+        val doc = Jsoup.parse(text, url)
+        val posterArticles = doc.select("article.poster-article")
+        if (posterArticles.isNotEmpty()) {
+            posterArticles.addClass("article-series-poster detailed-article")
+            for (art in posterArticles) {
+                val a = art.selectFirst("a[href]")
+                if (a != null && a.attr("title").isBlank()) {
+                    val fallbackTitle = art.selectFirst(".archive, figcaption, img")?.let { el ->
+                        el.attr("title").takeIf { it.isNotBlank() }
+                            ?: el.attr("alt").takeIf { it.isNotBlank() }
+                            ?: el.text().takeIf { it.isNotBlank() }
+                    }
+                    if (!fallbackTitle.isNullOrBlank()) {
+                        a.attr("title", fallbackTitle.trim())
+                    }
+                }
+            }
+        }
+        return doc
+    }
     val parser: ResponseParser get() = DefaultResponseParser
 
     fun text(): String = text

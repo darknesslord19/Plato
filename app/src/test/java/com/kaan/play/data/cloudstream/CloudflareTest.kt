@@ -159,4 +159,47 @@ class CloudflareTest {
         assertEquals(1, requestCount.get())
         assertEquals(403, resp.code)
     }
+
+    @Test
+    fun testPosterArticleDomCompatibility() {
+        val mockResponse = Response.Builder()
+            .request(Request.Builder().url("https://www.dizibox.live/dizi-arsivi/").build())
+            .protocol(Protocol.HTTP_1_1)
+            .code(200)
+            .message("OK")
+            .body(
+                """
+                <html>
+                <body>
+                  <article class="poster-article big-poster">
+                    <a href="https://www.dizibox.live/diziler/test-dizi/" class="figure-link">
+                      <figure class="figure big-cover">
+                        <figcaption class="poster-caption">
+                          <span class="archive" title="Test Dizi">Test Dizi</span>
+                        </figcaption>
+                        <img class="afis" data-src="https://www.dizibox.live/wp-content/uploads/afisler/test.jpg" />
+                      </figure>
+                    </a>
+                  </article>
+                </body>
+                </html>
+                """.trimIndent().toResponseBody()
+            )
+            .build()
+
+        val niceResp = com.lagradost.nicehttp.NiceResponse(mockResponse)
+        val doc = niceResp.document
+        val articles = doc.select("article.article-series-poster")
+        assertEquals(1, articles.size)
+        val detailedArticles = doc.select("article.detailed-article")
+        assertEquals(1, detailedArticles.size)
+        val art = articles.first()!!
+        val a = art.selectFirst("a[href]")
+        assertNotNull(a)
+        assertEquals("Test Dizi", a!!.attr("title"))
+        assertEquals("https://www.dizibox.live/diziler/test-dizi/", a.attr("href"))
+        val img = art.selectFirst("img")
+        assertNotNull(img)
+        assertEquals("https://www.dizibox.live/wp-content/uploads/afisler/test.jpg", img!!.attr("data-src"))
+    }
 }
