@@ -17,6 +17,9 @@ data class StreamRequest(
     val episode: Int? = null,
     /** true: önbellekteki (eklenti) sonuçları yok say, yeniden çalıştır (kaynak listesindeki Yenile). */
     val refresh: Boolean = false,
+    val pluginId: String? = null,
+    val dataUrl: String? = null,
+    val contentUrl: String? = null,
 ) {
     /**
      * Addon'a giden kimlik: film `tt123`, dizi `tt123:sezon:bölüm`.

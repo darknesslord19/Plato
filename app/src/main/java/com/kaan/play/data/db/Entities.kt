@@ -95,7 +95,11 @@ data class WatchHistoryEntity(
     val lastWatchedAt: Long,
     val title: String,
     val posterPath: String?,
+    val pluginId: String? = null,
+    val dataUrl: String? = null,
+    val contentUrl: String? = null,
 )
+
 
 /**
  * Faz 4/A: bir film/dizi için seçilen altyazı dili. [contentKey]: film `movie:{tmdbId}`, dizi `tv:{tmdbId}` (bölümler arası

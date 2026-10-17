@@ -91,14 +91,22 @@ class CsRuntime {
         if (loadResp == null) return emptyList()
 
         // 4. Link alma
-        val links = mutableListOf<ExtractorLink>()
-        val subs = mutableListOf<SubtitleFile>()
         val data = resolveData(loadResp, request)
         if (data == null) {
             Log.d(TAG, "${api.name}: resolveData boş (sezon/bölüm eşleşmedi)")
             return emptyList()
         }
+        return loadLinksDirect(api, data, source, timeoutMs)
+    }
 
+    suspend fun loadLinksDirect(
+        api: MainAPI,
+        data: String,
+        source: StreamSource,
+        timeoutMs: Long,
+    ): List<PlayableStream> {
+        val links = mutableListOf<ExtractorLink>()
+        val subs = mutableListOf<SubtitleFile>()
         withTimeout(timeoutMs) {
             try {
                 api.loadLinks(
@@ -114,7 +122,6 @@ class CsRuntime {
         Log.d(TAG, "${api.name}: loadLinks ${links.size} ExtractorLink " +
             links.map { "${it.name}/${it.type}/${it.quality}@${runCatching { java.net.URI(it.url).host }.getOrNull()}" })
 
-        // 5. PlayableStream'e çevir
         return links.map { link ->
             PlayableStream(
                 source = source,
@@ -136,6 +143,7 @@ class CsRuntime {
             )
         }
     }
+
 
     private suspend fun search(api: MainAPI, query: String, timeoutMs: Long): List<SearchResponse>? {
         val results = withTimeout(timeoutMs) {

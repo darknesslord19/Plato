@@ -73,6 +73,7 @@ import com.kaan.play.ui.addons.InstalledAddonsScreen
 import com.kaan.play.ui.addons.PluginSettingsScreen
 import com.kaan.play.ui.addons.RepositoriesScreen
 import com.kaan.play.ui.detail.DetailScreen
+import com.kaan.play.ui.detail.ProviderDetailScreen
 import com.kaan.play.ui.home.CategoryScreen
 import com.kaan.play.ui.home.HomeRow
 import com.kaan.play.ui.home.HomeScreen
@@ -95,6 +96,7 @@ private const val PLUGIN_ROUTE = "settings/addons/plugin/{id}"
 private const val PLAYER_SETTINGS_ROUTE = "settings/player"
 private const val ABOUT_ROUTE = "settings/about"
 private const val DETAIL_ROUTE = "detail/{type}/{id}"
+private const val PROVIDER_DETAIL_ROUTE = "provider_detail/{providerId}/{encodedUrl}"
 private const val CATEGORY_ROUTE = "home/category/{row}"
 
 /** Kaynak seçimine giden iş: hedef, başlangıç konumu ve konumun sormadan (otomatik) seçilip seçilmediği. */
@@ -105,7 +107,9 @@ private data class ResumeAsk(val target: PlayTarget, val positionMs: Long, val d
 
 private fun addonsRoute(startAdding: Boolean) = "settings/addons?add=$startAdding"
 private fun detailRoute(type: MediaType, id: Int) = "detail/${type.tmdbPath}/$id"
+private fun providerDetailRoute(providerId: String, url: String) = "provider_detail/$providerId/${Uri.encode(url)}"
 private fun categoryRoute(row: HomeRow) = "home/category/${row.name}"
+
 
 /**
  * Alt/yan menü etiketleri en çok 1.0 yazı ölçeğiyle çizilir: büyük yazıda sekme adları ("Kütüphane") kısalmaz ya da
@@ -154,6 +158,7 @@ fun PlayRoot() {
     }
 
     fun openDetail(type: MediaType, id: Int) = navController.navigate(detailRoute(type, id))
+    fun openProviderDetail(providerId: String, url: String) = navController.navigate(providerDetailRoute(providerId, url))
 
     // Eklentiler ekranı Ayarlar sekmesine aittir: nereden gelinirse gelinsin önce o sekmeye geçilir,
     // yoksa ekran çağıran sekmenin yığınına girer ve o sekme hep onu açar.
@@ -222,12 +227,27 @@ fun PlayRoot() {
     fun playEntry(entry: WatchHistoryEntity, season: Int?, episode: Int?, startAt: Long) {
         scope.launch {
             // İçerik indirilmişse internete ve TMDB'ye hiç gerek yok: indirilmiş kopyadan oynar (çevrimdışı "devam et").
-            val request = StreamRequest(entry.tmdbId, null, entry.type, season, episode)
+            val request = StreamRequest(
+                tmdbId = entry.tmdbId,
+                imdbId = null,
+                type = entry.type,
+                season = season,
+                episode = episode,
+                pluginId = entry.pluginId,
+                dataUrl = entry.dataUrl,
+                contentUrl = entry.contentUrl,
+            )
             container.downloads.completedFor(request)?.let { download ->
                 play(download.toTarget(), startAt, autoResumed = true, download = download)
                 return@launch
             }
+            if (entry.pluginId != null && entry.dataUrl != null) {
+                val target = PlayTarget(request, entry.title, entry.posterPath)
+                play(target, startAt, autoResumed = true)
+                return@launch
+            }
             val imdbId = try {
+
                 container.tmdb.detail(entry.type, entry.tmdbId).imdbId
             } catch (_: TmdbException) {
                 openDetail(entry.type, entry.tmdbId)
@@ -337,6 +357,7 @@ fun PlayRoot() {
             composable(Tab.Home.route) {
                 HomeScreen(
                     onOpenDetail = ::openDetail,
+                    onOpenProviderDetail = ::openProviderDetail,
                     onOpenCategory = { navController.navigate(categoryRoute(it)) },
                     onContinue = ::continueWatching,
                     onAddAddon = { openAddons(startAdding = true) },
@@ -347,6 +368,7 @@ fun PlayRoot() {
                     },
                 )
             }
+
             composable(
                 route = CATEGORY_ROUTE,
                 arguments = listOf(navArgument("row") { type = NavType.StringType }),
@@ -422,7 +444,24 @@ fun PlayRoot() {
                     onPlay = { target -> play(target) },
                 )
             }
+            composable(
+                route = PROVIDER_DETAIL_ROUTE,
+                arguments = listOf(
+                    navArgument("providerId") { type = NavType.StringType },
+                    navArgument("encodedUrl") { type = NavType.StringType },
+                ),
+            ) { entry ->
+                val providerId = entry.arguments?.getString("providerId").orEmpty()
+                val rawUrl = Uri.decode(entry.arguments?.getString("encodedUrl").orEmpty())
+                ProviderDetailScreen(
+                    providerId = providerId,
+                    url = rawUrl,
+                    onBack = { navController.popBackStack() },
+                    onPlay = { target -> play(target) },
+                )
+            }
         }
+
         }
     }
 

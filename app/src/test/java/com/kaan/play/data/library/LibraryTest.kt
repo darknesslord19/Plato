@@ -375,4 +375,33 @@ class LibraryManagementTest {
         assertEquals("Başlık 5", fav.title)
         assertEquals("/p5.jpg", fav.posterPath)
     }
-}
+
+    @Test
+    fun pluginProgressSavingStoresPluginIdAndUrls() = runTest {
+        val target = PlayTarget(
+            request = StreamRequest(
+                tmdbId = -101,
+                imdbId = null,
+                type = MediaType.Tv,
+                season = 1,
+                episode = 3,
+                pluginId = "cs:42",
+                dataUrl = "https://example.com/ep3",
+                contentUrl = "https://example.com/series",
+            ),
+            title = "Eklenti Dizisi",
+            posterPath = "https://example.com/poster.jpg",
+        )
+        val saved = repo.saveProgress(target, 120_000, 1_200_000)
+        assertTrue(saved)
+
+        val retrieved = repo.progress(target)
+        org.junit.Assert.assertNotNull(retrieved)
+        assertEquals("cs:42", retrieved?.pluginId)
+        assertEquals("https://example.com/ep3", retrieved?.dataUrl)
+        assertEquals("https://example.com/series", retrieved?.contentUrl)
+        assertEquals(120_000L, retrieved?.positionMs)
+        assertEquals(1, retrieved?.season)
+        assertEquals(3, retrieved?.episode)
+    }
+}

@@ -32,6 +32,34 @@ class CsStreamProvider(
 ) : StreamProvider {
 
     override fun streams(request: StreamRequest): Flow<StreamResult> = channelFlow {
+        if (request.pluginId != null && request.dataUrl != null) {
+            val plugin = repository.enabledPlugins().firstOrNull {
+                "cs:${it.id}" == request.pluginId || it.pluginId == request.pluginId || it.id.toString() == request.pluginId
+            }
+            if (plugin != null) {
+                val source = StreamSource(addonId = plugin.id, addonName = plugin.name)
+                try {
+                    val apis = repository.loadApis(plugin.id)
+                    val streams = mutableListOf<PlayableStream>()
+                    for (api in apis) {
+                        val links = runtime.loadLinksDirect(
+                            api = api,
+                            data = request.dataUrl,
+                            source = source,
+                            timeoutMs = timeoutMs,
+                        )
+                        streams += links
+                        if (streams.isNotEmpty()) break
+                    }
+                    send(StreamResult.Found(source, streams))
+                } catch (t: Throwable) {
+                    Log.d(TAG, "${plugin.name}: direct loadLinks error: ${t.message}")
+                    send(StreamResult.Failed(source, FailureReason.Network))
+                }
+            }
+            return@channelFlow
+        }
+
         val title = titleResolver(request)
         if (title == null) {
             Log.d(TAG, "streams: başlık çözülemedi (TMDB), CS atlanıyor")

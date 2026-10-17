@@ -95,6 +95,7 @@ fun HomeScreen(
     onContinue: (ContinueItem) -> Unit,
     onAddAddon: () -> Unit,
     onOpenSearch: (String) -> Unit = {},
+    onOpenProviderDetail: (providerId: String, url: String) -> Unit = { _, _ -> },
 ) {
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
@@ -120,6 +121,7 @@ fun HomeScreen(
                 selectedIds = selectedProviders,
                 validSelected = validSelected,
                 onOpenDetail = onOpenDetail,
+                onOpenProviderDetail = onOpenProviderDetail,
                 onOpenSearch = onOpenSearch,
                 onOpenCategory = onOpenCategory,
                 onContinue = onContinue,
@@ -403,6 +405,7 @@ private fun ProviderCatalogView(
     selectedIds: Set<String>,
     validSelected: List<ProviderItem>,
     onOpenDetail: (MediaType, Int) -> Unit,
+    onOpenProviderDetail: (providerId: String, url: String) -> Unit,
     onOpenSearch: (String) -> Unit,
     onOpenCategory: (HomeRow) -> Unit,
     onContinue: (ContinueItem) -> Unit,
@@ -624,12 +627,17 @@ private fun ProviderCatalogView(
                                     subtitle = item.subtitle,
                                     imageUrl = item.posterUrl,
                                     onClick = {
-                                        scope.launch {
-                                            resolveAndOpenPoster(item, container.tmdb, onOpenDetail, onOpenSearch)
+                                        if (!item.rawUrl.isNullOrBlank() && item.providerId.startsWith("cs:")) {
+                                            onOpenProviderDetail(item.providerId, item.rawUrl)
+                                        } else {
+                                            scope.launch {
+                                                resolveAndOpenPoster(item, container.tmdb, onOpenDetail, onOpenSearch)
+                                            }
                                         }
                                     },
                                     modifier = Modifier.width(cardWidth),
                                 )
+
                             }
                         }
                     }

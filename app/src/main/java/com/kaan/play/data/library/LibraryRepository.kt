@@ -77,8 +77,12 @@ class LibraryRepository(
                 lastWatchedAt = clock(),
                 title = target.title,
                 posterPath = target.posterPath,
+                pluginId = r.pluginId,
+                dataUrl = r.dataUrl,
+                contentUrl = r.contentUrl,
             ),
         )
+
         return true
     }
 }

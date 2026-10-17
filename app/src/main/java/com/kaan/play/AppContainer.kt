@@ -111,7 +111,12 @@ class AppContainer(context: Context) {
 
     val database: PlayDatabase by lazy {
         Room.databaseBuilder(appContext, PlayDatabase::class.java, "play.db")
-            .addMigrations(PlayDatabase.MIGRATION_1_2, PlayDatabase.MIGRATION_2_3, PlayDatabase.MIGRATION_3_4)
+            .addMigrations(
+                PlayDatabase.MIGRATION_1_2,
+                PlayDatabase.MIGRATION_2_3,
+                PlayDatabase.MIGRATION_3_4,
+                PlayDatabase.MIGRATION_4_5,
+            )
             .build()
     }
 

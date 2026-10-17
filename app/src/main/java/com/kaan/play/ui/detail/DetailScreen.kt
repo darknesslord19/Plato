@@ -139,7 +139,7 @@ fun DetailScreen(type: MediaType, id: Int, onBack: () -> Unit, onPlay: (PlayTarg
 }
 
 @Composable
-private fun DetailContent(
+internal fun DetailContent(
     detail: MediaDetail,
     isFavorite: Boolean,
     selectedSeason: Int?,

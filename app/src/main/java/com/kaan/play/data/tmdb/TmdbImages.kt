@@ -14,6 +14,10 @@ object TmdbImages {
         Profile("w185"),
     }
 
-    fun url(path: String?, size: Size): String? =
-        path?.takeIf { it.startsWith("/") }?.let { BASE + size.segment + it }
+    fun url(path: String?, size: Size): String? = when {
+        path.isNullOrBlank() -> null
+        path.startsWith("http://") || path.startsWith("https://") -> path
+        path.startsWith("/") -> BASE + size.segment + path
+        else -> null
+    }
 }

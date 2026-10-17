@@ -16,12 +16,23 @@ class CompositeStreamProvider(private val providers: List<StreamProvider>) : Str
     constructor(vararg providers: StreamProvider) : this(providers.toList())
 
     override fun streams(request: StreamRequest): Flow<StreamResult> = channelFlow {
-        for (provider in providers) {
+        val targetProvider = if (request.pluginId != null && request.pluginId.startsWith("cs:")) {
+            providers.filterIsInstance<com.kaan.play.data.cloudstream.CsStreamProvider>()
+        } else {
+            providers
+        }
+        for (provider in targetProvider) {
             launch { provider.streams(request).collect { send(it) } }
         }
     }
 
     override suspend fun sources(request: StreamRequest): List<StreamSource> = coroutineScope {
-        providers.map { async { it.sources(request) } }.awaitAll().flatten()
+        val targetProvider = if (request.pluginId != null && request.pluginId.startsWith("cs:")) {
+            providers.filterIsInstance<com.kaan.play.data.cloudstream.CsStreamProvider>()
+        } else {
+            providers
+        }
+        targetProvider.map { async { it.sources(request) } }.awaitAll().flatten()
     }
+
 }

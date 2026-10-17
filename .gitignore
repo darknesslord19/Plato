@@ -39,4 +39,5 @@ tools/__pycache__/
 *.pb
 test_dizibox.py
 tools/*.txt
+tools/com/
 ui.xml

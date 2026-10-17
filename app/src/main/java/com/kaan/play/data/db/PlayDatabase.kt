@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AddonEntity::class, PluginEntity::class, WatchHistoryEntity::class, FavoriteEntity::class,
         SubtitleLanguageEntity::class, SubtitleOffsetEntity::class, DownloadEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class PlayDatabase : RoomDatabase() {
@@ -22,6 +22,18 @@ abstract class PlayDatabase : RoomDatabase() {
     abstract fun downloadDao(): DownloadDao
 
     companion object {
+        /**
+         * 4 -> 5 (Faz D / Aşama 2): watch_history tablosuna eklenti doğrudan izleme alanları
+         * (`pluginId`, `dataUrl`, `contentUrl`). Mevcut kayıtlarda null kalır.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `watch_history` ADD COLUMN `pluginId` TEXT")
+                db.execSQL("ALTER TABLE `watch_history` ADD COLUMN `dataUrl` TEXT")
+                db.execSQL("ALTER TABLE `watch_history` ADD COLUMN `contentUrl` TEXT")
+            }
+        }
+
         /**
          * 3 -> 4 (Faz 4/B): indirilenler tablosu. Mevcut tablolara dokunulmaz. SQL, Room'un dışa aktardığı `schemas/4.json`
          * ile birebir aynıdır.
