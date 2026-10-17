@@ -270,9 +270,9 @@ class CsRuntime {
                     if (results.isNotEmpty()) {
                         kotlinx.coroutines.delay(100L)
                     }
-                    Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: getMainPage çağrılıyor (sayfa=$page)...")
+                    val req = com.lagradost.cloudstream3.MainPageRequest(section.name, section.data, section.horizontalImages)
                     val resp = withTimeout(timeoutMs) {
-                        api.getMainPage(page, section.toRequest()) ?: api.getMainPage(page, section)
+                        api.getMainPage(page, req)
                     }
                     if (resp == null) {
                         Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}/${section.name}: getMainPage null döndü (${System.currentTimeMillis() - started} ms)")
@@ -306,7 +306,7 @@ class CsRuntime {
             val started = System.currentTimeMillis()
             try {
                 Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: hasMainPage=true, tekil getMainPage çağrılıyor (sayfa=$page)...")
-                val req = com.lagradost.cloudstream3.MainPageRequest(api.name, api.mainUrl)
+                val req = com.lagradost.cloudstream3.MainPageRequest(api.name, api.mainUrl, horizontalImages = false)
                 val resp = withTimeout(timeoutMs) { api.getMainPage(page, req) }
                 if (resp == null) {
                     Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: hasMainPage ile getMainPage null döndü (${System.currentTimeMillis() - started} ms)")

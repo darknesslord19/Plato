@@ -4,10 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 
 /**
- * CloudStream DataStore stub'ı. Eklentiler kalıcı ayarlarını kaydetmek için bu sınıfı kullanabilir.
- * Play bu stub'ı paylaşımlı tercihler (SharedPreferences) üzerinde çalıştırır.
- *
- * Bağlam [initDataStore] ile verilir; verilmemişse her işlem no-op'tur.
+ * CloudStream DataStore. Eklentiler kalıcı ayarlarını kaydetmek için bu sınıfı kullanabilir.
+ * Play bu depoyu paylaşımlı tercihler (SharedPreferences) üzerinde çalıştırır.
  */
 object DataStore {
     private var prefs: SharedPreferences? = null
@@ -15,6 +13,8 @@ object DataStore {
     internal fun init(context: Context, name: String = "cs_plugin_data") {
         prefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
     }
+
+    fun getFolderName(folder: String, path: String): String = "$folder/$path"
 
     @JvmStatic
     fun <T> setKey(key: String, value: T) {
@@ -31,7 +31,7 @@ object DataStore {
 
     @Suppress("UNCHECKED_CAST")
     @JvmStatic
-    fun <T> getKey(key: String, defVal: T?): T? {
+    fun <T> getKey(key: String, defVal: T? = null): T? {
         val p = prefs ?: return defVal
         return when (defVal) {
             is String -> p.getString(key, defVal as? String) as T?
@@ -45,13 +45,14 @@ object DataStore {
     }
 
     @JvmStatic
-    fun <T> getKey(key: String): T? = getKey(key, null)
-
-    @JvmStatic
     fun removeKey(key: String) {
         prefs?.edit()?.remove(key)?.apply()
     }
 
     @JvmStatic
     fun containsKey(key: String): Boolean = prefs?.contains(key) ?: false
+
+    fun <T> Context.setKey(path: String, value: T) = DataStore.setKey(path, value)
+    fun <T> Context.getKey(path: String, defVal: T? = null): T? = DataStore.getKey(path, defVal)
+    fun Context.removeKey(path: String) = DataStore.removeKey(path)
 }

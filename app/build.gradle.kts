@@ -125,6 +125,11 @@ dependencies {
     implementation(libs.jackson.databind)
     implementation(libs.jackson.module.kotlin)
 
+    // CloudStream resmi kütüphanesi (GPL-3.0) ve NiceHttp
+    implementation(libs.cloudstream.library)
+    implementation(libs.nicehttp)
+
+
     // Yerleşik torrent motoru: Java API + işlemci başına yerel kütüphane (.so).
     implementation(libs.libtorrent4j)
     implementation(libs.libtorrent4j.android.arm64)

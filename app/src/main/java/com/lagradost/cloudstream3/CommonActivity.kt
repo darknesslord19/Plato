@@ -1,26 +1,42 @@
 package com.lagradost.cloudstream3
 
+import android.app.Activity
 import android.content.Context
+import android.widget.Toast
+import java.lang.ref.WeakReference
 
 /**
- * CloudStream'in aktivite erişimi için stub'ı. CS eklentileri zaman zaman `CommonActivity.activity`
- * üzerinden bağlam ya da intent işlevleri almaya çalışır. Play bu sınıfı stub olarak sağlar;
- * `activity` null'dır ve eklentiler null'a karşı savunmalı yazılmışsa sorun çıkmaz.
+ * CloudStream'in aktivite erişim sınıfı.
+ * Eklentiler `CommonActivity.activity` üzerinden geçerli etkinliğe erişir.
  */
 object CommonActivity {
-    /**
-     * Gerçek bir aktivite referansı değildir. `@JvmField` KULLANILMAZ: gerçek eklentiler
-     * `CommonActivity.activity` alanına değil `getActivity()` yöntemine derlenmiştir
-     * (Kotlin özelliği, alan değil).
-     */
-    var activity: android.app.Activity? = null
+    private var _activity: WeakReference<Activity>? = null
 
-    /** [AcraApplication.context] ile senkronizedir; CS stubs başlatılırken ayarlanır. */
+    var activity: Activity?
+        get() = _activity?.get()
+        set(value) {
+            _activity = value?.let { WeakReference(it) }
+        }
+
     var context: Context? = null
 
-    // İçerik önerisi (CS eklentileri içerik önerisini bu kanal üzerinden bildirir; Play yok sayar)
+    fun setActivityInstance(newActivity: Activity?) {
+        activity = newActivity
+        if (newActivity != null) {
+            context = newActivity.applicationContext
+            AcraApplication.context = newActivity.applicationContext
+            CloudStreamApp.context = newActivity.applicationContext
+        }
+    }
+
     @JvmStatic
-    fun showToast(msg: String?, duration: Int = 0) {}
+    fun showToast(msg: String?, duration: Int? = null) {
+        val act = activity ?: return
+        if (msg == null) return
+        act.runOnUiThread {
+            Toast.makeText(act, msg, duration ?: Toast.LENGTH_SHORT).show()
+        }
+    }
 
     @JvmStatic
     fun loadResult(url: String?, apiName: String?) {}

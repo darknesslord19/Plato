@@ -15,6 +15,9 @@ import com.lagradost.cloudstream3.MainPageData
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.MovieSearchResponse
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newMovieSearchResponse
+
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.Call
@@ -90,31 +93,23 @@ class ProviderCatalogTest {
 
             override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
                 return when (request.name) {
-                    "Vizyondakiler" -> HomePageResponse(
-                        items = listOf(
-                            HomePageList(
-                                name = "Vizyondakiler",
-                                list = listOf(
-                                    MovieSearchResponse("Film A", "https://fake.provider/film-a", name, TvType.Movie).apply {
-                                        posterUrl = "https://fake.provider/film-a.jpg"
-                                    },
-                                ),
-                            ),
+                    "Vizyondakiler" -> newHomePageResponse(
+                        request,
+                        listOf(
+                            newMovieSearchResponse("Film A", "https://fake.provider/film-a", TvType.Movie) {
+                                posterUrl = "https://fake.provider/film-a.jpg"
+                            },
                         ),
-                        hasNext = true,
+                        true,
                     )
-                    "Popüler Diziler" -> HomePageResponse(
-                        items = listOf(
-                            HomePageList(
-                                name = "Popüler Diziler",
-                                list = listOf(
-                                    MovieSearchResponse("Dizi B", "https://fake.provider/dizi-b", name, TvType.TvSeries).apply {
-                                        posterUrl = "https://fake.provider/dizi-b.jpg"
-                                    },
-                                ),
-                            ),
+                    "Popüler Diziler" -> newHomePageResponse(
+                        request,
+                        listOf(
+                            newMovieSearchResponse("Dizi B", "https://fake.provider/dizi-b", TvType.TvSeries) {
+                                posterUrl = "https://fake.provider/dizi-b.jpg"
+                            },
                         ),
-                        hasNext = false,
+                        false,
                     )
                     else -> null
                 }
@@ -149,16 +144,12 @@ class ProviderCatalogTest {
                 if (request.name == "Bozuk Satır") {
                     throw IOException("Network error in section")
                 }
-                return HomePageResponse(
-                    items = listOf(
-                        HomePageList(
-                            name = "Çalışan Satır",
-                            list = listOf(
-                                MovieSearchResponse("Başarılı Film", "https://failing.provider/ok-1", name, TvType.Movie),
-                            ),
-                        ),
+                return newHomePageResponse(
+                    request,
+                    listOf(
+                        newMovieSearchResponse("Başarılı Film", "https://failing.provider/ok-1", TvType.Movie),
                     ),
-                    hasNext = false,
+                    false,
                 )
             }
         }

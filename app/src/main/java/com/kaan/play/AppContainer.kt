@@ -95,9 +95,14 @@ class AppContainer(context: Context) {
         .build()
 
     init {
-        // CloudStream eklentileri `app.get()/post()` için bu global'i bekler (bkz. App.kt).
+        // CloudStream eklentileri app.get()/post() ve depolama için ilklendirilir
         com.lagradost.cloudstream3.initApp(httpClient)
+        com.lagradost.cloudstream3.DataStore.init(appContext)
+        com.lagradost.cloudstream3.AcraApplication.context = appContext
+        com.lagradost.cloudstream3.CloudStreamApp.context = appContext
+        com.lagradost.cloudstream3.CommonActivity.context = appContext
     }
+
 
     /** Dil her istekte [AppLanguage.effective] ile okunur: Ayarlar'da dil değişince yeni istekler yeni dilde gider. */
     val tmdb: TmdbRepository by lazy {

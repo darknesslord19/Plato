@@ -476,3 +476,16 @@ gh release create v1.0.0 `
 - Google Play Console'da uygulama oluştur (`com.kaan.play`)
 - AAB'yi yükle; içerik derecelendirmesi, gizlilik politikası ve ekran görüntüleri gerekir
 - Play Store imzalama açıksa keystore'un **ilk yükleme** sırasında kaydedilmesi gerekir
+
+---
+
+## ⚖️ Lisans ve Atıflar
+
+Bu proje **GNU General Public License v3.0 (GPL-3.0)** altında lisanslanmıştır. Tam lisans metni için [LICENSE](LICENSE) dosyasına bakın.
+
+### Üçüncü Taraf Kütüphaneler ve Atıflar
+- **CloudStream Library** ([recloudstream/cloudstream](https://github.com/recloudstream/cloudstream)): GNU General Public License v3.0 (GPL-3.0) ile lisanslanmıştır. Play, CloudStream `.cs3` eklentilerini çalıştırmak için CloudStream'in resmî `library-android` modülünü kullanır.
+- **NiceHttp** ([Blatzar/NiceHttp](https://github.com/Blatzar/NiceHttp)): GNU General Public License v3.0 (GPL-3.0) ile lisanslanmıştır.
+- **Nuvio**: Nuvio uygulamaları GPL-3.0'dır; Nuvio için hiçbir kod kopyalanmamış olup, eklenti sözleşmesi temiz oda yaklaşımıyla (QuickJS üzerinde) sıfırdan uygulanmıştır.
+- **TMDB**: Bu ürün TMDB API'sini kullanır ancak TMDB tarafından onaylanmamıştır veya sertifikalandırılmamıştır.
+

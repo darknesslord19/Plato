@@ -68,3 +68,11 @@
 -keep class com.google.mlkit.nl.translate.** { *; }
 -keepclasseswithmembernames class * { native <methods>; }
 -dontwarn com.google.mlkit.**
+
+# ── CloudStream Library Ek Bağımlılıkları ──────────────────────────────────────
+-dontwarn javax.script.**
+-dontwarn org.mozilla.javascript.**
+-dontwarn org.schabi.newpipe.**
+-dontwarn com.fleeksoft.ksoup.**
+-dontwarn dev.whyoleg.cryptography.**
+

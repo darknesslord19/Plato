@@ -1,28 +1,9 @@
-@file:JvmName("MainActivityKt")
-
-package com.lagradost.cloudstream3
-
-import com.lagradost.nicehttp.Requests
-import okhttp3.OkHttpClient
-
-/**
- * CloudStream'de global `app` değeri gerçek kaynakta `MainActivity.kt` dosyasında bildirilir, bu
- * yüzden derlenmiş eklentiler onu sınıf adı `MainActivityKt` üzerinden çağırır (`getApp()`).
- * Kotlin'de üst düzey bildirimlerin derlendiği sınıf adı dosya adına göre belirlenir; bu dosya
- * `@file:JvmName` ile o adı taklit eder (dosyanın kendi adı farklı olsa da).
- */
-lateinit var app: Requests
-    internal set
-
-/** OkHttp istemcisini CS stubs'larına enjekte eder. [com.kaan.play.data.cloudstream.CsRuntime] çağırır. */
-fun initApp(client: OkHttpClient) {
-    app = Requests(client)
-}
+package com.kaan.play.data.cloudstream
 
 /**
  * CS plugin'lerine karşı basit ağ güvenliği: yerel/özel IP'ler reddedilir.
- * Faz 2 [com.kaan.play.data.plugin.NetworkPolicy] ile aynı prensipler uygulanır,
- * fakat DEX yüklü kod doğrudan bu nesneyi çağırır.
+ * Faz 2 NetworkPolicy ile aynı prensipler uygulanır,
+ * DEX yüklü kod ve ağ katmanı bu nesneyi denetler.
  */
 object PlayNetworkGuard {
     private val PRIVATE_RANGES = listOf(

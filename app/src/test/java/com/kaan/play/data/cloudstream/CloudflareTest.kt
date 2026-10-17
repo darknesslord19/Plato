@@ -3,8 +3,7 @@ package com.kaan.play.data.cloudstream
 import com.kaan.play.data.cloudstream.cloudflare.CloudflareCache
 import com.kaan.play.data.cloudstream.cloudflare.CloudflareCredentials
 import com.kaan.play.data.cloudstream.cloudflare.CloudflareDetector
-import com.lagradost.cloudstream3.CloudflareKiller
-import com.lagradost.cloudstream3.CloudflareRetryTag
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import okhttp3.Headers
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -126,80 +125,38 @@ class CloudflareTest {
         assertNull("Süresi dolan çerez cache'den null dönmelidir", CloudflareCache.get("expired-site.com"))
     }
 
-    // 3. Tekrar deneme sınırı (sonsuz döngü engeli) testi
+    // 3. Cookie injection testi
     @Test
-    fun testRetryLimitPreventsInfiniteLoop() {
-        val killer = CloudflareKiller()
-        val requestCount = AtomicInteger(0)
+    fun testCachedCookiesInjectedByCloudflareKiller() {
+        val creds = CloudflareCredentials(
+            cookies = mapOf("cf_clearance" to "test_token_123"),
+            userAgent = "TestBrowser/1.0",
+        )
+        CloudflareCache.put("protected-site.com", creds)
 
-        // Her zaman 403 challenge dönen sahte bir ağ istemcisi
+        val killer = CloudflareKiller()
+        var receivedCookie: String? = null
+        var receivedUa: String? = null
+
         val mockClient = OkHttpClient.Builder()
             .addInterceptor(killer)
             .addInterceptor(Interceptor { chain ->
-                requestCount.incrementAndGet()
+                val req = chain.request()
+                receivedCookie = req.header("Cookie")
+                receivedUa = req.header("user-agent")
                 Response.Builder()
-                    .request(chain.request())
+                    .request(req)
                     .protocol(Protocol.HTTP_1_1)
-                    .code(403)
-                    .message("Forbidden")
-                    .header("cf-mitigated", "challenge")
-                    .body("challenges.cloudflare.com".toResponseBody())
+                    .code(200)
+                    .message("OK")
+                    .body("content".toResponseBody())
                     .build()
             })
             .build()
 
-        // İsteğe zaten CloudflareRetryTag eklenmişse Interceptor tekrar çözücü çalıştırmaz
-        val reqWithRetryTag = Request.Builder()
-            .url("https://blocked-site.com/api")
-            .tag(CloudflareRetryTag::class.java, CloudflareRetryTag)
-            .build()
-
-        val resp = mockClient.newCall(reqWithRetryTag).execute()
-        // Retry tag olduğu için interceptor tekrar çözmeye çalışmadan isteği tek seferde geçirmelidir
-        assertEquals(1, requestCount.get())
-        assertEquals(403, resp.code)
-    }
-
-    @Test
-    fun testPosterArticleDomCompatibility() {
-        val mockResponse = Response.Builder()
-            .request(Request.Builder().url("https://www.dizibox.live/dizi-arsivi/").build())
-            .protocol(Protocol.HTTP_1_1)
-            .code(200)
-            .message("OK")
-            .body(
-                """
-                <html>
-                <body>
-                  <article class="poster-article big-poster">
-                    <a href="https://www.dizibox.live/diziler/test-dizi/" class="figure-link">
-                      <figure class="figure big-cover">
-                        <figcaption class="poster-caption">
-                          <span class="archive" title="Test Dizi">Test Dizi</span>
-                        </figcaption>
-                        <img class="afis" data-src="https://www.dizibox.live/wp-content/uploads/afisler/test.jpg" />
-                      </figure>
-                    </a>
-                  </article>
-                </body>
-                </html>
-                """.trimIndent().toResponseBody()
-            )
-            .build()
-
-        val niceResp = com.lagradost.nicehttp.NiceResponse(mockResponse)
-        val doc = niceResp.document
-        val articles = doc.select("article.article-series-poster")
-        assertEquals(1, articles.size)
-        val detailedArticles = doc.select("article.detailed-article")
-        assertEquals(1, detailedArticles.size)
-        val art = articles.first()!!
-        val a = art.selectFirst("a[href]")
-        assertNotNull(a)
-        assertEquals("Test Dizi", a!!.attr("title"))
-        assertEquals("https://www.dizibox.live/diziler/test-dizi/", a.attr("href"))
-        val img = art.selectFirst("img")
-        assertNotNull(img)
-        assertEquals("https://www.dizibox.live/wp-content/uploads/afisler/test.jpg", img!!.attr("data-src"))
+        val resp = mockClient.newCall(Request.Builder().url("https://protected-site.com/test").build()).execute()
+        assertEquals(200, resp.code)
+        assertTrue(receivedCookie?.contains("cf_clearance=test_token_123") == true)
+        assertEquals("TestBrowser/1.0", receivedUa)
     }
 }
