@@ -135,22 +135,9 @@ object PlayDiagRunner {
         val api = apis.first()
 
         // 1. Katalog (mainPage)
-        val sections = withTimeoutOrNull(25_000L) {
-            runCatching { container.csRuntime.mainPage(api, 1) }.getOrNull()
-        }
-
-        if (sections == null) {
-            Log.w(TAG, "[${plugin.name}] mainPage zaman aşımı")
-            return DiagResult(
-                pluginName = plugin.name,
-                catalogStatus = "X (zaman aşımı)",
-                loadStatus = "-",
-                episodeStatus = "-",
-                linkStatus = "-",
-                mediaStatus = "-",
-                errorReason = "mainPage 25sn zaman aşımı",
-            )
-        }
+        val sections = runCatching {
+            container.csRuntime.mainPage(api, 1, timeoutMs = 6_000L)
+        }.getOrNull() ?: emptyList()
 
         val allItems = sections.flatMap { it.items }.distinctBy { it.url.ifBlank { it.name } }
         if (allItems.isEmpty()) {
@@ -171,20 +158,26 @@ object PlayDiagRunner {
         val catalogStatus = "OK (${sections.size} satır, ${allItems.size} içerik)"
         Log.i(TAG, "[${plugin.name}] Katalog başarılı: $catalogStatus")
 
-        // 2. İlk 2 içeriği test et
-        val testItems = allItems.take(2)
+        // 2. İlk 3 içeriği test et
+        val testItems = allItems.take(3)
         var lastResult: DiagResult? = null
 
         for (item in testItems) {
             val itemTitle = item.name
             Log.i(TAG, "[${plugin.name}] İçerik deneniyor: $itemTitle (${item.url})")
 
+            var loadErr: Throwable? = null
             val loadResp = withTimeoutOrNull(15_000L) {
-                runCatching { api.load(item.url) }.getOrNull()
+                try {
+                    api.load(item.url)
+                } catch (t: Throwable) {
+                    loadErr = t
+                    null
+                }
             }
 
             if (loadResp == null) {
-                Log.w(TAG, "[${plugin.name}] load($itemTitle) başarısız")
+                Log.w(TAG, "[${plugin.name}] load($itemTitle) başarısız -> ${loadErr?.javaClass?.name}: ${loadErr?.message}", loadErr)
                 lastResult = DiagResult(
                     pluginName = plugin.name,
                     catalogStatus = catalogStatus,
@@ -192,7 +185,7 @@ object PlayDiagRunner {
                     episodeStatus = "-",
                     linkStatus = "-",
                     mediaStatus = "-",
-                    errorReason = "load() boş döndü veya hata verdi",
+                    errorReason = "load() hata: ${loadErr?.javaClass?.simpleName ?: "boş/zaman aşımı"}",
                 )
                 continue
             }
@@ -225,23 +218,34 @@ object PlayDiagRunner {
 
             if (streams.isEmpty()) {
                 Log.w(TAG, "[${plugin.name}] loadLinks link bulamadı")
-                lastResult = DiagResult(
-                    pluginName = plugin.name,
-                    catalogStatus = catalogStatus,
-                    loadStatus = loadStatus,
-                    episodeStatus = episodeStatus,
-                    linkStatus = "X (0 link)",
-                    mediaStatus = "-",
-                    errorReason = "Extractor link çıkaramadı",
-                )
+                if (lastResult == null || lastResult.linkStatus.startsWith("X")) {
+                    lastResult = DiagResult(
+                        pluginName = plugin.name,
+                        catalogStatus = catalogStatus,
+                        loadStatus = loadStatus,
+                        episodeStatus = episodeStatus,
+                        linkStatus = "X (0 link)",
+                        mediaStatus = "-",
+                        errorReason = "Extractor link çıkaramadı",
+                    )
+                }
                 continue
             }
 
             val firstStream = streams.first()
             val linkStatus = "OK (${streams.size} link, ${firstStream.resolution ?: "auto"}p)"
 
-            // 4. Doğrudan link medya testi (HEAD / 64KB GET)
-            val (mediaOk, probeMsg) = probeMedia(container.httpClient, firstStream)
+            // 4. Doğrudan link medya testi (HEAD / 64KB GET) - streams içindeki linklerden çalışan var mı dene
+            var mediaOk = false
+            var probeMsg = ""
+            for (st in streams.take(3)) {
+                val (ok, msg) = probeMedia(container.httpClient, st)
+                probeMsg = msg
+                if (ok) {
+                    mediaOk = true
+                    break
+                }
+            }
             val mediaStatus = if (mediaOk) "OK ($probeMsg)" else "X ($probeMsg)"
             val errorReason = if (mediaOk) "-" else "Medya doğrulanamadı: $probeMsg"
 
@@ -260,7 +264,9 @@ object PlayDiagRunner {
             if (mediaOk) {
                 return result
             } else {
-                lastResult = result
+                if (lastResult == null || lastResult.linkStatus.startsWith("X")) {
+                    lastResult = result
+                }
             }
         }
 
@@ -338,6 +344,7 @@ object PlayDiagRunner {
                 }
             }
             getResp.close()
+            Log.d(TAG, "probeMedia [${stream.source.addonName}]: url=${stream.url} code=$code bytes=$bytesRead headers=${stream.headers}")
             if (code in 200..299 || code == 206) {
                 val kb = bytesRead / 1024
                 return@withContext true to "GET $code (${kb}KB)"
@@ -346,6 +353,7 @@ object PlayDiagRunner {
             }
         } catch (e: Exception) {
             val msg = e.message ?: e.javaClass.simpleName
+            Log.w(TAG, "probeMedia [${stream.source.addonName}] GET istisna: $msg (url=${stream.url})")
             return@withContext false to msg.take(40)
         }
     }

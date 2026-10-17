@@ -92,6 +92,22 @@ class AppContainer(context: Context) {
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
+        .addInterceptor { chain ->
+            val req = chain.request()
+            // Güvenlik denetimi
+            com.kaan.play.data.cloudstream.PlayNetworkGuard.checkUrl(req.url.toString())
+            // sn.hotlinger.com -> four.pichive.online rewrite
+            if (req.url.host.contains("sn.hotlinger.com")) {
+                val newUrl = req.url.newBuilder().host("four.pichive.online").build()
+                val newReq = req.newBuilder()
+                    .url(newUrl)
+                    .header("Referer", "https://selcukflix.app/")
+                    .build()
+                chain.proceed(newReq)
+            } else {
+                chain.proceed(req)
+            }
+        }
         .build()
 
     init {
@@ -101,6 +117,26 @@ class AppContainer(context: Context) {
         com.lagradost.cloudstream3.AcraApplication.context = appContext
         com.lagradost.cloudstream3.CloudStreamApp.context = appContext
         com.lagradost.cloudstream3.CommonActivity.context = appContext
+
+        // Pichive / Hotlinger / DPlayer çıkarıcılarını ekle (önceden tanımlı eski versiyonları temizleyip en başa ekle)
+        val extApis = com.lagradost.cloudstream3.utils.extractorApis
+        extApis.removeAll {
+            it.mainUrl.contains("hotlinger", ignoreCase = true) ||
+            it.mainUrl.contains("pichive", ignoreCase = true) ||
+            it.mainUrl.contains("dplayer", ignoreCase = true)
+        }
+        val pichiveExts = listOf(
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Pichive", "https://four.pichive.online"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Pichive", "https://pichive.online"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Hotlinger", "https://sn.hotlinger.com"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Hotlinger", "https://hotlinger.com"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://four.dplayer82.site"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://sn.dplayer82.site"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://dplayer82.site"),
+        )
+        for (ext in pichiveExts) {
+            extApis.add(0, ext)
+        }
     }
 
 

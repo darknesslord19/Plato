@@ -83,8 +83,15 @@ class PlaybackController(
 
     // Yerel torrent sunucusu üst bilgi ve ilk parçalar gelene dek yanıtı bekletir: okuma zaman aşımı uzun tutulur.
     private val torrentSource = OkHttpDataSource.Factory(client.newBuilder().readTimeout(TORRENT_READ_TIMEOUT_S, TimeUnit.SECONDS).build())
-    private val onlineSource = ResolvingDataSource.Factory(OkHttpDataSource.Factory(client)) { spec ->
-        if (headers.isEmpty()) spec else spec.withAdditionalHeaders(headers)
+        .setUserAgent(DEFAULT_USER_AGENT)
+    private val onlineSource = ResolvingDataSource.Factory(
+        OkHttpDataSource.Factory(client).setUserAgent(DEFAULT_USER_AGENT)
+    ) { spec ->
+        val merged = buildMap {
+            put("User-Agent", headers["User-Agent"] ?: DEFAULT_USER_AGENT)
+            putAll(headers)
+        }
+        spec.withAdditionalHeaders(merged)
     }
 
     val player: ExoPlayer = ExoPlayer.Builder(context)
@@ -295,6 +302,7 @@ class PlaybackController(
     fun release() = player.release()
 
     companion object {
+        const val DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         private const val TORRENT_READ_TIMEOUT_S = 120L
 
         /** Kaynağın başlıklarıyla gönderilen istek 4xx aldıysa başlıksız bir kez daha denenir (başlıksız istek yeniden denenmez). */

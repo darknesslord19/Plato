@@ -105,6 +105,25 @@ class CsRuntime {
         source: StreamSource,
         timeoutMs: Long,
     ): List<PlayableStream> {
+        val extApis = com.lagradost.cloudstream3.utils.extractorApis
+        extApis.removeAll {
+            it.mainUrl.contains("hotlinger", ignoreCase = true) ||
+            it.mainUrl.contains("pichive", ignoreCase = true) ||
+            it.mainUrl.contains("dplayer", ignoreCase = true)
+        }
+        val pichiveExts = listOf(
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Pichive", "https://four.pichive.online"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Pichive", "https://pichive.online"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Hotlinger", "https://sn.hotlinger.com"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Hotlinger", "https://hotlinger.com"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://four.dplayer82.site"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://sn.dplayer82.site"),
+            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://dplayer82.site"),
+        )
+        for (ext in pichiveExts) {
+            extApis.add(0, ext)
+        }
+
         val links = mutableListOf<ExtractorLink>()
         val subs = mutableListOf<SubtitleFile>()
         withTimeout(timeoutMs) {
@@ -129,6 +148,7 @@ class CsRuntime {
                 resolution = qualityToResolution(link.quality),
                 sizeBytes = null,
                 headers = buildMap {
+                    put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                     if (link.referer.isNotEmpty()) put("Referer", link.referer)
                     putAll(link.headers)
                 },
@@ -249,7 +269,7 @@ class CsRuntime {
     suspend fun mainPage(
         api: MainAPI,
         page: Int = 1,
-        timeoutMs: Long = 27_000L,
+        timeoutMs: Long = 6_000L,
     ): List<CsCatalogSection> {
         val sectionsResult = runCatching { api.mainPage }
         val sections = sectionsResult.getOrNull()
@@ -269,8 +289,13 @@ class CsRuntime {
             for (section in sections) {
                 // Eklenti mainUrl'den farklı (güncel) bir alan adına gidebilir: engeli o istekten öğren.
                 val cf = com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver
-                if (cf.wasBlocked(api.mainUrl) || cf.unresolvedSince(mainPageStarted)?.let { cf.wasBlocked(it.first) } == true) {
+                if (cf.wasBlocked(api.mainUrl) || cf.unresolvedSince(mainPageStarted) != null) {
                     Log.w(TAG, "[DEBUG_MAINPAGE] ${api.name}: Bot koruması aşılamadığı için kalan bölümler atlanıyor.")
+                    break
+                }
+                // DiziPal gibi 20+ bölüm tanımlayan sitelerde 10+ satır alındıysa ve süre uzadıysa sonlandır
+                if (results.size >= 10 && System.currentTimeMillis() - mainPageStarted > 12_000L) {
+                    Log.d(TAG, "[DEBUG_MAINPAGE] ${api.name}: Yeterli bölüm (${results.size}) toplandı, kalan bölümler atlanıyor.")
                     break
                 }
                 val started = System.currentTimeMillis()

@@ -100,6 +100,10 @@ android {
     }
 }
 
+configurations.all {
+    exclude(group = "org.jsoup", module = "jsoup")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -117,7 +121,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
-    implementation(libs.jsoup)
+    // Android Harmony DOM uyumlu yamalanmış Jsoup (W3CDom NPE düzeltmesi)
+    implementation(files("libs/jsoup-1.23.2-patched.jar"))
     implementation(libs.quickjs.kt)
     // Faz 3 (CloudStream): gerçek eklentiler doğrudan Jackson bytecode'una derlenmiş durumda
     // (`com.fasterxml.jackson...`); kendi JSON kütüphanemiz (kotlinx.serialization) bunun yerini
