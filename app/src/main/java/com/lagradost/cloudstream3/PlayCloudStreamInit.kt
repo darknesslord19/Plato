@@ -8,5 +8,6 @@ import okhttp3.OkHttpClient
  * Play'in sağladığı OkHttpClient'ı CloudStream'in global `app` nesnesine aktarır.
  */
 fun initApp(client: OkHttpClient) {
-    app = Requests(baseClient = client)
+    app.baseClient = client
+    insecureApp.baseClient = client
 }

@@ -43,6 +43,13 @@ class MainActivity : AppCompatActivity() {
                 val ids = raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
                 container.appScope.launch { container.providers.setSelectedProviders(ids) }
             }
+            val runDiag = intent.getBooleanExtra("play_diag", false) || intent.getStringExtra("play_diag") == "true"
+            if (runDiag) {
+                val filter = intent.getStringExtra("diag_plugins")?.split(",")?.map { it.trim() }
+                container.appScope.launch {
+                    com.kaan.play.data.diag.PlayDiagRunner.runDiagnostics(this@MainActivity, container, filter)
+                }
+            }
         }
         // Açılışta tek seferlik okuma (milisaniyeler): kayıtlı tema ilk karede doğru çıksın, yanıp sönmesin.
         val initialTheme = runBlocking { settings.themeMode.first() }
@@ -90,6 +97,14 @@ class MainActivity : AppCompatActivity() {
                 val ids = raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
                 val container = (application as PlayApp).container
                 container.appScope.launch { container.providers.setSelectedProviders(ids) }
+            }
+            val runDiag = intent.getBooleanExtra("play_diag", false) || intent.getStringExtra("play_diag") == "true"
+            if (runDiag) {
+                val container = (application as PlayApp).container
+                val filter = intent.getStringExtra("diag_plugins")?.split(",")?.map { it.trim() }
+                container.appScope.launch {
+                    com.kaan.play.data.diag.PlayDiagRunner.runDiagnostics(this@MainActivity, container, filter)
+                }
             }
         }
     }

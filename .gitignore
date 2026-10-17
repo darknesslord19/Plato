@@ -39,5 +39,9 @@ tools/__pycache__/
 *.pb
 test_dizibox.py
 tools/*.txt
+tools/*.jar
 tools/com/
+tools/inspect_animecix.py
+*.xml
 ui.xml
+/oynatma-tanisi.md
