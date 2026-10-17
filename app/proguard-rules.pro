@@ -36,7 +36,13 @@
 -keep class org.jsoup.** { *; }
 -keep class okhttp3.** { *; }
 -keep class okio.** { *; }
--keepattributes KotlinMetadata
+# ── Play Provider & CloudStream modelleri ──────────────────────────────────────
+-keep class com.kaan.play.data.provider.** { *; }
+-keep interface com.kaan.play.data.provider.** { *; }
+-keep class com.kaan.play.data.cloudstream.** { *; }
+-keep class com.kaan.play.data.model.** { *; }
+-keep class com.kaan.play.data.stream.** { *; }
+-keep class com.kaan.play.data.db.** { *; }
 -dontwarn com.fasterxml.jackson.**
 -dontwarn java.beans.**
 

@@ -107,8 +107,12 @@ private data class ResumeAsk(val target: PlayTarget, val positionMs: Long, val d
 
 private fun addonsRoute(startAdding: Boolean) = "settings/addons?add=$startAdding"
 private fun detailRoute(type: MediaType, id: Int) = "detail/${type.tmdbPath}/$id"
-private fun providerDetailRoute(providerId: String, url: String) = "provider_detail/$providerId/${Uri.encode(url)}"
 private fun categoryRoute(row: HomeRow) = "home/category/${row.name}"
+private fun providerDetailRoute(providerId: String, url: String): String {
+    val b64 = android.util.Base64.encodeToString(url.toByteArray(Charsets.UTF_8), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
+    val safePid = providerId.replace(':', '_')
+    return "provider_detail/$safePid/$b64"
+}
 
 
 /**
@@ -451,8 +455,14 @@ fun PlayRoot() {
                     navArgument("encodedUrl") { type = NavType.StringType },
                 ),
             ) { entry ->
-                val providerId = entry.arguments?.getString("providerId").orEmpty()
-                val rawUrl = Uri.decode(entry.arguments?.getString("encodedUrl").orEmpty())
+                val safePid = entry.arguments?.getString("providerId").orEmpty()
+                val providerId = if (safePid.startsWith("cs_")) safePid.replaceFirst('_', ':') else safePid
+                val b64 = entry.arguments?.getString("encodedUrl").orEmpty()
+                val rawUrl = try {
+                    String(android.util.Base64.decode(b64, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP), Charsets.UTF_8)
+                } catch (_: Exception) {
+                    Uri.decode(b64)
+                }
                 ProviderDetailScreen(
                     providerId = providerId,
                     url = rawUrl,
