@@ -186,12 +186,34 @@ fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
     val csGroups by vm.csGroups.collectAsStateWithLifecycle()
     var toRemove by remember { mutableStateOf<Addon?>(null) }
 
-    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        ScreenHeader(title = stringResource(R.string.addons_installed), onBack = onBack)
+    val addonList = addons
+    val groupList = groups
+    val csGroupList = csGroups
 
-        val addonList = addons
-        val groupList = groups
-        val csGroupList = csGroups
+    val totalCount = (addonList?.size ?: 0) +
+        (groupList?.sumOf { it.plugins.size } ?: 0) +
+        (csGroupList?.sumOf { it.plugins.size } ?: 0)
+    val allEnabled = totalCount > 0 &&
+        (addonList?.all { it.enabled } != false) &&
+        (groupList?.all { g -> g.plugins.all { it.enabled } } != false) &&
+        (csGroupList?.all { g -> g.plugins.all { it.enabled } } != false)
+
+    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        ScreenHeader(
+            title = stringResource(R.string.addons_installed),
+            onBack = onBack,
+            action = if (totalCount > 0) {
+                {
+                    TextButton(onClick = { vm.setAllEnabled(!allEnabled) }) {
+                        Text(
+                            text = stringResource(if (allEnabled) R.string.addons_disable_all else R.string.addons_enable_all),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
+            } else null,
+        )
+
         when {
             addonList == null || groupList == null || csGroupList == null -> Unit // yükleniyor: boş mesaj yanıp sönmesin
             addonList.isEmpty() && groupList.isEmpty() && csGroupList.isEmpty() -> EmptyMessage(stringResource(R.string.addons_empty))
@@ -211,12 +233,28 @@ fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
                 }
                 groupList.forEach { group ->
                     item(key = "g-${group.repo.id}") {
-                        Text(
-                            text = group.repo.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
-                        )
+                        val groupAllEnabled = group.plugins.isNotEmpty() && group.plugins.all { it.enabled }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp, bottom = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = group.repo.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (group.plugins.size > 1) {
+                                TextButton(onClick = { vm.setRepoPluginsEnabled(group.repo.id, !groupAllEnabled) }) {
+                                    Text(
+                                        text = stringResource(if (groupAllEnabled) R.string.addons_disable_all else R.string.addons_enable_all),
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                }
+                            }
+                        }
                     }
                     items(group.plugins, key = { "p-${it.id}" }) { plugin ->
                         PluginRow(plugin = plugin, onToggle = { vm.setPluginEnabled(plugin, it) }, onOpen = { onOpenPlugin(plugin.id) })
@@ -225,12 +263,28 @@ fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
                 // CloudStream .cs3 eklentileri
                 csGroupList.forEach { group ->
                     item(key = "cs-${group.repo.id}") {
-                        Text(
-                            text = group.repo.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
-                        )
+                        val groupAllEnabled = group.plugins.isNotEmpty() && group.plugins.all { it.enabled }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp, bottom = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = group.repo.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (group.plugins.size > 1) {
+                                TextButton(onClick = { vm.setCsRepoPluginsEnabled(group.repo.id, !groupAllEnabled) }) {
+                                    Text(
+                                        text = stringResource(if (groupAllEnabled) R.string.addons_disable_all else R.string.addons_enable_all),
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                }
+                            }
+                        }
                     }
                     items(group.plugins, key = { "csp-${it.id}" }) { plugin ->
                         CsPluginRow(plugin = plugin, onToggle = { vm.setCsPluginEnabled(plugin, it) })

@@ -31,6 +31,9 @@ private class FakeDao : AddonDao {
     override suspend fun setEnabled(id: Long, enabled: Boolean) {
         rows.value = rows.value.map { if (it.id == id) it.copy(enabled = enabled) else it }
     }
+    override suspend fun setAllEnabledOfType(type: AddonType, enabled: Boolean) {
+        rows.value = rows.value.map { if (it.type == type) it.copy(enabled = enabled) else it }
+    }
     override suspend fun delete(id: Long) {
         rows.value = rows.value.filterNot { it.id == id }
     }

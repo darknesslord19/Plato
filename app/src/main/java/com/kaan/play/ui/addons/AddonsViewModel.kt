@@ -145,6 +145,22 @@ class InstalledAddonsViewModel(
         viewModelScope.launch { csRepos.setEnabled(plugin.id, enabled) }
     }
 
+    fun setRepoPluginsEnabled(repoId: Long, enabled: Boolean) {
+        viewModelScope.launch { pluginRepo.setRepoEnabled(repoId, enabled) }
+    }
+
+    fun setCsRepoPluginsEnabled(repoId: Long, enabled: Boolean) {
+        viewModelScope.launch { csRepos.setRepoEnabled(repoId, enabled) }
+    }
+
+    fun setAllEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            repo.setAllEnabled(enabled)
+            pluginRepo.setAllEnabled(enabled)
+            csRepos.setAllEnabled(enabled)
+        }
+    }
+
     fun remove(addon: Addon) {
         viewModelScope.launch { repo.remove(addon.id) }
     }

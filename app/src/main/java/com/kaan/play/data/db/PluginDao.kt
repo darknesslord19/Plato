@@ -67,6 +67,15 @@ interface PluginDao {
     @Query("UPDATE plugins SET enabled = :enabled WHERE id = :id")
     suspend fun setEnabled(id: Long, enabled: Boolean)
 
+    @Query("UPDATE plugins SET enabled = :enabled WHERE repoId = :repoId")
+    suspend fun setEnabledForRepo(repoId: Long, enabled: Boolean)
+
+    @Query("UPDATE plugins SET enabled = :enabled WHERE repoId IN (SELECT id FROM addons WHERE type = :type)")
+    suspend fun setAllEnabledOfType(type: AddonType, enabled: Boolean)
+
+    @Query("UPDATE plugins SET enabled = :enabled")
+    suspend fun setAllEnabled(enabled: Boolean)
+
     @Query("DELETE FROM plugins WHERE id = :id")
     suspend fun delete(id: Long)
 }

@@ -203,6 +203,8 @@ class PluginRepository(
     }
 
     suspend fun setPluginEnabled(id: Long, enabled: Boolean) = pluginDao.setEnabled(id, enabled)
+    suspend fun setRepoEnabled(repoId: Long, enabled: Boolean) = pluginDao.setEnabledForRepo(repoId, enabled)
+    suspend fun setAllEnabled(enabled: Boolean) = pluginDao.setAllEnabledOfType(AddonType.NUVIO_PLUGIN_REPO, enabled)
 
     /**
      * Açık JS kazıyıcılar (2. turda kaynak toplama bunları sorar). Yalnızca Nuvio depolarının satırları:

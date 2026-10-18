@@ -49,6 +49,9 @@ private class MemDb {
         override suspend fun setEnabled(id: Long, enabled: Boolean) {
             addonRows.value = addonRows.value.map { if (it.id == id) it.copy(enabled = enabled) else it }
         }
+        override suspend fun setAllEnabledOfType(type: AddonType, enabled: Boolean) {
+            addonRows.value = addonRows.value.map { if (it.type == type) it.copy(enabled = enabled) else it }
+        }
         override suspend fun delete(id: Long) {
             addonRows.value = addonRows.value.filterNot { it.id == id }
             pluginRows.value = pluginRows.value.filterNot { it.repoId == id } // ON DELETE CASCADE
@@ -95,6 +98,16 @@ private class MemDb {
         }
         override suspend fun setEnabled(id: Long, enabled: Boolean) {
             pluginRows.value = pluginRows.value.map { if (it.id == id) it.copy(enabled = enabled) else it }
+        }
+        override suspend fun setEnabledForRepo(repoId: Long, enabled: Boolean) {
+            pluginRows.value = pluginRows.value.map { if (it.repoId == repoId) it.copy(enabled = enabled) else it }
+        }
+        override suspend fun setAllEnabledOfType(type: AddonType, enabled: Boolean) {
+            val repoIds = addonRows.value.filter { it.type == type }.map { it.id }.toSet()
+            pluginRows.value = pluginRows.value.map { if (it.repoId in repoIds) it.copy(enabled = enabled) else it }
+        }
+        override suspend fun setAllEnabled(enabled: Boolean) {
+            pluginRows.value = pluginRows.value.map { it.copy(enabled = enabled) }
         }
         override suspend fun delete(id: Long) {
             pluginRows.value = pluginRows.value.filterNot { it.id == id }

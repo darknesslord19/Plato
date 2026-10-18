@@ -148,6 +148,8 @@ class CsRepository(
     // ---------------------------------------------------------------------------
 
     suspend fun setEnabled(pluginId: Long, enabled: Boolean) = pluginDao.setEnabled(pluginId, enabled)
+    suspend fun setRepoEnabled(repoId: Long, enabled: Boolean) = pluginDao.setEnabledForRepo(repoId, enabled)
+    suspend fun setAllEnabled(enabled: Boolean) = pluginDao.setAllEnabledOfType(AddonType.CLOUDSTREAM_REPO, enabled)
 
     // ---------------------------------------------------------------------------
     // Çalışma zamanı

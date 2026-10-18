@@ -16,9 +16,14 @@ import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.tv.rememberInitialFocus
 import androidx.compose.ui.focus.focusRequester
 
-/** Alt ekranların ortak başlığı: geri oku + başlık. */
+/** Alt ekranların ortak başlığı: geri oku + başlık + isteğe bağlı sağ eylem düğmesi. */
 @Composable
-fun ScreenHeader(title: String, onBack: () -> Unit, initialFocus: Boolean = true) {
+fun ScreenHeader(
+    title: String,
+    onBack: () -> Unit,
+    initialFocus: Boolean = true,
+    action: (@Composable () -> Unit)? = null,
+) {
     // Kumanda: odak geri okunda başlar (içeriği olmayan/hafızasız alt ekranlar); `initialFocus = false` ile kapatılır.
     val focus = rememberInitialFocus(enabled = initialFocus)
     Row(
@@ -29,5 +34,8 @@ fun ScreenHeader(title: String, onBack: () -> Unit, initialFocus: Boolean = true
             Icon(PlayIcons.Back, contentDescription = stringResource(R.string.common_back))
         }
         Text(text = title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        if (action != null) {
+            action()
+        }
     }
 }

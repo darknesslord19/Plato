@@ -77,6 +77,7 @@ class AddonRepository(
     }
 
     suspend fun setEnabled(id: Long, enabled: Boolean) = dao.setEnabled(id, enabled)
+    suspend fun setAllEnabled(enabled: Boolean) = dao.setAllEnabledOfType(AddonType.NUVIO_ADDON, enabled)
 
     suspend fun remove(id: Long) = dao.delete(id)
 
