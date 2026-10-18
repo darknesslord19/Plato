@@ -40,7 +40,7 @@ private enum class OpenDialog { Theme, Language }
 fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbout: () -> Unit) {
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
-    val addonCount by remember(container) { container.addons.addons.map { it.size } }
+    val addonCount by container.installedSourcesCount
         .collectAsStateWithLifecycle(initialValue = null)
     val theme by container.settings.themeMode.collectAsStateWithLifecycle(initialValue = ThemeMode.Dark)
     var language by remember { mutableStateOf(AppLanguage.choice()) }

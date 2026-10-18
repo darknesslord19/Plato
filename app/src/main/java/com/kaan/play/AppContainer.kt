@@ -412,6 +412,26 @@ class AppContainer(context: Context) {
     }
 
     /**
+     * Kurulu olan tüm eklenti / kazıyıcıların toplam sayısı (Stremio eklentileri + Nuvio kazıyıcıları + CloudStream eklentileri).
+     * Ayarlar ve Eklentiler ekranlarında "Yüklü eklentiler" yanında gösterilir.
+     */
+    val installedSourcesCount: Flow<Int> by lazy {
+        combine(
+            addons.addons,
+            plugins.repos,
+            plugins.plugins,
+            csRepos.repos,
+            csRepos.plugins,
+        ) { a, nRepos, nPlugins, csR, csP ->
+            val nRepoIds = nRepos.map { it.id }.toSet()
+            val csRepoIds = csR.map { it.id }.toSet()
+            val nuvioCount = nPlugins.count { it.repoId in nRepoIds }
+            val csCount = csP.count { it.repoId in csRepoIds }
+            a.size + nuvioCount + csCount
+        }
+    }
+
+    /**
      * Dışarıdan (https eklenti bağlantısı) gelen addon adresi. Etkinlik yazar,
      * [com.kaan.play.ui.addons.AddonsViewModel] alıp sıfırlar.
      */

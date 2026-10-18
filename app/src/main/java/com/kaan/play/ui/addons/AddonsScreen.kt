@@ -80,9 +80,9 @@ fun AddonsScreen(
     onOpenCsRepos: () -> Unit,
 ) {
     val vm = containerViewModel { AddonsViewModel(it.sourceInstaller, it.addons, it.pendingAddonUrl) }
-    val addons by vm.addons.collectAsStateWithLifecycle()
     val dialog by vm.dialog.collectAsStateWithLifecycle()
     val container = rememberContainer()
+    val installedCount by container.installedSourcesCount.collectAsStateWithLifecycle(initialValue = null)
     val scope = rememberCoroutineScope()
     val timeout by container.settings.sourceTimeoutSeconds
         .collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_TIMEOUT_SECONDS)
@@ -139,7 +139,7 @@ fun AddonsScreen(
             item {
                 SettingsRow(
                     title = stringResource(R.string.addons_installed),
-                    value = addons?.let { pluralStringResource(R.plurals.addons_count, it.size, it.size) }.orEmpty(),
+                    value = installedCount?.let { pluralStringResource(R.plurals.addons_count, it, it) }.orEmpty(),
                     modifier = Modifier.focusMemory(focus, "installed"),
                     onClick = onOpenInstalled,
                 )
