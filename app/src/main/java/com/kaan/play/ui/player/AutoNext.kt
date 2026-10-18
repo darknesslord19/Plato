@@ -172,6 +172,7 @@ class AutoNextController(
     /** Sonraki bölümü oynatmaya hazırlar (kaynakları bulur); hiçbiri yoksa null. */
     private val prepare: suspend (season: Int, episode: Int) -> NextPlayback?,
     private val onAdvance: (NextPlayback) -> Unit,
+    private val onNoNext: (() -> Unit)? = null,
 ) {
     var phase by mutableStateOf(AutoNextPhase.Hidden)
         private set
@@ -284,6 +285,51 @@ class AutoNextController(
     /** "Şimdi oynat" (geri sayımı beklemeden). */
     fun playNow() {
         if (phase == AutoNextPhase.Countdown) advance()
+    }
+
+    /**
+     * Kullanıcı oynatıcıdaki "Sonraki bölüm" düğmesine bastığında doğrudan sonraki bölüme geçer.
+     * Kart penceresini veya geri sayımı beklemez.
+     */
+    fun skipToNext() {
+        if (advancing || !isSeries) return
+        cancelled = false
+        scope.launch {
+            if (next == null && !lookupDone) {
+                lookup?.join()
+            }
+            if (next == null && !lookupDone) {
+                try {
+                    next = findNext()
+                    lookupDone = true
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    phase = AutoNextPhase.NoSource
+                    return@launch
+                }
+            }
+            val (s, e) = next ?: run {
+                onNoNext?.invoke()
+                return@launch
+            }
+            season = s
+            episode = e
+            phase = AutoNextPhase.Loading
+            advancing = true
+            val pending = prefetch()
+            advanceJob = scope.launch {
+                val result = pending.await()
+                if (cancelled) return@launch
+                if (result == null) {
+                    phase = AutoNextPhase.NoSource
+                    advancing = false
+                    prepared = null
+                } else {
+                    onAdvance(result)
+                }
+            }
+        }
     }
 
     /** "İptal": bu bölüm için kart bir daha çıkmaz, geçiş yapılmaz. */

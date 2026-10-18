@@ -164,6 +164,7 @@ class AutoNextControllerTest {
         val advanced = mutableListOf<NextPlayback>()
         var prepareCalls = 0
         var lookupCalls = 0
+        var noNextCalls = 0
         val controller: AutoNextController
         private var clock = 0L
 
@@ -179,6 +180,7 @@ class AutoNextControllerTest {
                 },
                 prepare = { _, _ -> prepareCalls++; prepared },
                 onAdvance = { advanced += it },
+                onNoNext = { noNextCalls++ },
             )
             controller.start()
             scope.testScheduler.runCurrent()
@@ -378,5 +380,48 @@ class AutoNextControllerTest {
         assertEquals(1, target.request.season)
         assertEquals(4, target.request.episode)
         assertNull(seriesTarget.request.refresh.takeIf { it })
+    }
+
+    @Test
+    fun skipToNextAdvancesImmediatelyWithoutWaitingForCardOrCountdown() = runTest {
+        val next = online(seriesTarget, stream(1, "https://a.example/s1e4.mp4"))
+        val rig = Rig(this, seriesTarget, prepared = next)
+        // Video henüz başladı (~20. dakikada, pencerenin çok uzağında)
+        rig.tick(remainingMs = 500_000)
+        assertEquals(AutoNextPhase.Hidden, rig.controller.phase)
+
+        // Kullanıcı "Sonraki bölüm" düğmesine bastı
+        rig.controller.skipToNext()
+        runCurrent()
+
+        assertEquals(1, rig.advanced.size)
+        assertEquals(next, rig.advanced.single())
+    }
+
+    @Test
+    fun skipToNextWorksEvenWhenAutoNextSettingIsDisabled() = runTest {
+        val next = online(seriesTarget, stream(1, "https://a.example/s1e4.mp4"))
+        val rig = Rig(this, seriesTarget, enabled = false, prepared = next)
+        // Ayar kapalı, otomatik hiçbir şey olmaz
+        rig.tick(remainingMs = 10_000)
+        assertEquals(AutoNextPhase.Hidden, rig.controller.phase)
+        assertEquals(0, rig.lookupCalls)
+
+        // Manuel düğme yine de sonraki bölüme geçer
+        rig.controller.skipToNext()
+        runCurrent()
+
+        assertEquals(1, rig.advanced.size)
+        assertEquals(next, rig.advanced.single())
+    }
+
+    @Test
+    fun skipToNextInvokesOnNoNextWhenLastEpisode() = runTest {
+        val rig = Rig(this, seriesTarget, next = null)
+        rig.controller.skipToNext()
+        runCurrent()
+
+        assertEquals(1, rig.noNextCalls)
+        assertTrue(rig.advanced.isEmpty())
     }
 }

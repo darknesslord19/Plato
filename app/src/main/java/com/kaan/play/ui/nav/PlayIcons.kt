@@ -358,6 +358,16 @@ object PlayIcons {
         }
     }
 
+    /** Oynatıcı: sonraki bölüm (sağa ok). */
+    val NextEpisode: ImageVector by lazy {
+        icon("NextEpisode") {
+            line {
+                moveTo(5f, 12f); horizontalLineTo(18.5f)
+                moveTo(13.5f, 7f); lineTo(18.5f, 12f); lineTo(13.5f, 17f)
+            }
+        }
+    }
+
     /** Sağlayıcı seçici: iğneleme / sabitleme ikonu (çizgi stilinde). */
     val Pin: ImageVector by lazy {
         icon("Pin") {

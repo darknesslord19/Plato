@@ -130,6 +130,8 @@ fun PlayerScreen(
     autoNext: AutoNextController? = null,
     /** "İptal" ya da kart açıkken Geri: kart kapanır; video bitmişse etkinlik de kapanır. */
     onAutoNextCancel: () -> Unit = {},
+    /** Dizide sonraki bölüm düğmesine basıldığında çağrılır; null: sonraki bölüm düğmesi yok (film). */
+    onNextEpisode: (() -> Unit)? = null,
     /** Kaynak seçimi (çevrimiçi); null: indirilmiş kopya. */
     coordinator: SourceCoordinator? = null,
     /** İndirilmiş kopyanın kaynak bilgisi (üst çubuk için). */
@@ -455,6 +457,12 @@ fun PlayerScreen(
                 if (canSync) add(BarAction(PlayIcons.SubtitleSync, stringResource(R.string.player_btn_sync)) { showSync = true })
                 add(BarAction(PlayIcons.SwitchSource, stringResource(R.string.player_btn_source), ::openPanel))
                 add(BarAction(PlayIcons.Tracks, stringResource(R.string.player_btn_tracks)) { showTracks = true; bump() })
+                if (onNextEpisode != null) {
+                    add(BarAction(PlayIcons.NextEpisode, stringResource(R.string.player_btn_next_episode)) {
+                        onNextEpisode()
+                        bump()
+                    })
+                }
             }
             Controls(
                 infoLine = infoLine,

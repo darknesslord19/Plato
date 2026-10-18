@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.getValue
@@ -19,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
 import com.kaan.play.PlayApp
+import com.kaan.play.R
 import com.kaan.play.data.db.DownloadStatus
 import com.kaan.play.data.download.DownloadedSubtitleLoader
 import com.kaan.play.data.library.WatchRules
@@ -26,6 +28,7 @@ import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.stream.DeviceCodecs
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.TorrentLinks
+import com.kaan.play.data.stream.ranked
 import com.kaan.play.data.subtitle.SubtitleDiag
 import com.kaan.play.data.subtitle.SubtitleItem
 import com.kaan.play.data.subtitle.SubtitleKind
@@ -34,11 +37,15 @@ import com.kaan.play.data.subtitle.SubtitleLoader
 import com.kaan.play.data.subtitle.SubtitleProvider
 import com.kaan.play.data.subtitle.TrackLoader
 import com.kaan.play.ui.theme.PlayTheme
+import com.lagradost.cloudstream3.AnimeLoadResponse
+import com.lagradost.cloudstream3.TvSeriesLoadResponse
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 /**
  * Tam ekran yatay oynatıcı. Ekran açık kalır. Konum her 10 sn'de bir, duraklatınca, kaynak değişince,
@@ -71,6 +78,9 @@ class PlayerActivity : AppCompatActivity() {
     /** Sonraki bölüme geçiliyor: bu bölüm "izlendi" yazılır, oynatıcı hataları (kapanan torrent vb.) gösterilmez. */
     private var leaving = false
     private var finishedForAdvance = false
+
+    /** CloudStream dizilerinde sıradaki bölümün dataUrl adresi. */
+    private var nextCsDataUrl: String? = null
 
     /** Dikey kaydırmayla ses/parlaklık; dokunmatik olmayan cihazlarda (TV/kumanda) null. */
     private var levels: DeviceLevels? = null
@@ -121,6 +131,9 @@ class PlayerActivity : AppCompatActivity() {
             findNext = ::findNextEpisode,
             prepare = ::prepareNext,
             onAdvance = ::advanceTo,
+            onNoNext = {
+                Toast.makeText(this@PlayerActivity, R.string.player_no_next_episode, Toast.LENGTH_SHORT).show()
+            },
         )
         autoNext.start()
         subtitles = SubtitleController(
@@ -218,6 +231,7 @@ class PlayerActivity : AppCompatActivity() {
 
         setContent {
             PlayTheme(darkTheme = true) {
+                val isSeries = session.target.request.type == MediaType.Tv
                 PlayerScreen(
                     controller = controller,
                     subtitles = subtitles,
@@ -227,6 +241,7 @@ class PlayerActivity : AppCompatActivity() {
                     levels = levels,
                     autoNext = autoNext,
                     onAutoNextCancel = ::cancelAutoNext,
+                    onNextEpisode = if (isSeries) ::onNextEpisodeClicked else null,
                     coordinator = coordinator,
                     offlineStream = if (offline != null) session.stream else null,
                     embeddedDub = embeddedDub,
@@ -347,6 +362,65 @@ class PlayerActivity : AppCompatActivity() {
 
     private val appContainer get() = (application as PlayApp).container
 
+    private fun onNextEpisodeClicked() {
+        if (leaving) return
+        autoNext.skipToNext()
+    }
+
+    /**
+     * CloudStream eklentisiyle oynatılan dizide sıradaki (sezon, bölüm, dataUrl).
+     */
+    private suspend fun findNextCloudStreamEpisode(): Triple<Int, Int, String>? = withContext(Dispatchers.IO) {
+        val r = session.target.request
+        val pluginIdStr = r.pluginId ?: return@withContext null
+        val repoId = pluginIdStr.removePrefix("cs:").removePrefix("cs_").toLongOrNull()
+        val plugin = appContainer.csRepos.enabledPlugins().firstOrNull {
+            it.id == repoId || "cs:${it.id}" == pluginIdStr || it.pluginId == pluginIdStr
+        } ?: return@withContext null
+        val apis = appContainer.csRepos.loadApis(plugin.id)
+        val api = apis.firstOrNull() ?: return@withContext null
+        val contentUrl = r.contentUrl ?: return@withContext null
+        val loadResp = try {
+            api.load(contentUrl)
+        } catch (_: Throwable) {
+            null
+        } ?: return@withContext null
+
+        val csEpisodes: List<com.lagradost.cloudstream3.Episode> = when (loadResp) {
+            is TvSeriesLoadResponse -> loadResp.episodes
+            is AnimeLoadResponse -> loadResp.episodes.values.flatten()
+            else -> emptyList()
+        }
+        if (csEpisodes.isEmpty()) return@withContext null
+
+        val season = r.season ?: 1
+        val episode = r.episode ?: 1
+
+        var currIdx = if (!r.dataUrl.isNullOrBlank()) {
+            csEpisodes.indexOfFirst { it.data == r.dataUrl }
+        } else -1
+
+        if (currIdx == -1) {
+            currIdx = csEpisodes.indexOfFirst {
+                (it.season ?: 1) == season && (it.episode ?: (csEpisodes.indexOf(it) + 1)) == episode
+            }
+        }
+
+        val nextEp = if (currIdx != -1 && currIdx + 1 < csEpisodes.size) {
+            csEpisodes[currIdx + 1]
+        } else {
+            csEpisodes.filter {
+                val s = it.season ?: 1
+                val e = it.episode ?: 0
+                s > season || (s == season && e > episode)
+            }.minWithOrNull(compareBy({ it.season ?: 1 }, { it.episode ?: 0 }))
+        } ?: return@withContext null
+
+        val nextSeason = nextEp.season ?: season
+        val nextEpisode = nextEp.episode ?: (episode + 1)
+        Triple(nextSeason, nextEpisode, nextEp.data)
+    }
+
     /**
      * Bu bölümden sonraki (sezon, bölüm). Çevrimiçi: TMDB bölüm listesinden (aynı sezonun sonraki bölümü, bitince sonraki
      * sezonun ilki; yayımlanmamış/yok = son bölüm, null). İndirilmiş kopya: internet olmadığı için yalnızca indirilmiş bölümlerden.
@@ -355,6 +429,13 @@ class PlayerActivity : AppCompatActivity() {
         val r = session.target.request
         val season = r.season ?: return null
         val episode = r.episode ?: return null
+        if (r.pluginId != null && !r.contentUrl.isNullOrBlank()) {
+            val csNext = findNextCloudStreamEpisode()
+            if (csNext != null) {
+                nextCsDataUrl = csNext.third
+                return csNext.first to csNext.second
+            }
+        }
         if (session.offline == null) return appContainer.nextEpisodes.next(r.tmdbId, season, episode)
         return appContainer.downloads.rows.first()
             .filter {
@@ -370,13 +451,22 @@ class PlayerActivity : AppCompatActivity() {
      * ([AutoNextRules.order]). Hiç kaynak yoksa null (kart "Başka kaynak seç" der).
      */
     private suspend fun prepareNext(season: Int, episode: Int): NextPlayback? {
-        val request = session.target.request.copy(season = season, episode = episode, refresh = false)
+        val dataUrl = if (session.target.request.pluginId != null) {
+            nextCsDataUrl ?: findNextCloudStreamEpisode()?.also { nextCsDataUrl = it.third }?.third ?: session.target.request.dataUrl
+        } else session.target.request.dataUrl
+        val request = session.target.request.copy(
+            season = season,
+            episode = episode,
+            dataUrl = dataUrl,
+            refresh = false,
+        )
         val target = session.target.copy(request = request)
         appContainer.downloads.completedFor(request)?.let { return NextPlayback.Offline(target, it) }
         if (session.offline != null) return null
-        val playing = currentStream ?: return null
-        val found = AutoNextRules.collect(appContainer.streams.streams(request), playing.source.addonId)
-        val ordered = AutoNextRules.order(found, playing)
+        val playing = currentStream
+        val preferredAddonId = playing?.source?.addonId
+        val found = AutoNextRules.collect(appContainer.streams.streams(request), preferredAddonId)
+        val ordered = if (playing != null) AutoNextRules.order(found, playing) else found.ranked().take(AutoNextRules.MAX_CANDIDATES)
         return if (ordered.isEmpty()) null else NextPlayback.Online(target, ordered)
     }
 

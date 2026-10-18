@@ -348,6 +348,8 @@
     <string name="player_btn_sync">Altyazı senkronu</string>
     <string name="player_btn_source">Kaynak</string>
     <string name="player_btn_tracks">Parçalar</string>
+    <string name="player_btn_next_episode">Sonraki bölüm</string>
+    <string name="player_no_next_episode">Sonraki bölüm bulunamadı</string>
     <string name="resize_fit">Sığdır</string>
     <string name="resize_fill">Doldur (kırp)</string>
     <string name="resize_stretch">Uzat</string>

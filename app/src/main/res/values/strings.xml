@@ -366,6 +366,8 @@
     <string name="player_btn_sync">Subtitle sync</string>
     <string name="player_btn_source">Source</string>
     <string name="player_btn_tracks">Tracks</string>
+    <string name="player_btn_next_episode">Next episode</string>
+    <string name="player_no_next_episode">No next episode found</string>
     <string name="resize_fit">Fit</string>
     <string name="resize_fill">Fill (crop)</string>
     <string name="resize_stretch">Stretch</string>
