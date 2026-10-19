@@ -89,7 +89,7 @@ Kullanici telefonunda deneyecekse (ya da is bir test surumuyle bittiyse) debug A
 ```
 $d=[Environment]::GetFolderPath("Desktop"); Get-ChildItem app\build\outputs\apk\debug -Filter *.apk | Copy-Item -Destination $d -Force
 ```
-Raporda telefon icin hangi dosyanin kullanilacagini yaz (cogu telefon `arm64-v8a`; LDPlayer `x86_64`).
+Kullanicinin karari (2026-10-19): Play TEK APK'dir; telefon, tablet ve TV kutusu ayni dosyayi kullanir. Tek APK'ya gecis yapildiysa masaustune yalnizca o tek dosyayi koy. Gecis henuz yapilmadiysa (splits.abi hala aciksa) yalnizca `arm64-v8a` APK'sini kopyala ve raporda bunu belirt; `x86_64` sadece LDPlayer icindir, kullaniciya verilmez.
 
 ## 8. Belgeler
 
