@@ -31,7 +31,7 @@ Kullanici Turkce konusur; raporlari Turkce, kisa ve sade yaz. Kullaniciya soru s
 
 - Arayuzdeki her metin string resource; `values/strings.xml` (EN) ve `values-tr/strings.xml` (TR) **ikisine birden** eklenir. `StringResourcesTest` gecmeli.
 - Ayarlar'a yeni ana kalem eklenmez (en cok 5 kalem). Yeni ayar ilgili alt ekrana girer.
-- Tek vurgu rengi turkuaz `#2DD4BF`, koyu zemin `#0E1116`; yeni renk yok.
+- Renkler ve sekiller yalniz ortak temadan (`ui/theme`, `MaterialTheme.colorScheme` / `shapes` / `typography`) ve `ui/components`'ten gelir; ekran icine `Color(0x...)`, sabit kose ya da yazi boyutu gomulmez. Guncel renk kimligi CLAUDE.md "Gorunum kimligi" bolumundedir (2026-10-19: elektrik camgobegi vurgu); yeni vurgu rengi eklenmez.
 - Her tiklanabilir oge D-pad ile odaklanabilir (`ui/components/PlayButtons.kt`, `Modifier.focusRing`, `rememberFocusMemory`). Yalniz dokunmaya bagli islem olmaz.
 - Agir isler `Dispatchers.IO`; ana ekran donmaz. Hata yutulmaz ama uygulama cokmez, kullaniciya kisa mesaj gosterilir, siyah/bos ekran birakilmaz.
 - Guvenlik: `PlayNetworkGuard` eklenti agini denetler (yerel/ozel adres engeli). Bu engeli genisletme; bir eklenti gerektiriyorsa yalnizca o ihtiyac icin dar bir istisna yaz ve testle.
