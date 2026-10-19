@@ -45,33 +45,47 @@ Hepsi gecmeden "bitti" deme:
 1. `.\gradlew testDebugUnitTest` - hepsi gecmeli. Yeni mantik icin birim test ekle.
 2. `.\gradlew assembleDebug` - derleme hatasi kalmamali.
 3. Kod R8/proguard, CloudStream ya da kutuphane tarafini etkilediyse ayrica `.\gradlew assembleRelease`.
-4. LDPlayer'da gercek test (asagidaki bolum 5). Kullanici "test et" dediyse bu adim zorunludur ve en onemli adimdir.
+4. LDPlayer'da gercek test (bolum 5: varsayilan HIZLI, gerektiginde TAM). Kullanici "test et" dediyse bu adim zorunludur.
 
-## 5. LDPlayer'da ozellik ozellik test
+## 5. LDPlayer'da test (hizli / tam)
 
-Kullanici bu adimi cok onemser: istenen her ozellik **tek tek**, gercek uygulamada, ekran goruntusuyle denenir. Yalnizca loga ya da birim teste bakip "calisiyor" denmez.
+Kullanici gercek cihaz testini onemser ama gereksiz uzun surmesini istemez. Yalnizca loga ya da birim teste bakip "calisiyor" denmez; test suresi isin buyuklugune gore secilir.
 
-Komut sayisini azaltmak icin adimlari mumkun oldugunca `tools/devtest.ps1` icinde topla ve betigi calistir (her farkli komut kullaniciya onay penceresi actirabilir).
+### Zaman asimi ve takilma kurali (her zaman)
+- Her komut ve ag istegi zaman asimiyla calisir: `curl -m 20`, `Invoke-WebRequest -TimeoutSec 20`, adb icin PowerShell'de `Start-Process ... -Wait` yerine `$p = Start-Process -PassThru ...; if (-not $p.WaitForExit(180000)) { $p.Kill() }` gibi ust sinir.
+- Herhangi bir adim **3 dakikayi gecerse** bekleme: durdur, `adb kill-server`, `adb start-server`, `adb connect 127.0.0.1:5555`, `adb devices` ile cihazi dogrula ve adimi **bir kez** tekrar dene. Yine olmazsa o adimi atla, rapora "takildi: <adim>, neden" yaz ve isin geri kalanina devam et.
+- `adb devices` "offline" ya da bos ise kullaniciya LDPlayer'i yeniden baslatmasini soyle ve bekle (bu tek istisna).
+- Uzun suren derlemeleri (gradle) arka planda baslatip bitmesini bekle; derleme 15 dakikayi gecerse Gradle daemon'unu durdur (`.\gradlew --stop`) ve bir kez yeniden dene.
 
-Kurulum:
+### Kurulum
 ```
 adb connect 127.0.0.1:5555
 .\gradlew installDebug
 adb shell am force-stop com.kaan.play
 adb shell am start -n com.kaan.play/.MainActivity
 ```
-Kurulumdan sonra `adb shell dumpsys package com.kaan.play | findstr lastUpdateTime` ile yeni surumun kuruldugunu dogrula.
+Komut sayisini azaltmak icin adimlari `tools/devtest.ps1` icinde topla.
 
-Test yontemi:
-- Once test edilecek ozelliklerin listesini cikar (kullanicinin istegi + bu iste degisen her ekran).
-- Her ozellik icin: ekrani ac, `adb exec-out screencap -p > ekran_N.png` al ve **goruntuyu kendin incele** (yazi tasiyor mu, ust uste binme var mi, bos/siyah ekran var mi, beklenen veri geldi mi).
-- Dokunma: `adb shell input tap X Y`; yazi: `adb shell input text "..."`; kumanda: `adb shell input keyevent KEYCODE_DPAD_UP|DOWN|LEFT|RIGHT|CENTER|BACK`. Koordinatlari ekran goruntusunden bul.
-- Kumanda: degisen her ekranda D-pad ile odak gidiyor mu, turkuaz odak halkasi gorunuyor mu, Geri dogru calisiyor mu.
-- Dil ve yazi boyutu: degisen ekranlari Ingilizce (`adb shell cmd locale set-app-locales com.kaan.play --locales en`) ve buyuk yaziyla (`adb shell settings put system font_scale 1.3`) da ac; sonunda `--locales tr` ve `font_scale 1.0`'a geri al.
-- Kalicilik gerekiyorsa uygulamayi `force-stop` edip yeniden ac ve tekrar bak.
-- Cokme: `adb logcat -d -s AndroidRuntime:E` bos olmali. Ilgili etiketler: `PlayCs` (CloudStream), `PlayCatalog`, `PlaySubs`, `PlayTorrent`.
-- Hata bulursan duzelt, yeniden kur, ayni ozelligi tekrar test et.
+### HIZLI TEST (varsayilan)
+Normal islerde (mantik/veri degisikligi, hata duzeltme, tek ekranda kucuk degisiklik):
+- Yalniz **bu iste degisen** ekranlari/akislari ac, her biri icin bir ekran goruntusu al (`adb exec-out screencap -p > ekran_N.png`) ve goruntuyu **kendin incele** (bos/siyah ekran, tasma, beklenen veri).
+- Istenen ozelligi bir kez bastan sona calistir.
+- `adb logcat -d -s AndroidRuntime:E` bos olmali.
+- Hedef sure: 10 dakikanin altinda.
+
+### TAM TEST (yalniz su durumlarda)
+(a) Arayuz metni, duzen, tema ya da yeni ekran degistiyse, (b) kullanici "tam test et" dediyse, (c) surum/yayin oncesi. Hizli teste ek olarak:
+- Kumanda: degisen ekranlarda `adb shell input keyevent KEYCODE_DPAD_UP|DOWN|LEFT|RIGHT|CENTER|BACK` ile odak, odak halkasi, Geri.
+- Dil ve yazi: Ingilizce (`adb shell cmd locale set-app-locales com.kaan.play --locales en`) ve buyuk yazi (`adb shell settings put system font_scale 1.3`); sonunda `--locales tr` ve `font_scale 1.0`'a geri al.
+- Kalicilik gerekiyorsa `force-stop` + yeniden ac.
+- Tema degisikliginde yalniz degisen ekranlari koyu ve acik temada ac; butun uygulamayi bastan dolasma.
+
+### Ortak
+- Dokunma: `adb shell input tap X Y`; yazi: `adb shell input text "..."`. Koordinatlari ekran goruntusunden bul.
+- Ilgili log etiketleri: `PlayCs` (CloudStream), `PlayCatalog`, `PlaySubs`, `PlayTorrent`.
+- Hata bulursan duzelt, yeniden kur, yalniz o ozelligi tekrar test et.
 - Hazir kisayollar: `--es select_provider cs:<id>` (ana sayfada eklenti secer), `--ez play_diag true` (CloudStream oynatma tanisi).
+- Raporda hangi test modunu (HIZLI/TAM) uyguladigini yaz.
 
 ## 6. CloudStream eklenti sorunlari
 
