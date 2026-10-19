@@ -86,7 +86,16 @@ fun SearchScreen(
                 }
             },
             singleLine = true,
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                cursorColor = MaterialTheme.colorScheme.primary,
+                focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+                unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
             // Kumanda/klavye ile odaklanınca klavye kendiliğinden açılmaz; Tamam/dokunma açar. Ara: sonucu gösterir, klavyeyi kapatır.
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search, showKeyboardOnFocus = false),
             keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),

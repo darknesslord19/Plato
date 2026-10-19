@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import com.kaan.play.data.plugin.SourceType
 import com.kaan.play.ui.tv.focusRing
+import com.kaan.play.ui.theme.PlayColors
 import androidx.compose.material3.Text
 import com.kaan.play.ui.components.TextButton
 import androidx.compose.runtime.Composable
@@ -148,37 +149,7 @@ fun AddonsScreen(
     val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                onClick = onBack,
-                shape = CircleShape,
-                color = Color(0xFF0F1E2E),
-                border = BorderStroke(1.dp, Color(0xFF1E3A5F).copy(alpha = 0.6f)),
-                modifier = Modifier
-                    .size(40.dp)
-                    .focusRing(CircleShape),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = PlayIcons.Back,
-                        contentDescription = stringResource(R.string.common_back),
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = stringResource(R.string.addons_title),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = Color.White,
-            )
-        }
+        ScreenHeader(title = stringResource(R.string.addons_title), onBack = onBack)
 
         // Satırlar ve web siteleri listesi birlikte kayar (büyük yazı boyutunda ya da çok siteyle taşmasın).
         LazyColumn(
@@ -187,70 +158,70 @@ fun AddonsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                AddonCardRow(
+                com.kaan.play.ui.components.PlayCardRow(
                     title = stringResource(R.string.addons_add),
                     icon = PlayIcons.AddCircle,
-                    iconTint = Color(0xFF00E5FF),
+                    iconTint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.focusMemory(focus, "add", isDefault = true),
                     onClick = { vm.openAdd() },
                 )
             }
             item {
-                AddonCardRow(
+                com.kaan.play.ui.components.PlayCardRow(
                     title = stringResource(R.string.addons_repos),
                     icon = PlayIcons.Database,
-                    iconTint = Color(0xFF00E5FF),
+                    iconTint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.focusMemory(focus, "repos"),
                     onClick = onOpenRepos,
                 )
             }
             item {
                 val badgeText = installedCount?.let { pluralStringResource(R.plurals.addons_count, it, it) }
-                AddonCardRow(
+                com.kaan.play.ui.components.PlayCardRow(
                     title = stringResource(R.string.addons_installed),
                     badge = badgeText,
                     icon = PlayIcons.Extension,
-                    iconTint = Color(0xFF00E5FF),
+                    iconTint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.focusMemory(focus, "installed"),
                     onClick = onOpenInstalled,
                 )
             }
             item {
-                AddonCardRow(
+                com.kaan.play.ui.components.PlayCardRow(
                     title = stringResource(R.string.cs_repos_title),
                     subtitle = stringResource(R.string.cs_repos_subtitle),
                     icon = PlayIcons.Cloud,
-                    iconTint = Color(0xFF38BDF8),
+                    iconTint = PlayColors.CloudStreamBlue,
                     modifier = Modifier.focusMemory(focus, "csrepos"),
                     onClick = onOpenCsRepos,
                 )
             }
             item {
-                AddonCardRow(
+                com.kaan.play.ui.components.PlayCardRow(
                     title = stringResource(R.string.nuvio_repos_title),
                     subtitle = stringResource(R.string.nuvio_repos_subtitle),
                     icon = PlayIcons.NuvioLogo,
-                    iconTint = Color(0xFFA855F7),
+                    iconTint = PlayColors.NuvioPurple,
                     modifier = Modifier.focusMemory(focus, "nuviorepos"),
                     onClick = onOpenNuvioRepos,
                 )
             }
             item {
-                AddonCardRow(
+                com.kaan.play.ui.components.PlayCardRow(
                     title = stringResource(R.string.nuvio_plugins_title),
                     subtitle = stringResource(R.string.nuvio_plugins_subtitle),
                     icon = PlayIcons.Code,
-                    iconTint = Color(0xFF00E5FF),
+                    iconTint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.focusMemory(focus, "nuvioplugins"),
                     onClick = onOpenNuvioPlugins,
                 )
             }
             item {
-                AddonCardRow(
+                com.kaan.play.ui.components.PlayCardRow(
                     title = stringResource(R.string.web_add),
                     subtitle = stringResource(R.string.web_add_subtitle),
                     icon = PlayIcons.Globe,
-                    iconTint = Color(0xFF00E5FF),
+                    iconTint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.focusMemory(focus, "web"),
                     onClick = { webVm.openAdd() },
                 )
@@ -262,22 +233,22 @@ fun AddonsScreen(
                         .padding(top = 2.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    AddonSplitCard(
+                    com.kaan.play.ui.components.PlaySplitCard(
                         title = stringResource(R.string.addons_timeout, timeout),
                         icon = PlayIcons.Clock,
-                        iconTint = Color(0xFF00E5FF),
+                        iconTint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .weight(1f)
                             .focusMemory(focus, "timeout"),
                         onClick = { showTimeout = true },
                     )
-                    AddonSplitCard(
+                    com.kaan.play.ui.components.PlaySplitCard(
                         title = stringResource(
                             R.string.torrent_server_row,
                             torrentServer?.substringAfter("://") ?: stringResource(R.string.torrent_server_none),
                         ),
                         icon = PlayIcons.Server,
-                        iconTint = Color(0xFF00E5FF),
+                        iconTint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .weight(1f)
                             .focusMemory(focus, "torrentserver"),
@@ -319,7 +290,9 @@ fun AddonsScreen(
     siteToRemove?.let { site ->
         AlertDialog(
             onDismissRequest = { siteToRemove = null },
-            title = { Text(stringResource(R.string.web_remove_title)) },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.web_remove_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(stringResource(R.string.web_remove_message, site.name)) },
             confirmButton = {
                 TextButton(onClick = { webVm.remove(site); siteToRemove = null }) {
@@ -397,31 +370,42 @@ internal fun AddonRow(addon: Addon, onToggle: (Boolean) -> Unit, onRemove: () ->
     val host = remember(addon.sourceUrl) { addon.sourceUrl.toHttpUrlOrNull()?.host ?: addon.sourceUrl }
     val toggleLabel = stringResource(R.string.addons_enabled_toggle, name)
 
-    Row(
-        modifier = Modifier.fillMaxWidth().height(64.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     ) {
-        Column(modifier = Modifier.weight(1f).alpha(if (addon.enabled) 1f else 0.5f)) {
-            Text(text = name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                text = stringResource(R.string.addons_row_info, addon.manifest.version ?: "–", host),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f).alpha(if (addon.enabled) 1f else 0.5f)) {
+                Text(text = name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = stringResource(R.string.addons_row_info, addon.manifest.version ?: "–", host),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Switch(
+                checked = addon.enabled,
+                onCheckedChange = onToggle,
+                colors = androidx.compose.material3.SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                ),
+                modifier = Modifier.focusRing(CircleShape).semantics { contentDescription = toggleLabel },
             )
-        }
-        Switch(
-            checked = addon.enabled,
-            onCheckedChange = onToggle,
-            modifier = Modifier.focusRing(CircleShape).semantics { contentDescription = toggleLabel },
-        )
-        IconButton(onClick = onRemove) {
-            Icon(
-                PlayIcons.Trash,
-                contentDescription = stringResource(R.string.addons_remove),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            IconButton(onClick = onRemove) {
+                Icon(
+                    PlayIcons.Trash,
+                    contentDescription = stringResource(R.string.addons_remove),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -436,13 +420,16 @@ private fun TorrentServerDialog(current: String?, onSave: (String) -> Unit, onDi
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.torrent_server_title)) },
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.torrent_server_title), style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.torrent_server_message), style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(
                     value = field.value,
                     onValueChange = field.onValueChange,
+                    shape = RoundedCornerShape(14.dp),
                     label = { Text(stringResource(R.string.torrent_server_field)) },
                     placeholder = { Text(stringResource(R.string.torrent_server_hint)) },
                     singleLine = true,
@@ -470,6 +457,8 @@ private fun AddChoiceDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -495,21 +484,21 @@ private fun AddChoiceDialog(
                     title = stringResource(R.string.addons_choice_cs_title),
                     subtitle = stringResource(R.string.addons_choice_cs_subtitle),
                     icon = PlayIcons.Cloud,
-                    accentColor = Color(0xFF38BDF8),
+                    accentColor = PlayColors.CloudStreamBlue,
                     onClick = { onSelect(SourceType.CLOUDSTREAM) },
                 )
                 ChoiceOptionCard(
                     title = stringResource(R.string.addons_choice_nuvio_repo_title),
                     subtitle = stringResource(R.string.addons_choice_nuvio_repo_subtitle),
                     icon = PlayIcons.Nuvio,
-                    accentColor = Color(0xFFA855F7),
+                    accentColor = PlayColors.NuvioPurple,
                     onClick = { onSelect(SourceType.NUVIO_REPO) },
                 )
                 ChoiceOptionCard(
                     title = stringResource(R.string.addons_choice_nuvio_plugin_title),
                     subtitle = stringResource(R.string.addons_choice_nuvio_plugin_subtitle),
                     icon = PlayIcons.Extension,
-                    accentColor = Color(0xFF34D399),
+                    accentColor = PlayColors.NuvioGreen,
                     onClick = { onSelect(SourceType.NUVIO_PLUGIN) },
                 )
             }
@@ -533,12 +522,12 @@ private fun ChoiceOptionCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         border = BorderStroke(1.dp, accentColor.copy(alpha = 0.35f)),
         modifier = Modifier
             .fillMaxWidth()
-            .focusRing(RoundedCornerShape(16.dp)),
+            .focusRing(RoundedCornerShape(14.dp)),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -606,20 +595,23 @@ private fun AddSourceInputDialog(
         else -> stringResource(R.string.addons_add_cs_hint)
     }
     val accentColor = when (state.type) {
-        SourceType.CLOUDSTREAM -> Color(0xFF38BDF8)
-        SourceType.NUVIO_REPO -> Color(0xFFA855F7)
-        SourceType.NUVIO_PLUGIN -> Color(0xFF34D399)
-        else -> Color(0xFF38BDF8)
+        SourceType.CLOUDSTREAM -> PlayColors.CloudStreamBlue
+        SourceType.NUVIO_REPO -> PlayColors.NuvioPurple
+        SourceType.NUVIO_PLUGIN -> PlayColors.NuvioGreen
+        else -> PlayColors.CloudStreamBlue
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = field.value,
                     onValueChange = field.onValueChange,
+                    shape = RoundedCornerShape(14.dp),
                     label = { Text(stringResource(R.string.addons_add_field)) },
                     placeholder = { Text(hint) },
                     singleLine = true,
@@ -676,132 +668,5 @@ private fun AddSourceInputDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
         },
     )
-}
-
-@Composable
-private fun AddonCardRow(
-    title: String,
-    icon: ImageVector,
-    modifier: Modifier = Modifier,
-    subtitle: String? = null,
-    badge: String? = null,
-    iconTint: Color = Color(0xFF00E5FF),
-    onClick: () -> Unit,
-) {
-    val shape = RoundedCornerShape(12.dp)
-    Surface(
-        onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .focusRing(shape),
-        shape = shape,
-        color = Color(0xFF0F1E2E).copy(alpha = 0.65f),
-        border = BorderStroke(1.dp, Color(0xFF1E3A5F).copy(alpha = 0.55f)),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (!subtitle.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF8FA7B8),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            if (!badge.isNullOrEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFF062B3D), shape = RoundedCornerShape(50))
-                        .border(BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f)), shape = RoundedCornerShape(50))
-                        .padding(horizontal = 14.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = badge,
-                        color = Color(0xFF00E5FF),
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-            }
-            Icon(
-                imageVector = PlayIcons.ChevronRight,
-                contentDescription = null,
-                tint = Color(0xFF8FA7B8),
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun AddonSplitCard(
-    title: String,
-    icon: ImageVector,
-    modifier: Modifier = Modifier,
-    iconTint: Color = Color(0xFF00E5FF),
-    onClick: () -> Unit,
-) {
-    val shape = RoundedCornerShape(12.dp)
-    Surface(
-        onClick = onClick,
-        modifier = modifier
-            .focusRing(shape),
-        shape = shape,
-        color = Color(0xFF0F1E2E).copy(alpha = 0.65f),
-        border = BorderStroke(1.dp, Color(0xFF1E3A5F).copy(alpha = 0.55f)),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(22.dp),
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = PlayIcons.ChevronRight,
-                contentDescription = null,
-                tint = Color(0xFF8FA7B8),
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
 }
 

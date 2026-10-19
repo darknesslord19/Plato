@@ -383,7 +383,7 @@ fun PlayRoot() {
                         Icon(
                             imageVector = PlayIcons.PlayTriangle,
                             contentDescription = null,
-                            tint = Color(0xFF00E5FF),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(28.dp),
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -393,7 +393,7 @@ fun PlayRoot() {
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp,
                             ),
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                         )
                     }
 
@@ -401,12 +401,12 @@ fun PlayRoot() {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Tab.entries.forEach { tab ->
                             val isSelected = selected(tab)
-                            val shape = RoundedCornerShape(14.dp)
+                            val shape = MaterialTheme.shapes.medium
                             Surface(
                                 onClick = { openTab(tab) },
                                 shape = shape,
-                                color = if (isSelected) Color(0xFF062A3B) else Color.Transparent,
-                                border = if (isSelected) BorderStroke(1.5.dp, Color(0xFF00E5FF)) else null,
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .focusRing(shape),
@@ -420,7 +420,7 @@ fun PlayRoot() {
                                     Icon(
                                         imageVector = tab.icon,
                                         contentDescription = stringResource(tab.label),
-                                        tint = if (isSelected) Color(0xFF00E5FF) else Color(0xFFC0D0E0),
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(24.dp),
                                     )
                                     Spacer(modifier = Modifier.width(14.dp))
@@ -429,7 +429,7 @@ fun PlayRoot() {
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                                         ),
-                                        color = if (isSelected) Color(0xFF00E5FF) else Color(0xFFC0D0E0),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -439,7 +439,7 @@ fun PlayRoot() {
                     }
                 }
                 VerticalDivider(
-                    color = Color(0xFF1E3A5F).copy(alpha = 0.35f),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                     modifier = Modifier.fillMaxHeight(),
                 )
             }
@@ -585,6 +585,10 @@ fun PlayRoot() {
     resumePrompt?.let { (target, positionMs, download) ->
         AlertDialog(
             onDismissRequest = { resumePrompt = null },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
             title = { Text(stringResource(R.string.resume_title)) },
             confirmButton = {
                 TextButton(onClick = { resumePrompt = null; play(target, positionMs, download = download) }) {

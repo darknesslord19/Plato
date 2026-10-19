@@ -204,7 +204,9 @@ fun LibraryScreen(
     deleteTarget?.let { entry ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text(stringResource(R.string.download_delete_title)) },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.download_delete_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(stringResource(R.string.download_delete_message, entry.title)) },
             confirmButton = {
                 TextButton(onClick = { vm.removeDownload(entry); deleteTarget = null }) {
@@ -218,7 +220,9 @@ fun LibraryScreen(
     if (confirmDeleteAll) {
         AlertDialog(
             onDismissRequest = { confirmDeleteAll = false },
-            title = { Text(stringResource(R.string.download_delete_all_title)) },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.download_delete_all_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(stringResource(R.string.download_delete_all_message)) },
             confirmButton = {
                 TextButton(onClick = { vm.removeAllDownloads(); confirmDeleteAll = false }) {
@@ -232,7 +236,9 @@ fun LibraryScreen(
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            title = { Text(stringResource(R.string.library_clear_title)) },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.library_clear_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(stringResource(R.string.library_clear_message)) },
             confirmButton = {
                 TextButton(onClick = { vm.clearHistory(); confirmClear = false }) {
@@ -276,42 +282,51 @@ private fun HistoryRow(entry: WatchHistoryEntity, onClick: () -> Unit, onRemove:
     }
     val progress = (entry.positionMs.toFloat() / entry.durationMs.toFloat()).coerceIn(0f, 1f)
 
-    Row(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    androidx.compose.material3.Surface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
-        Box(
-            Modifier
-                .width(56.dp)
-                .aspectRatio(2f / 3f)
-                .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            TmdbImages.url(entry.posterPath, TmdbImages.Size.Poster)?.let {
-                AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(
+                Modifier
+                    .width(52.dp)
+                    .aspectRatio(2f / 3f)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                TmdbImages.url(entry.posterPath, TmdbImages.Size.Poster)?.let {
+                    AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                }
             }
-        }
-        Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(entry.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(3.dp),
-                trackColor = MaterialTheme.colorScheme.outline,
-            )
-        }
-        IconButton(onClick = onRemove) {
-            Icon(
-                PlayIcons.Close,
-                contentDescription = stringResource(R.string.library_remove_history),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(entry.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(4.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.outline,
+                )
+            }
+            IconButton(onClick = onRemove) {
+                Icon(
+                    PlayIcons.Close,
+                    contentDescription = stringResource(R.string.library_remove_history),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -357,69 +372,77 @@ private fun DownloadRow(
     }
     val subtitle = listOfNotNull(episode, size, state).reduceOrNull { acc, part -> stringResource(R.string.dot_join, acc, part) }
 
-    Row(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    androidx.compose.material3.Surface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
-        Box(
-            Modifier
-                .width(56.dp)
-                .aspectRatio(2f / 3f)
-                .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            TmdbImages.url(entry.posterPath, TmdbImages.Size.Poster)?.let {
-                AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            }
-        }
-        Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(entry.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (subtitle != null) {
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (entry.status == DownloadStatus.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (!done) {
-                val barModifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(3.dp)
-                if (fraction != null) {
-                    LinearProgressIndicator(progress = { fraction }, modifier = barModifier, trackColor = MaterialTheme.colorScheme.outline)
-                } else if (entry.status == DownloadStatus.Downloading) {
-                    LinearProgressIndicator(modifier = barModifier, trackColor = MaterialTheme.colorScheme.outline)
-                } else {
-                    LinearProgressIndicator(progress = { 0f }, modifier = barModifier, trackColor = MaterialTheme.colorScheme.outline)
+            Box(
+                Modifier
+                    .width(52.dp)
+                    .aspectRatio(2f / 3f)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                TmdbImages.url(entry.posterPath, TmdbImages.Size.Poster)?.let {
+                    AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 }
             }
-        }
-        if (!done) {
-            val active = DownloadRules.isActive(entry.status)
-            IconButton(onClick = onPauseResume) {
-                Icon(
-                    imageVector = when {
-                        entry.status == DownloadStatus.Failed -> PlayIcons.Refresh
-                        active -> PlayIcons.Pause
-                        else -> PlayIcons.PlayTriangle
-                    },
-                    contentDescription = stringResource(
-                        when {
-                            entry.status == DownloadStatus.Failed -> R.string.common_retry
-                            active -> R.string.download_pause
-                            else -> R.string.download_resume
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(entry.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (subtitle != null) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (entry.status == DownloadStatus.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (!done) {
+                    val barModifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(4.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
+                    if (fraction != null) {
+                        LinearProgressIndicator(progress = { fraction }, modifier = barModifier, color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.outline)
+                    } else if (entry.status == DownloadStatus.Downloading) {
+                        LinearProgressIndicator(modifier = barModifier, color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.outline)
+                    } else {
+                        LinearProgressIndicator(progress = { 0f }, modifier = barModifier, color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.outline)
+                    }
+                }
+            }
+            if (!done) {
+                val active = DownloadRules.isActive(entry.status)
+                IconButton(onClick = onPauseResume) {
+                    Icon(
+                        imageVector = when {
+                            entry.status == DownloadStatus.Failed -> PlayIcons.Refresh
+                            active -> PlayIcons.Pause
+                            else -> PlayIcons.PlayTriangle
                         },
-                    ),
+                        contentDescription = stringResource(
+                            when {
+                                entry.status == DownloadStatus.Failed -> R.string.common_retry
+                                active -> R.string.download_pause
+                                else -> R.string.download_resume
+                            },
+                        ),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            IconButton(onClick = onRemove) {
+                Icon(
+                    imageVector = if (done) PlayIcons.Trash else PlayIcons.Close,
+                    contentDescription = stringResource(if (done) R.string.download_remove else R.string.download_cancel),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-        IconButton(onClick = onRemove) {
-            Icon(
-                imageVector = if (done) PlayIcons.Trash else PlayIcons.Close,
-                contentDescription = stringResource(if (done) R.string.download_remove else R.string.download_cancel),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

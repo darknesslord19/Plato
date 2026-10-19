@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kaan.play.R
 import com.kaan.play.ui.nav.PlayIcons
+import com.kaan.play.ui.theme.PlayColors
 import com.kaan.play.ui.tv.focusRing
 
 /**
@@ -49,38 +50,10 @@ fun AboutScreen(onBack: () -> Unit) {
             .fillMaxSize()
             .statusBarsPadding(),
     ) {
-        // Geri düğmesi ve "Hakkında" başlığı
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                onClick = onBack,
-                shape = CircleShape,
-                color = Color(0xFF0F1E2E),
-                border = BorderStroke(1.dp, Color(0xFF1E3A5F).copy(alpha = 0.6f)),
-                modifier = Modifier
-                    .size(40.dp)
-                    .focusRing(CircleShape),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = PlayIcons.Back,
-                        contentDescription = stringResource(R.string.common_back),
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = stringResource(R.string.settings_about),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = Color.White,
-            )
-        }
+        com.kaan.play.ui.components.ScreenHeader(
+            title = stringResource(R.string.settings_about),
+            onBack = onBack,
+        )
 
         Spacer(modifier = Modifier.height(10.dp))
 
@@ -90,8 +63,8 @@ fun AboutScreen(onBack: () -> Unit) {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(telegramUrl)))
             },
             shape = cardShape,
-            color = Color(0xFF062A3B).copy(alpha = 0.85f),
-            border = BorderStroke(1.5.dp, Color(0xFF00E5FF)),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp)
@@ -109,7 +82,7 @@ fun AboutScreen(onBack: () -> Unit) {
                         .size(62.dp)
                         .background(
                             brush = Brush.radialGradient(
-                                listOf(Color(0xFF00E5FF).copy(alpha = 0.28f), Color.Transparent),
+                                listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.28f), Color.Transparent),
                             ),
                             shape = CircleShape,
                         ),
@@ -117,8 +90,8 @@ fun AboutScreen(onBack: () -> Unit) {
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color(0xFF00A9E0),
-                        border = BorderStroke(2.dp, Color(0xFF00E5FF)),
+                        color = PlayColors.TelegramBlue,
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
                         modifier = Modifier.size(54.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -141,13 +114,13 @@ fun AboutScreen(onBack: () -> Unit) {
                             fontWeight = FontWeight.Bold,
                             fontSize = 19.sp,
                         ),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.about_telegram_subtitle),
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp),
-                        color = Color(0xFFA0C0D8),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -156,15 +129,15 @@ fun AboutScreen(onBack: () -> Unit) {
                 // Sağ dairesel ok butonu
                 Surface(
                     shape = CircleShape,
-                    color = Color(0xFF071F2C),
-                    border = BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.35f)),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                     modifier = Modifier.size(42.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = PlayIcons.ChevronRight,
                             contentDescription = null,
-                            tint = Color(0xFF00E5FF),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp),
                         )
                     }

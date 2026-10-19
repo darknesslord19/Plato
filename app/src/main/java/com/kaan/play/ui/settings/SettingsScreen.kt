@@ -75,45 +75,45 @@ fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbo
         Text(
             text = stringResource(R.string.tab_settings),
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
         )
-        SettingsCardRow(
+        com.kaan.play.ui.components.PlayCardRow(
             title = stringResource(R.string.addons_title),
             badge = addonCount?.let { pluralStringResource(R.plurals.addons_count, it, it) },
             icon = PlayIcons.Extension,
-            iconTint = Color(0xFF00E5FF),
+            iconTint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.focusMemory(focus, "addons", isDefault = true),
             onClick = onOpenAddons,
         )
-        SettingsCardRow(
+        com.kaan.play.ui.components.PlayCardRow(
             title = stringResource(R.string.settings_player),
             icon = PlayIcons.PlayCircle,
-            iconTint = Color(0xFF00E5FF),
+            iconTint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.focusMemory(focus, "player"),
             onClick = onOpenPlayer,
         )
-        SettingsCardRow(
+        com.kaan.play.ui.components.PlayCardRow(
             title = stringResource(R.string.settings_theme),
             value = stringResource(theme.labelRes()),
             icon = PlayIcons.Palette,
-            iconTint = Color(0xFF818CF8),
+            iconTint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.focusMemory(focus, "theme"),
             onClick = { dialog = OpenDialog.Theme },
         )
-        SettingsCardRow(
+        com.kaan.play.ui.components.PlayCardRow(
             title = stringResource(R.string.settings_language),
             value = stringResource(language.labelRes()),
             icon = PlayIcons.Globe,
-            iconTint = Color(0xFF00E5FF),
+            iconTint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.focusMemory(focus, "language"),
             onClick = { dialog = OpenDialog.Language },
         )
-        SettingsCardRow(
+        com.kaan.play.ui.components.PlayCardRow(
             title = stringResource(R.string.settings_about),
             value = BuildConfig.VERSION_NAME,
             icon = PlayIcons.InfoCircle,
-            iconTint = Color(0xFF00E5FF),
+            iconTint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.focusMemory(focus, "about"),
             onClick = onOpenAbout,
         )
@@ -141,80 +141,6 @@ fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbo
             onDismiss = { dialog = null },
         )
         null -> Unit
-    }
-}
-
-@Composable
-private fun SettingsCardRow(
-    title: String,
-    icon: ImageVector,
-    modifier: Modifier = Modifier,
-    value: String? = null,
-    badge: String? = null,
-    iconTint: Color = Color(0xFF00E5FF),
-    onClick: () -> Unit,
-) {
-    val shape = RoundedCornerShape(12.dp)
-    Surface(
-        onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .focusRing(shape),
-        shape = shape,
-        color = Color(0xFF0F1E2E).copy(alpha = 0.65f),
-        border = BorderStroke(1.dp, Color(0xFF1E3A5F).copy(alpha = 0.55f)),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Color.White,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (!badge.isNullOrEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFF062B3D), shape = RoundedCornerShape(50))
-                        .border(BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f)), shape = RoundedCornerShape(50))
-                        .padding(horizontal = 14.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = badge,
-                        color = Color(0xFF00E5FF),
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-            } else if (!value.isNullOrEmpty()) {
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF8FA7B8),
-                    modifier = Modifier.padding(end = 12.dp),
-                )
-            }
-            Icon(
-                imageVector = PlayIcons.ChevronRight,
-                contentDescription = null,
-                tint = Color(0xFF8FA7B8),
-                modifier = Modifier.size(18.dp),
-            )
-        }
     }
 }
 

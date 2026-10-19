@@ -33,6 +33,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -124,16 +125,26 @@ fun DetailScreen(type: MediaType, id: Int, onBack: () -> Unit, onPlay: (PlayTarg
             )
         }
         StatusBarScrim()
-        // Geri oku: kapağın üstünde de okunsun diye yarı saydam daire içinde.
-        IconButton(
+        // Geri oku: kapağın üstünde de okunsun diye yarı saydam daire içinde modern buton.
+        Surface(
             onClick = onBack,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)),
             modifier = Modifier
                 .statusBarsPadding()
-                .padding(8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .size(40.dp)
-                .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                .focusRing(CircleShape),
         ) {
-            Icon(PlayIcons.Back, contentDescription = stringResource(R.string.common_back), tint = Color.White)
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = PlayIcons.Back,
+                    contentDescription = stringResource(R.string.common_back),
+                    tint = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }
@@ -482,37 +493,49 @@ private fun EpisodeRow(episode: Episode, horizontalPadding: Dp, onClick: () -> U
     } else {
         stringResource(R.string.detail_episode_title, episode.number, episode.name)
     }
-    Row(
+    val shape = MaterialTheme.shapes.medium
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = horizontalPadding, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = horizontalPadding, vertical = 4.dp)
+            .focusRing(shape),
     ) {
-        Box(
-            Modifier
-                .width(112.dp)
-                .aspectRatio(16f / 9f)
-                .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            TmdbImages.url(episode.stillPath, TmdbImages.Size.Still)?.let {
-                AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(
+                Modifier
+                    .width(112.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(MaterialTheme.colorScheme.surface),
+            ) {
+                TmdbImages.url(episode.stillPath, TmdbImages.Size.Still)?.let {
+                    AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                }
             }
-        }
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            episode.runtimeMinutes?.takeIf { it > 0 }?.let {
-                Text(formatRuntime(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (episode.overview.isNotBlank()) {
-                Text(
-                    episode.overview,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                episode.runtimeMinutes?.takeIf { it > 0 }?.let {
+                    Text(formatRuntime(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (episode.overview.isNotBlank()) {
+                    Text(
+                        episode.overview,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

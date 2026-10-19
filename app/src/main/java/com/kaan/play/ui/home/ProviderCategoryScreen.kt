@@ -43,6 +43,7 @@ import com.kaan.play.R
 import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.provider.CatalogRow
 import com.kaan.play.ui.components.PosterCard
+import com.kaan.play.ui.components.ScreenHeader
 import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.tv.focusMemory
@@ -100,47 +101,11 @@ fun ProviderCategoryScreen(
             .fillMaxSize()
             .statusBarsPadding(),
     ) {
-        // Modern başlık (Geri düğmesi + Satır Başlığı + Sağlayıcı adı)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                onClick = onBack,
-                shape = CircleShape,
-                color = Color(0xFF0F1E2E),
-                border = BorderStroke(1.dp, Color(0xFF1E3A5F).copy(alpha = 0.6f)),
-                modifier = Modifier
-                    .size(40.dp)
-                    .focusRing(CircleShape),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = PlayIcons.Back,
-                        contentDescription = stringResource(R.string.common_back),
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    text = row.title,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White,
-                )
-                if (row.providerName.isNotBlank()) {
-                    Text(
-                        text = row.providerName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-        }
+        ScreenHeader(
+            title = row.title,
+            subtitle = row.providerName.takeIf { it.isNotBlank() },
+            onBack = onBack,
+        )
 
         LazyVerticalGrid(
             state = grid,

@@ -299,18 +299,20 @@ private fun WebScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onClose, modifier = Modifier.focusRequester(barFocus)) {
-                    Icon(PlayIcons.Close, contentDescription = stringResource(R.string.web_close))
+                    Icon(PlayIcons.Close, contentDescription = stringResource(R.string.web_close), tint = MaterialTheme.colorScheme.onSurface)
                 }
                 Text(
                     text = name,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                 )
                 IconButton(onClick = onBack, enabled = state.canGoBack) {
                     Icon(PlayIcons.Back, contentDescription = stringResource(R.string.common_back))
@@ -328,7 +330,8 @@ private fun WebScreen(
                     LinearProgressIndicator(
                         progress = { state.progress / 100f },
                         modifier = Modifier.fillMaxWidth(),
-                        trackColor = MaterialTheme.colorScheme.background,
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outline,
                     )
                 }
             }

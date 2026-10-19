@@ -70,16 +70,27 @@ fun PluginSettingsScreen(pluginId: Long, onBack: () -> Unit) {
         LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
             item(key = "enabled") {
                 val label = stringResource(R.string.addons_enabled_toggle, current.name)
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                androidx.compose.material3.Surface(
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
                 ) {
-                    Text(stringResource(R.string.plugin_enabled), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = current.enabled,
-                        onCheckedChange = vm::setEnabled,
-                        modifier = Modifier.focusRing(CircleShape).semantics { contentDescription = label },
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(stringResource(R.string.plugin_enabled), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = current.enabled,
+                            onCheckedChange = vm::setEnabled,
+                            colors = androidx.compose.material3.SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            ),
+                            modifier = Modifier.focusRing(CircleShape).semantics { contentDescription = label },
+                        )
+                    }
                 }
             }
             when (val state = layout) {
@@ -118,16 +129,27 @@ private fun FieldRow(field: PluginSettingField, values: Map<String, JsonElement>
         is PluginSettingField.Info -> Muted(field.label)
         is PluginSettingField.Toggle -> {
             val checked = (values[field.key] as? JsonPrimitive)?.booleanOrNull ?: field.default
-            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(field.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = checked,
-                        onCheckedChange = { onChange(field.key, JsonPrimitive(it)) },
-                        modifier = Modifier.focusRing(CircleShape).semantics { contentDescription = field.label },
-                    )
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+            ) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(field.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = checked,
+                            onCheckedChange = { onChange(field.key, JsonPrimitive(it)) },
+                            colors = androidx.compose.material3.SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            ),
+                            modifier = Modifier.focusRing(CircleShape).semantics { contentDescription = field.label },
+                        )
+                    }
+                    field.description?.let { Muted(it, horizontal = 0.dp) }
                 }
-                field.description?.let { Muted(it, horizontal = 0.dp) }
             }
         }
         is PluginSettingField.Select -> {
@@ -153,6 +175,7 @@ private fun FieldRow(field: PluginSettingField, values: Map<String, JsonElement>
                 OutlinedTextField(
                     value = cursor.value,
                     onValueChange = cursor.onValueChange,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
                     label = field.label?.let { { Text(it) } },
                     placeholder = { Text(field.placeholder) },
                     singleLine = true,

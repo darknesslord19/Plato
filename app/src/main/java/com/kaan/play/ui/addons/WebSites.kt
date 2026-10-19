@@ -88,28 +88,40 @@ class WebSitesViewModel(private val repo: WebSiteRepository) : ViewModel() {
 @Composable
 fun WebSiteRow(site: WebSite, onOpen: () -> Unit, onRemove: () -> Unit, modifier: Modifier = Modifier) {
     val host = remember(site.url) { WebSiteUrl.displayHost(site.url) }
-    Row(
-        modifier = modifier.fillMaxWidth().heightIn(min = 64.dp).padding(start = 8.dp, end = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    androidx.compose.material3.Surface(
+        onClick = onOpen,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = modifier.fillMaxWidth(),
     ) {
-        Column(
-            modifier = Modifier.weight(1f).clickable(onClick = onOpen).padding(horizontal = 12.dp, vertical = 8.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(site.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                text = host,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        IconButton(onClick = onRemove) {
             Icon(
-                PlayIcons.Trash,
-                contentDescription = stringResource(R.string.web_remove),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                imageVector = PlayIcons.Globe,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(end = 12.dp),
             )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(site.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = host,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            IconButton(onClick = onRemove) {
+                Icon(
+                    PlayIcons.Trash,
+                    contentDescription = stringResource(R.string.web_remove),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -124,14 +136,18 @@ fun AddWebSiteDialog(
 ) {
     val nameField = rememberCursorField(state.name, onNameChange)
     val addressField = rememberCursorField(state.address, onAddressChange)
+    val fieldShape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.web_add_title)) },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.web_add_title), style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = nameField.value,
                     onValueChange = nameField.onValueChange,
+                    shape = fieldShape,
                     label = { Text(stringResource(R.string.web_add_name)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -140,6 +156,7 @@ fun AddWebSiteDialog(
                 OutlinedTextField(
                     value = addressField.value,
                     onValueChange = addressField.onValueChange,
+                    shape = fieldShape,
                     label = { Text(stringResource(R.string.web_add_address)) },
                     placeholder = { Text(stringResource(R.string.web_add_hint)) },
                     singleLine = true,

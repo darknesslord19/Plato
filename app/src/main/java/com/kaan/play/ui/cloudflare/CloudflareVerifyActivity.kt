@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -320,24 +321,32 @@ private fun CloudflareVerifyScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(
+                Surface(
                     onClick = onClose,
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     modifier = Modifier
+                        .size(40.dp)
                         .focusRequester(barFocus)
-                        .focusRing(MaterialTheme.shapes.small),
+                        .focusRing(androidx.compose.foundation.shape.CircleShape),
                 ) {
-                    Icon(
-                        imageVector = PlayIcons.Close,
-                        contentDescription = stringResource(R.string.provider_verify_close),
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = PlayIcons.Close,
+                            contentDescription = stringResource(R.string.provider_verify_close),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = 12.dp),
                 ) {
                     Text(
                         text = "$providerName · ${stringResource(R.string.provider_verify_title)}",
@@ -361,7 +370,8 @@ private fun CloudflareVerifyScreen(
                     LinearProgressIndicator(
                         progress = { progress / 100f },
                         modifier = Modifier.fillMaxWidth(),
-                        trackColor = MaterialTheme.colorScheme.background,
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outline,
                     )
                 }
             }

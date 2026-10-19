@@ -78,41 +78,54 @@ fun CsReposScreen(
 private fun CsRepoRow(repo: CsRepo, onRemove: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+    androidx.compose.material3.Surface(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = repo.name,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = pluralStringResource(R.plurals.cs_plugins_count, repo.pluginCount, repo.pluginCount),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (!repo.description.isNullOrBlank()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = repo.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    text = repo.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                Text(
+                    text = pluralStringResource(R.plurals.cs_plugins_count, repo.pluginCount, repo.pluginCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (!repo.description.isNullOrBlank()) {
+                    Text(
+                        text = repo.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
-        }
-        IconButton(onClick = { confirmDelete = true }, modifier = Modifier.focusRing()) {
-            Icon(PlayIcons.Trash, contentDescription = stringResource(R.string.repos_remove))
+            IconButton(onClick = { confirmDelete = true }, modifier = Modifier.focusRing()) {
+                Icon(
+                    PlayIcons.Trash,
+                    contentDescription = stringResource(R.string.repos_remove),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.cs_repo_remove_title)) },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.cs_repo_remove_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(stringResource(R.string.cs_repo_remove_body, repo.name)) },
             confirmButton = {
                 com.kaan.play.ui.components.TextButton(onClick = { confirmDelete = false; onRemove() }) {
@@ -134,31 +147,42 @@ private fun CsRepoRow(repo: CsRepo, onRemove: () -> Unit) {
  */
 @Composable
 fun CsPluginRow(plugin: InstalledCsPlugin, onToggle: (Boolean) -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    androidx.compose.material3.Surface(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = plugin.name,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (!plugin.description.isNullOrBlank()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = plugin.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = plugin.name,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (!plugin.description.isNullOrBlank()) {
+                    Text(
+                        text = plugin.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
+            Switch(
+                checked = plugin.enabled,
+                onCheckedChange = onToggle,
+                colors = androidx.compose.material3.SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                ),
+                modifier = Modifier.focusRing(),
+            )
         }
-        Switch(
-            checked = plugin.enabled,
-            onCheckedChange = onToggle,
-            modifier = Modifier.focusRing(),
-        )
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -264,16 +265,26 @@ fun ProviderDetailScreen(
 
         StatusBarScrim()
 
-        // Geri oku
-        IconButton(
+        // Geri oku: kapağın üstünde de okunsun diye yarı saydam daire içinde modern buton.
+        Surface(
             onClick = onBack,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)),
             modifier = Modifier
                 .statusBarsPadding()
-                .padding(8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .size(40.dp)
-                .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                .focusRing(CircleShape),
         ) {
-            Icon(PlayIcons.Back, contentDescription = stringResource(R.string.common_back), tint = Color.White)
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = PlayIcons.Back,
+                    contentDescription = stringResource(R.string.common_back),
+                    tint = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

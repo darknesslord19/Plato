@@ -111,7 +111,9 @@ fun RepositoriesScreen(onBack: () -> Unit) {
     plan?.let { (repo, found) ->
         AlertDialog(
             onDismissRequest = vm::dismissPlan,
-            title = { Text(stringResource(R.string.repos_update_title)) },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.repos_update_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(pluralStringResource(R.plurals.repos_update_message, found.count, found.count, repo.name)) },
             confirmButton = { TextButton(onClick = vm::applyPlan) { Text(stringResource(R.string.repos_update)) } },
             dismissButton = { TextButton(onClick = vm::dismissPlan) { Text(stringResource(R.string.common_cancel)) } },
@@ -121,7 +123,9 @@ fun RepositoriesScreen(onBack: () -> Unit) {
     toRemove?.let { repo ->
         AlertDialog(
             onDismissRequest = { toRemove = null },
-            title = { Text(stringResource(R.string.repos_remove_title)) },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.repos_remove_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(stringResource(R.string.repos_remove_message, repo.name)) },
             confirmButton = {
                 TextButton(onClick = { vm.remove(repo); toRemove = null }) {
@@ -135,41 +139,48 @@ fun RepositoriesScreen(onBack: () -> Unit) {
 
 @Composable
 private fun RepoRow(repo: PluginRepo, busy: Boolean, enabled: Boolean, onCheck: () -> Unit, onRemove: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().height(64.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    androidx.compose.material3.Surface(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = repo.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                text = stringResource(
-                    R.string.addons_row_info,
-                    repo.version ?: "–",
-                    pluralStringResource(R.plurals.plugins_count, repo.pluginCount, repo.pluginCount),
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (busy) {
-            CircularProgressIndicator(modifier = Modifier.padding(12.dp).size(24.dp), strokeWidth = 2.dp)
-        } else {
-            IconButton(onClick = onCheck, enabled = enabled) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = repo.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = stringResource(
+                        R.string.addons_row_info,
+                        repo.version ?: "–",
+                        pluralStringResource(R.plurals.plugins_count, repo.pluginCount, repo.pluginCount),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (busy) {
+                CircularProgressIndicator(modifier = Modifier.padding(12.dp).size(24.dp), strokeWidth = 2.dp)
+            } else {
+                IconButton(onClick = onCheck, enabled = enabled) {
+                    Icon(
+                        PlayIcons.Refresh,
+                        contentDescription = stringResource(R.string.repos_check),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            IconButton(onClick = onRemove, enabled = enabled) {
                 Icon(
-                    PlayIcons.Refresh,
-                    contentDescription = stringResource(R.string.repos_check),
+                    PlayIcons.Trash,
+                    contentDescription = stringResource(R.string.repos_remove),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-        IconButton(onClick = onRemove, enabled = enabled) {
-            Icon(
-                PlayIcons.Trash,
-                contentDescription = stringResource(R.string.repos_remove),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -317,30 +328,46 @@ internal fun PluginRow(plugin: InstalledPlugin, onToggle: (Boolean) -> Unit, onO
     val types = plugin.supportedTypes.joinToString(", ") { if (it == "movie") movie else series }
     val detail = plugin.contentLanguage.takeIf { it.isNotEmpty() }?.joinToString(", ") { it.uppercase() } ?: types
 
-    // Ayarı olan eklentiye dokununca küçük ayrıntı sayfası açılır (aç/kapat + eklentinin kendi ayar formu).
-    Row(
-        modifier = Modifier.fillMaxWidth().height(64.dp)
-            .then(if (plugin.hasSettings) Modifier.clickable(onClick = onOpen) else Modifier),
-        verticalAlignment = Alignment.CenterVertically,
+    androidx.compose.material3.Surface(
+        onClick = onOpen,
+        enabled = plugin.hasSettings,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     ) {
-        Column(modifier = Modifier.weight(1f).alpha(if (plugin.enabled) 1f else 0.6f)) {
-            Text(text = plugin.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                text = stringResource(R.string.addons_row_info, plugin.version ?: "–", detail),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f).alpha(if (plugin.enabled) 1f else 0.6f)) {
+                Text(text = plugin.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = stringResource(R.string.addons_row_info, plugin.version ?: "–", detail),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (plugin.hasSettings) {
+                Icon(
+                    PlayIcons.Forward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+            }
+            Switch(
+                checked = plugin.enabled,
+                onCheckedChange = onToggle,
+                colors = androidx.compose.material3.SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                ),
+                modifier = Modifier.focusRing(CircleShape).semantics { contentDescription = toggleLabel },
             )
         }
-        if (plugin.hasSettings) {
-            Icon(PlayIcons.Forward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Switch(
-            checked = plugin.enabled,
-            onCheckedChange = onToggle,
-            modifier = Modifier.focusRing(CircleShape).semantics { contentDescription = toggleLabel },
-        )
     }
 }
 

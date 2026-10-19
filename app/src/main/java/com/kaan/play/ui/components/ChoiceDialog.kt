@@ -22,6 +22,11 @@ import com.kaan.play.R
 import com.kaan.play.ui.tv.rememberInitialFocus
 import androidx.compose.ui.focus.focusRequester
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
+import androidx.compose.material3.RadioButtonDefaults
+import com.kaan.play.ui.tv.focusRing
+
 /** Tek seçimli küçük pencere (dil, tema, zaman aşımı). Seçince hemen uygulanır ve kapanır. */
 @Composable
 fun <T> ChoiceDialog(
@@ -35,24 +40,43 @@ fun <T> ChoiceDialog(
     footer: (@Composable () -> Unit)? = null,
 ) {
     val focus = rememberInitialFocus()
+    val shape = RoundedCornerShape(10.dp)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurface,
+        title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
                 options.forEach { option ->
+                    val isSelected = option == selected
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(if (option == selected) Modifier.focusRequester(focus) else Modifier)
-                            .selectable(selected = option == selected, role = Role.RadioButton) { onSelect(option) }
-                            .padding(vertical = 8.dp),
+                            .then(if (isSelected) Modifier.focusRequester(focus) else Modifier)
+                            .focusRing(shape)
+                            .background(
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent,
+                                shape = shape,
+                            )
+                            .selectable(selected = isSelected, role = Role.RadioButton) { onSelect(option) }
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        RadioButton(selected = option == selected, onClick = null)
+                        RadioButton(
+                            selected = isSelected,
+                            onClick = null,
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = MaterialTheme.colorScheme.primary,
+                                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
+                        )
                         Text(
                             text = label(option),
                             style = MaterialTheme.typography.bodyLarge,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(start = 12.dp),
                         )
                     }

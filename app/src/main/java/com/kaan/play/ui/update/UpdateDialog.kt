@@ -83,7 +83,9 @@ private fun OfferDialog(info: UpdateInfo, flow: UpdateFlow, context: Context, on
     val inApp = info.apk != null
     AlertDialog(
         onDismissRequest = flow::dismiss,
-        title = { Text(stringResource(R.string.update_title)) },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.update_title), style = androidx.compose.material3.MaterialTheme.typography.titleLarge) },
         text = { Text(stringResource(if (inApp) R.string.update_message else R.string.update_message_web, info.tag)) },
         confirmButton = {
             TextButton(
@@ -108,19 +110,32 @@ private fun DownloadingDialog(state: UpdateState.Downloading, flow: UpdateFlow) 
     val fraction = if (state.total > 0) (state.done.toFloat() / state.total).coerceIn(0f, 1f) else null
     AlertDialog(
         onDismissRequest = flow::dismiss,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
         // Yanlışlıkla dışarı dokunmak indirmeyi iptal etmesin; Geri tuşu ve "İptal" iptal eder.
         properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(R.string.update_downloading_title)) },
+        title = { Text(stringResource(R.string.update_downloading_title), style = androidx.compose.material3.MaterialTheme.typography.titleLarge) },
         text = {
             Column(Modifier.fillMaxWidth()) {
                 if (fraction != null) {
-                    LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
+                    LinearProgressIndicator(
+                        progress = { fraction },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                        trackColor = androidx.compose.material3.MaterialTheme.colorScheme.outline,
+                    )
                     Text(
                         stringResource(R.string.update_progress, (fraction * 100).toInt()),
+                        style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 } else {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                        trackColor = androidx.compose.material3.MaterialTheme.colorScheme.outline,
+                    )
                 }
             }
         },
@@ -137,7 +152,9 @@ private fun PermissionDialog(flow: UpdateFlow) {
     val focus = rememberInitialFocus()
     AlertDialog(
         onDismissRequest = flow::dismiss,
-        title = { Text(stringResource(R.string.update_permission_title)) },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.update_permission_title), style = androidx.compose.material3.MaterialTheme.typography.titleLarge) },
         text = { Text(stringResource(R.string.update_permission_message)) },
         confirmButton = {
             TextButton(onClick = flow::openPermissionSettings, modifier = Modifier.focusRequester(focus)) {
@@ -160,7 +177,9 @@ private fun FailedDialog(state: UpdateState.Failed, flow: UpdateFlow, context: C
     val canRetry = state.reason == UpdateState.Reason.DOWNLOAD && state.info.apk != null
     AlertDialog(
         onDismissRequest = flow::dismiss,
-        title = { Text(stringResource(R.string.update_failed_title)) },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.update_failed_title), style = androidx.compose.material3.MaterialTheme.typography.titleLarge) },
         text = { Text(stringResource(message)) },
         confirmButton = {
             if (canRetry) {

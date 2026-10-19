@@ -1,7 +1,10 @@
 package com.kaan.play.ui.player
 
 import android.view.Gravity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -101,7 +104,11 @@ fun SubtitleMenu(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.player_subtitles)) },
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurface,
+        title = { Text(stringResource(R.string.player_subtitles), style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
                 OptionRow(
@@ -227,17 +234,28 @@ private fun rowLabels(group: SubtitleGroup): List<String> {
 
 @Composable
 private fun OptionRow(selected: Boolean, label: String, indented: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val bg = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(bg)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .padding(start = if (indented) 16.dp else 0.dp, top = 8.dp, bottom = 8.dp),
+            .padding(start = if (indented) 16.dp else 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = null)
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            colors = androidx.compose.material3.RadioButtonDefaults.colors(
+                selectedColor = MaterialTheme.colorScheme.primary,
+                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
+            color = if (selected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 12.dp),
@@ -326,9 +344,10 @@ fun SubtitleSyncPanel(subtitles: SubtitleController, onDismiss: () -> Unit) {
             window?.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL)
         }
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
             contentColor = MaterialTheme.colorScheme.onSurface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier.padding(top = 24.dp).widthIn(max = 560.dp).fillMaxWidth(0.92f),
         ) {
             Column(

@@ -9,7 +9,9 @@ import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -745,10 +747,12 @@ private fun NextEpisodeCard(
 ) {
     val season = state.season
     val episode = state.episode
+    val shape = MaterialTheme.shapes.medium
     Column(
         modifier = modifier
             .widthIn(max = 340.dp)
-            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f), shape)
+            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)), shape)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -759,7 +763,7 @@ private fun NextEpisodeCard(
                 else -> stringResource(R.string.next_episode_loading, season, episode)
             },
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             when (state.phase) {
@@ -791,14 +795,16 @@ private fun DubSuggestionCard(
     primaryFocus: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
+    val shape = MaterialTheme.shapes.medium
     Column(
         modifier = modifier
             .widthIn(max = 340.dp)
-            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f), shape)
+            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)), shape)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(stringResource(R.string.dub_suggest_title), style = MaterialTheme.typography.bodyMedium, color = Color.White)
+        Text(stringResource(R.string.dub_suggest_title), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = onSwitch, modifier = Modifier.focusRequester(primaryFocus)) { Text(stringResource(R.string.dub_suggest_switch)) }
             TextButton(onClick = onClose) { Text(stringResource(R.string.dub_suggest_close)) }

@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -844,14 +845,14 @@ private fun ProviderPillButton(
 ) {
     val shape = CircleShape
     val accent = MaterialTheme.colorScheme.primary
-    val borderColor = if (isSelected) accent else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-    val containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+    val borderColor = if (isSelected) accent else MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+    val containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
 
     Row(
         modifier = modifier
             .clip(shape)
             .background(containerColor)
-            .border(1.dp, borderColor, shape)
+            .border(if (isSelected) 1.5.dp else 1.dp, borderColor, shape)
             .focusRing(shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
@@ -868,7 +869,7 @@ private fun ProviderPillButton(
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium),
             color = if (isSelected) accent else MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

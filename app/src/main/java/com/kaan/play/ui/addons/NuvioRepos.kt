@@ -67,7 +67,9 @@ fun NuvioReposScreen(
     toRemove?.let { addon ->
         AlertDialog(
             onDismissRequest = { toRemove = null },
-            title = { Text(stringResource(R.string.addons_remove_title)) },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.addons_remove_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(stringResource(R.string.addons_remove_message, addon.manifest.name)) },
             confirmButton = {
                 TextButton(onClick = {

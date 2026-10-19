@@ -43,6 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import com.kaan.play.ui.tv.focusRing
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -290,30 +291,49 @@ private fun SourceRow(
     onDownload: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val shape = MaterialTheme.shapes.medium
+    androidx.compose.material3.Surface(
+        onClick = onClick,
+        shape = shape,
+        color = if (isRecommended) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        border = androidx.compose.foundation.BorderStroke(
+            if (isRecommended) 1.5.dp else 1.dp,
+            if (isRecommended) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .focusRing(shape),
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = stream.source.addonName,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = sourceLabel(stream),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stream.source.addonName,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = sourceLabel(stream),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (isRecommended) {
+                Icon(PlayIcons.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+            }
+            // Torrent kaynağı yalnızca izlenir (yerleşik motor geçici indirir); çevrimdışı indirme yok.
+            if (!TorrentLinks.isMagnet(stream.url)) DownloadButton(badge, downloadFraction, onDownload)
         }
-        if (isRecommended) {
-            Icon(PlayIcons.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        }
-        // Torrent kaynağı yalnızca izlenir (yerleşik motor geçici indirir); çevrimdışı indirme yok.
-        if (!TorrentLinks.isMagnet(stream.url)) DownloadButton(badge, downloadFraction, onDownload)
     }
 }
 
