@@ -310,7 +310,7 @@ fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
 }
 
 @Composable
-private fun PluginRow(plugin: InstalledPlugin, onToggle: (Boolean) -> Unit, onOpen: () -> Unit) {
+internal fun PluginRow(plugin: InstalledPlugin, onToggle: (Boolean) -> Unit, onOpen: () -> Unit) {
     val toggleLabel = stringResource(R.string.addons_enabled_toggle, plugin.name)
     val movie = stringResource(R.string.type_movie)
     val series = stringResource(R.string.type_series)

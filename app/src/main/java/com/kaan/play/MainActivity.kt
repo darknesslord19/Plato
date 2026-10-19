@@ -132,11 +132,9 @@ class MainActivity : AppCompatActivity() {
             DeepLink.SCHEME -> {
                 // Opak ya da hiyerarşik olmayan bağlantıda (play:add?...) getQueryParameter fırlatır.
                 val repo = if (uri.isHierarchical) uri.getQueryParameter("repo") else null
-                // nuvio_plugin: Repo Manager'ın Nuvio plugin reposu bağlantısı; tür yine içerikten anlaşılır.
-                val nuvio = if (uri.isHierarchical) {
-                    DeepLink.nuvioParam(uri.getQueryParameter("nuvio"), uri.getQueryParameter("nuvio_plugin"))
-                } else null
-                container.deepLinks.handle(uri.scheme, uri.host, repo, nuvio)
+                val nuvio = if (uri.isHierarchical) uri.getQueryParameter("nuvio") else null
+                val nuvioPlugin = if (uri.isHierarchical) uri.getQueryParameter("nuvio_plugin") else null
+                container.deepLinks.handle(uri.scheme, uri.host, repo, nuvio, nuvioPlugin)
             }
         }
     }

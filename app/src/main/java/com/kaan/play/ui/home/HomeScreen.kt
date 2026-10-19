@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
@@ -103,6 +104,20 @@ fun HomeScreen(
     val selectedProviders by container.providers.selectedProviders.collectAsStateWithLifecycle(initialValue = emptySet())
     val allProviders by container.providers.allProviders.collectAsStateWithLifecycle(initialValue = emptyList())
     var showProviderSelector by remember { mutableStateOf(false) }
+    var activeProviderRow by remember { mutableStateOf<CatalogRow?>(null) }
+
+    val currentProviderRow = activeProviderRow
+    if (currentProviderRow != null) {
+        BackHandler { activeProviderRow = null }
+        ProviderCategoryScreen(
+            row = currentProviderRow,
+            onBack = { activeProviderRow = null },
+            onOpenDetail = onOpenDetail,
+            onOpenProviderDetail = onOpenProviderDetail,
+            onOpenSearch = onOpenSearch,
+        )
+        return
+    }
 
     val isAllSelected = ProviderRules.isAllProviders(selectedProviders)
     val validSelected = remember(allProviders, selectedProviders) {
@@ -125,6 +140,7 @@ fun HomeScreen(
                 onOpenSearch = onOpenSearch,
                 onOpenCategory = onOpenCategory,
                 onContinue = onContinue,
+                onOpenProviderCategory = { activeProviderRow = it },
             )
             hasSource == false -> HomeEmptyState(onAddAddon)
             else -> HomeContent(onOpenDetail, onOpenCategory, onContinue)
@@ -316,7 +332,26 @@ private fun Section(
         ) {
             Text(text = title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             if (onSeeAll != null) {
-                Icon(PlayIcons.Forward, contentDescription = seeAll, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.small)
+                        .focusRing(MaterialTheme.shapes.small)
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = seeAll,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        imageVector = PlayIcons.Forward,
+                        contentDescription = seeAll,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
             }
         }
         content()
@@ -409,6 +444,7 @@ private fun ProviderCatalogView(
     onOpenSearch: (String) -> Unit,
     onOpenCategory: (HomeRow) -> Unit,
     onContinue: (ContinueItem) -> Unit,
+    onOpenProviderCategory: (CatalogRow) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val container = rememberContainer()
@@ -589,7 +625,12 @@ private fun ProviderCatalogView(
                                 .padding(horizontal = ScreenPadding),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(MaterialTheme.shapes.small)
+                                    .clickable { onOpenProviderCategory(row) },
+                            ) {
                                 Text(
                                     text = row.title,
                                     style = MaterialTheme.typography.titleLarge,
@@ -612,7 +653,7 @@ private fun ProviderCatalogView(
                                 modifier = Modifier
                                     .clip(MaterialTheme.shapes.small)
                                     .focusRing(MaterialTheme.shapes.small)
-                                    .clickable { /* Faz C: Tümünü göster yer tutucu */ }
+                                    .clickable { onOpenProviderCategory(row) }
                                     .padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
@@ -765,7 +806,7 @@ internal fun cleanCatalogTitle(raw: String): String {
  * Afişe dokunulduğunda: TMDB'de başlıkla aranır, eşleşme varsa detayı açılır,
  * yoksa o başlıkla Arama ekranı açılır.
  */
-private suspend fun resolveAndOpenPoster(
+internal suspend fun resolveAndOpenPoster(
     item: CatalogItem,
     tmdb: TmdbRepository,
     onOpenDetail: (MediaType, Int) -> Unit,

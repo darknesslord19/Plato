@@ -32,5 +32,8 @@ class AddonException(
 
         /** Hiçbir kazıyıcı dosyası indirilemedi ya da geçerli değil; [detail] ilk başarısız kazıyıcının adı. */
         PluginFileFailed,
+
+        /** Seçilen/beklenen kaynak türü ile manifest uyuşmuyor; [detail] beklenen tür adı. */
+        KindMismatch,
     }
 }

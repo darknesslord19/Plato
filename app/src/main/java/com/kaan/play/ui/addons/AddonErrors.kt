@@ -22,6 +22,12 @@ fun AddonException.userMessage(): String = when (kind) {
     Kind.UnsupportedTypes -> stringResource(R.string.addon_error_unsupported_types)
     Kind.NoPlugins -> stringResource(R.string.addon_error_no_plugins)
     Kind.PluginFileFailed -> pluginFileFailedMessage(detail)
+    Kind.KindMismatch -> when (detail) {
+        "cloudstream" -> stringResource(R.string.addon_error_mismatch_cloudstream)
+        "nuvio_repo" -> stringResource(R.string.addon_error_mismatch_nuvio_repo)
+        "nuvio_plugin" -> stringResource(R.string.addon_error_mismatch_nuvio_plugin)
+        else -> stringResource(R.string.addon_error_unsupported_kind)
+    }
 }
 
 /**

@@ -6,6 +6,7 @@ import com.kaan.play.data.addon.AddonRepository
 import com.kaan.play.data.addon.AddonUrl
 import com.kaan.play.data.addon.ManifestFetcher
 import com.kaan.play.data.cloudstream.CsRepository
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /** "Eklenti ekle" sonucu: ne eklendi. Arayüz buna göre sade bir bildirim gösterir. */
 sealed interface AddResult {
@@ -14,10 +15,16 @@ sealed interface AddResult {
     data class CsRepo(val name: String, val installed: Int, val skipped: Int) : AddResult
 }
 
+/** Kullanıcının seçtiği ya da bağlantı parametresinden gelen kaynak türü. */
+enum class SourceType {
+    CLOUDSTREAM,
+    NUVIO_REPO,
+    NUVIO_PLUGIN,
+}
+
 /**
- * "Eklenti ekle" penceresinin tek kapısı: adresi bir kez indirir ve **içeriğine** bakarak türünü anlar (etikete ya da
- * adın şekline değil): `resources` varsa addon, `scrapers` dizisi varsa eklenti deposu,
- * `pluginLists` varsa CloudStream deposu. Kullanıcı hangisi olduğunu söylemek zorunda değildir.
+ * "Eklenti ekle" penceresinin tek kapısı: adresi indirir ve hem kullanıcının seçtiği türle uyuşup
+ * uyuşmadığını doğrular hem de içeriğe göre doğru veri katmanına kurar.
  */
 class SourceInstaller(
     private val addons: AddonRepository,
@@ -26,16 +33,61 @@ class SourceInstaller(
     private val fetcher: ManifestFetcher,
 ) {
 
-    /** @throws AddonException */
-    suspend fun add(input: String): AddResult {
-        val url = AddonUrl.normalize(input)
+    /**
+     * @param input Kullanıcının girdiği ya da bağlantıdan gelen adres.
+     * @param expectedType Beklenen kaynak türü; verilirse manifest türü ile kesin uyuşma aranır.
+     * @throws AddonException
+     */
+    suspend fun add(input: String, expectedType: SourceType? = null): AddResult {
+        val trimmed = input.trim()
+        val isDirectCs3 = trimmed.removeSuffix("/").endsWith(".cs3", ignoreCase = true)
+        val url = if (isDirectCs3) {
+            val withScheme = if ("://" in trimmed) trimmed else "https://$trimmed"
+            val parsed = withScheme.toHttpUrlOrNull() ?: throw AddonException(Kind.InvalidUrl)
+            parsed.newBuilder().fragment(null).build().toString().removeSuffix("/")
+        } else {
+            AddonUrl.normalize(input)
+        }
+
         if (addons.isKnown(url)) throw AddonException(Kind.AlreadyAdded)
+
+        if (isDirectCs3) {
+            if (expectedType == SourceType.NUVIO_REPO) throw AddonException(Kind.KindMismatch, "nuvio_repo")
+            if (expectedType == SourceType.NUVIO_PLUGIN) throw AddonException(Kind.KindMismatch, "nuvio_plugin")
+            val added = csRepos.addDirectCs3(url)
+            return AddResult.CsRepo(added.repo.name, added.installed, added.skipped)
+        }
+
         val raw = fetcher.fetch(url)
-        return when (ManifestKind.classify(raw)) {
-            ManifestKind.PluginRepo -> plugins.addFetched(url, raw).let { AddResult.PluginRepo(it.repo.name, it.installed, it.skipped) }
-            ManifestKind.External -> csRepos.addFetched(url, raw).let { AddResult.CsRepo(it.repo.name, it.installed, it.skipped) }
-            // Addon ve tanınmayan: addon ayrıştırıcısı kesin hatayı (eksik alan, `stream` yok...) verir.
-            ManifestKind.Addon, ManifestKind.Unknown -> AddResult.Addon(addons.addFetched(url, raw).manifest.name)
+        val kind = ManifestKind.classify(raw)
+
+        return when (expectedType) {
+            SourceType.CLOUDSTREAM -> {
+                if (kind != ManifestKind.External) {
+                    throw AddonException(Kind.KindMismatch, "cloudstream")
+                }
+                csRepos.addFetched(url, raw).let { AddResult.CsRepo(it.repo.name, it.installed, it.skipped) }
+            }
+            SourceType.NUVIO_REPO -> {
+                if (kind == ManifestKind.PluginRepo || kind == ManifestKind.External) {
+                    throw AddonException(Kind.KindMismatch, "nuvio_repo")
+                }
+                AddResult.Addon(addons.addFetched(url, raw).manifest.name)
+            }
+            SourceType.NUVIO_PLUGIN -> {
+                if (kind != ManifestKind.PluginRepo) {
+                    throw AddonException(Kind.KindMismatch, "nuvio_plugin")
+                }
+                plugins.addFetched(url, raw).let { AddResult.PluginRepo(it.repo.name, it.installed, it.skipped) }
+            }
+            null -> {
+                when (kind) {
+                    ManifestKind.PluginRepo -> plugins.addFetched(url, raw).let { AddResult.PluginRepo(it.repo.name, it.installed, it.skipped) }
+                    ManifestKind.External -> csRepos.addFetched(url, raw).let { AddResult.CsRepo(it.repo.name, it.installed, it.skipped) }
+                    ManifestKind.Addon, ManifestKind.Unknown -> AddResult.Addon(addons.addFetched(url, raw).manifest.name)
+                }
+            }
         }
     }
 }
+

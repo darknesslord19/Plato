@@ -11,6 +11,9 @@ import com.kaan.play.data.db.AddonType
 import com.kaan.play.data.db.PluginDao
 import com.kaan.play.data.db.PluginEntity
 import com.kaan.play.data.net.PlayJson
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -131,6 +134,87 @@ class CsRepository(
             repo = repoEntity.copy(id = repoId).toCsRepo(good.size),
             installed = good.size,
             skipped = downloads.size - good.size,
+        )
+    }
+
+    /**
+     * Doğrudan bir `.cs3` eklenti dosyasını tekil depo olarak kurar.
+     * @throws AddonException
+     */
+    suspend fun addDirectCs3(url: String): CsRepoAdded {
+        if (addonDao.countBySourceUrl(url) > 0) throw AddonException(Kind.AlreadyAdded)
+
+        val tempId = System.nanoTime()
+        val contents = downloadCs3(url, "", httpClient, store, tempId)
+
+        val parsed = runCatching {
+            PlayJson.parseToJsonElement(contents.pluginManifest) as? JsonObject
+        }.getOrNull()
+
+        val rawName = (parsed?.get("name") as? JsonPrimitive)?.content
+        val rawInternalName = (parsed?.get("internalName") as? JsonPrimitive)?.content
+        val rawVersion = (parsed?.get("version") as? JsonPrimitive)?.content
+        val rawDesc = (parsed?.get("description") as? JsonPrimitive)?.content
+        val rawTypes = runCatching {
+            (parsed?.get("tvTypes") as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.content }
+        }.getOrNull() ?: emptyList()
+        val rawLang = (parsed?.get("lang") as? JsonPrimitive)?.content ?: ""
+
+        val filename = url.substringAfterLast('/')
+        val pluginName = rawName?.takeIf { it.isNotBlank() } ?: filename.removeSuffix(".cs3")
+        val internalName = rawInternalName?.takeIf { it.isNotBlank() } ?: pluginName
+
+        val repoEntity = AddonEntity(
+            type = AddonType.CLOUDSTREAM_REPO,
+            sourceUrl = url,
+            addonId = url,
+            name = pluginName,
+            version = rawVersion,
+            description = rawDesc,
+            logoUrl = null,
+            enabled = true,
+            manifestJson = contents.pluginManifest.take(8000),
+            addedAt = clock(),
+        )
+        val repoId = addonDao.insert(repoEntity)
+        if (repoId == -1L) {
+            store.delete(tempId)
+            throw AddonException(Kind.AlreadyAdded)
+        }
+
+        val pluginEntity = PluginEntity(
+            repoId = repoId,
+            pluginId = internalName,
+            name = pluginName,
+            version = rawVersion ?: "1",
+            description = rawDesc,
+            filename = filename,
+            scriptUrl = url,
+            supportedTypes = rawTypes.joinToString(","),
+            contentLanguage = rawLang,
+            hasSettings = false,
+            sha256 = contents.sha256,
+            sizeBytes = contents.sizeBytes,
+            enabled = false,
+            installedAt = clock(),
+        )
+        val rowId = pluginDao.insert(pluginEntity)
+        if (rowId == -1L) {
+            store.delete(tempId)
+            addonDao.delete(repoId)
+            throw AddonException(Kind.AlreadyAdded)
+        }
+
+        val tmpDex = store.dexFile(tempId)
+        val tmpMf = store.manifestFile(tempId)
+        if (tmpDex.exists()) tmpDex.renameTo(store.dexFile(rowId))
+        if (tmpMf.exists()) tmpMf.renameTo(store.manifestFile(rowId))
+        store.setReadOnly(rowId)
+
+        return CsRepoAdded(
+            repo = repoEntity.copy(id = repoId).toCsRepo(1),
+            installed = 1,
+            skipped = 0,
         )
     }
 

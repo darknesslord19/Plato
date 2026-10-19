@@ -20,7 +20,7 @@
     <string name="home_row_trending_movies">Trend filmler</string>
     <string name="home_row_trending_series">Trend diziler</string>
     <string name="home_hero_details">Detayları gör</string>
-    <string name="home_see_all">Tümünü gör</string>
+    <string name="home_see_all">Tümünü göster</string>
     <string name="home_row_popular_movies">Popüler filmler</string>
     <string name="home_row_popular_series">Popüler diziler</string>
     <string name="continue_left_movie">%1$d dk kaldı</string>
@@ -99,6 +99,8 @@
     <string name="theme_light">Açık</string>
     <string name="about_version">Sürüm %1$s</string>
     <string name="about_telegram">Telegram topluluğu</string>
+    <string name="about_telegram_title">Telegram Topluluğumuz</string>
+    <string name="about_telegram_subtitle">Duyurular, güncellemeler ve topluluğumuza katıl</string>
     <string name="about_telegram_url" translatable="false">https://t.me/+o-RFlV4U3UY5NGU8</string>
 
     <!-- Eklentiler -->
@@ -155,6 +157,28 @@
     <string name="cs_fail_reason_hash">dosya bütünlüğü uyuşmuyor</string>
     <string name="cs_fail_reason_invalid">geçersiz eklenti dosyası</string>
     <string name="cs_fail_reason_db">kaydedilemedi</string>
+    <string name="addon_error_mismatch_cloudstream">Bu bağlantı bir CloudStream deposu değil. Lütfen doğru kaynak türünü seçin.</string>
+    <string name="addon_error_mismatch_nuvio_repo">Bu bağlantı bir Nuvio deposu değil. Lütfen doğru kaynak türünü seçin.</string>
+    <string name="addon_error_mismatch_nuvio_plugin">Bu bağlantı bir Nuvio plugin kaynağı değil. Lütfen doğru kaynak türünü seçin.</string>
+
+    <!-- Eklenti Ekle Seçenekleri -->
+    <string name="addons_choice_title">Eklenti ekle</string>
+    <string name="addons_choice_cs_title">CloudStream Deposu Ekle</string>
+    <string name="addons_choice_cs_subtitle">.cs3 veya manifest linki ile ekle</string>
+    <string name="addons_choice_nuvio_repo_title">Nuvio Deposu Ekle</string>
+    <string name="addons_choice_nuvio_repo_subtitle">Nuvio addon manifest linki ile ekle</string>
+    <string name="addons_choice_nuvio_plugin_title">Nuvio Plugin Ekle</string>
+    <string name="addons_choice_nuvio_plugin_subtitle">Nuvio JavaScript plugin linki ile ekle</string>
+    <string name="addons_add_cs_hint" translatable="false">https://.../manifest.json veya .cs3</string>
+    <string name="addons_add_nuvio_repo_hint" translatable="false">https://.../manifest.json</string>
+    <string name="addons_add_nuvio_plugin_hint" translatable="false">https://.../scrapers.json</string>
+    <string name="nuvio_repos_title">Nuvio Depoları</string>
+    <string name="nuvio_repos_subtitle">Nuvio addon deposu ekle</string>
+    <string name="nuvio_repos_empty">Henüz Nuvio deposu eklenmedi.</string>
+    <string name="nuvio_plugins_title">Nuvio Pluginler</string>
+    <string name="nuvio_plugins_subtitle">Nuvio JavaScript plugin deposu ekle</string>
+    <string name="nuvio_plugins_empty">Henüz Nuvio plugini eklenmedi.</string>
+    <string name="paste_from_clipboard">Panodan yapıştır</string>
 
     <!-- Eklenti deposu (Faz 2) -->
     <string name="add_done_addon">Eklenti eklendi (addon)</string>
@@ -240,7 +264,7 @@
 
     <!-- Web siteleri (Eklentiler içinde) -->
     <string name="web_add">Web sitesi ekle</string>
-    <string name="web_add_subtitle">Reklamlar engellenir</string>
+    <string name="web_add_subtitle">Reklamları engelleyen</string>
     <string name="web_sites">Web siteleri</string>
     <string name="web_add_title">Web sitesi ekle</string>
     <string name="web_add_name">Ad (isteğe bağlı)</string>
@@ -318,8 +342,8 @@
     <string name="update_close">Kapat</string>
     <string name="update_download">İndir</string>
     <string name="update_later">Sonra</string>
-    <string name="deeplink_repo_added">Depo eklendi</string>
-    <string name="deeplink_plugin_added">Eklenti eklendi</string>
+    <string name="deeplink_repo_added">Depo başarıyla eklendi</string>
+    <string name="deeplink_plugin_added">Plugin başarıyla eklendi</string>
     <string name="deeplink_confirm_title">Bağlantıdan eklensin mi?</string>
     <string name="deeplink_confirm_message">Bu bağlantı şunu eklemek istiyor:\n%1$s\n\nYalnızca güvendiğin kaynaklardan ekle.</string>
     <string name="deeplink_confirm_add">Ekle</string>

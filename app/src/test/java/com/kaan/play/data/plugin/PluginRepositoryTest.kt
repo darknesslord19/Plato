@@ -361,6 +361,60 @@ class PluginRepositoryTest {
     }
 
     @Test
+    fun installerValidatesExpectedTypeAndRejectsMismatch() = runTest {
+        stock("a", "b")
+        // 1. Nuvio Plugin seçiliyken scrapers içeren manifest başarıyla kurulur:
+        manifestText = manifest(scraper("a"), scraper("b"))
+        val pluginResult = installer.add("https://example.com/repo", expectedType = SourceType.NUVIO_PLUGIN)
+        assertEquals(AddResult.PluginRepo("Deneme Deposu", 2, 0), pluginResult)
+
+        // 2. Nuvio Plugin seçiliyken addon manifest'i verilirse KindMismatch("nuvio_plugin") hatası fırlatılır:
+        manifestText = """{"id":"org.x","name":"Örnek Addon","version":"1","types":["movie"],"resources":["stream"]}"""
+        try {
+            installer.add("https://mismatch.example/addon", expectedType = SourceType.NUVIO_PLUGIN)
+            fail("Beklenen tür uyuşmazlığı hatası fırlatılmalıydı")
+        } catch (e: AddonException) {
+            assertEquals(Kind.KindMismatch, e.kind)
+            assertEquals("nuvio_plugin", e.detail)
+        }
+
+        // 3. Nuvio Deposu seçiliyken plugin manifest'i verilirse KindMismatch("nuvio_repo") hatası fırlatılır:
+        manifestText = manifest(scraper("a"))
+        try {
+            installer.add("https://mismatch.example/plugin", expectedType = SourceType.NUVIO_REPO)
+            fail("Beklenen tür uyuşmazlığı hatası fırlatılmalıydı")
+        } catch (e: AddonException) {
+            assertEquals(Kind.KindMismatch, e.kind)
+            assertEquals("nuvio_repo", e.detail)
+        }
+
+        // 4. CloudStream Deposu seçiliyken plugin manifest'i verilirse KindMismatch("cloudstream") hatası fırlatılır:
+        try {
+            installer.add("https://mismatch.example/plugin2", expectedType = SourceType.CLOUDSTREAM)
+            fail("Beklenen tür uyuşmazlığı hatası fırlatılmalıydı")
+        } catch (e: AddonException) {
+            assertEquals(Kind.KindMismatch, e.kind)
+            assertEquals("cloudstream", e.detail)
+        }
+
+        // 5. Doğrudan .cs3 dosyası NUVIO_REPO veya NUVIO_PLUGIN seçiliyken reddedilir:
+        try {
+            installer.add("https://example.com/plugin.cs3", expectedType = SourceType.NUVIO_REPO)
+            fail("cs3 dosyası nuvio repo olarak eklenemez")
+        } catch (e: AddonException) {
+            assertEquals(Kind.KindMismatch, e.kind)
+            assertEquals("nuvio_repo", e.detail)
+        }
+        try {
+            installer.add("https://example.com/plugin.cs3", expectedType = SourceType.NUVIO_PLUGIN)
+            fail("cs3 dosyası nuvio plugin olarak eklenemez")
+        } catch (e: AddonException) {
+            assertEquals(Kind.KindMismatch, e.kind)
+            assertEquals("nuvio_plugin", e.detail)
+        }
+    }
+
+    @Test
     fun addonListStaysFreeOfRepoRows() = runTest {
         stock("a", "b")
         installer.add("example.com/repo")

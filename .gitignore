@@ -42,6 +42,13 @@ tools/*.txt
 tools/*.jar
 tools/com/
 tools/inspect_animecix.py
+tools/inspect_*.py
+tools/test_*.py
+*.jar
+!libs/*.jar
+!gradle/wrapper/*.jar
+*.db
+w3cdom_*.java
 *.xml
 ui.xml
 /oynatma-tanisi.md

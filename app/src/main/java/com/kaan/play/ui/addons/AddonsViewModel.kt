@@ -13,6 +13,7 @@ import com.kaan.play.data.plugin.InstalledPlugin
 import com.kaan.play.data.plugin.PluginRepo
 import com.kaan.play.data.plugin.PluginRepository
 import com.kaan.play.data.plugin.SourceInstaller
+import com.kaan.play.data.plugin.SourceType
 import com.kaan.play.data.plugin.UpdatePlan
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -28,12 +29,16 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** "Eklenti ekle" penceresinin durumu. Pencere kapalıyken ViewModel'de bu değer null'dır. */
-data class AddDialogState(
-    val input: String = "",
-    val busy: Boolean = false,
-    val error: AddonException? = null,
-)
+/** "Eklenti ekle" penceresinin durumu: tür seçimi veya türe özel giriş kutusu. */
+sealed interface AddDialogState {
+    data object Choice : AddDialogState
+    data class Input(
+        val type: SourceType,
+        val input: String = "",
+        val busy: Boolean = false,
+        val error: AddonException? = null,
+    ) : AddDialogState
+}
 
 class AddonsViewModel(
     private val installer: SourceInstaller,
@@ -53,6 +58,7 @@ class AddonsViewModel(
     val dialog: StateFlow<AddDialogState?> = _dialog.asStateFlow()
 
     private var submitJob: Job? = null
+    private var pendingPrefill: String? = null
 
     init {
         // Dışarıdan gelen https eklenti bağlantısı: pencereyi adres dolu açar, kutuyu boşaltır.
@@ -75,29 +81,46 @@ class AddonsViewModel(
 
     fun openAdd(prefill: String = "") {
         submitJob?.cancel()
-        _dialog.value = AddDialogState(input = prefill)
+        pendingPrefill = prefill.takeIf { it.isNotBlank() }
+        if (prefill.endsWith(".cs3", ignoreCase = true)) {
+            selectType(SourceType.CLOUDSTREAM, prefill)
+        } else {
+            _dialog.value = AddDialogState.Choice
+        }
+    }
+
+    fun selectType(type: SourceType, prefill: String? = null) {
+        submitJob?.cancel()
+        val text = prefill ?: pendingPrefill ?: ""
+        pendingPrefill = null
+        _dialog.value = AddDialogState.Input(type = type, input = text)
     }
 
     fun dismissAdd() {
         submitJob?.cancel()
+        pendingPrefill = null
         _dialog.value = null
     }
 
     fun onInputChange(text: String) {
-        _dialog.update { it?.copy(input = text, error = null) }
+        _dialog.update {
+            if (it is AddDialogState.Input) it.copy(input = text, error = null) else it
+        }
     }
 
     fun submit() {
-        val current = _dialog.value ?: return
+        val current = _dialog.value as? AddDialogState.Input ?: return
         if (current.busy || current.input.isBlank()) return
         _dialog.value = current.copy(busy = true, error = null)
         submitJob = viewModelScope.launch {
             try {
-                val result = installer.add(current.input)
+                val result = installer.add(current.input, current.type)
                 _dialog.value = null
                 _added.emit(result)
             } catch (e: AddonException) {
-                _dialog.update { it?.copy(busy = false, error = e) }
+                _dialog.update {
+                    if (it is AddDialogState.Input) it.copy(busy = false, error = e) else it
+                }
             }
         }
     }

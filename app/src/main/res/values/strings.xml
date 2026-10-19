@@ -115,6 +115,8 @@
     <string name="language_turkish" translatable="false">Türkçe</string>
     <string name="about_version">Version %1$s</string>
     <string name="about_telegram">Telegram community</string>
+    <string name="about_telegram_title">Our Telegram Community</string>
+    <string name="about_telegram_subtitle">Announcements, updates and join our community</string>
     <string name="about_telegram_url" translatable="false">https://t.me/+o-RFlV4U3UY5NGU8</string>
     <!-- TMDB'nin zorunlu atıf metni; olduğu gibi (İngilizce) gösterilir. -->
     <string name="about_tmdb_attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
@@ -175,6 +177,28 @@
     <string name="cs_fail_reason_hash">file integrity check failed</string>
     <string name="cs_fail_reason_invalid">invalid plugin file</string>
     <string name="cs_fail_reason_db">couldn\'t be saved</string>
+    <string name="addon_error_mismatch_cloudstream">This link is not a CloudStream repository. Please select the correct source type.</string>
+    <string name="addon_error_mismatch_nuvio_repo">This link is not a Nuvio repository. Please select the correct source type.</string>
+    <string name="addon_error_mismatch_nuvio_plugin">This link is not a Nuvio plugin. Please select the correct source type.</string>
+
+    <!-- Add Addon Choice Dialog -->
+    <string name="addons_choice_title">Add addon</string>
+    <string name="addons_choice_cs_title">Add CloudStream Repository</string>
+    <string name="addons_choice_cs_subtitle">Add via .cs3 or manifest link</string>
+    <string name="addons_choice_nuvio_repo_title">Add Nuvio Repository</string>
+    <string name="addons_choice_nuvio_repo_subtitle">Add via Nuvio addon manifest link</string>
+    <string name="addons_choice_nuvio_plugin_title">Add Nuvio Plugin</string>
+    <string name="addons_choice_nuvio_plugin_subtitle">Add via Nuvio JavaScript plugin link</string>
+    <string name="addons_add_cs_hint" translatable="false">https://.../manifest.json or .cs3</string>
+    <string name="addons_add_nuvio_repo_hint" translatable="false">https://.../manifest.json</string>
+    <string name="addons_add_nuvio_plugin_hint" translatable="false">https://.../scrapers.json</string>
+    <string name="nuvio_repos_title">Nuvio Repositories</string>
+    <string name="nuvio_repos_subtitle">Add Nuvio addon repository</string>
+    <string name="nuvio_repos_empty">No Nuvio repositories added yet.</string>
+    <string name="nuvio_plugins_title">Nuvio Plugins</string>
+    <string name="nuvio_plugins_subtitle">Add Nuvio JavaScript plugin repository</string>
+    <string name="nuvio_plugins_empty">No Nuvio plugins added yet.</string>
+    <string name="paste_from_clipboard">Paste from clipboard</string>
 
     <!-- Eklenti deposu (Faz 2) -->
     <string name="add_done_addon">Addon added</string>
@@ -336,8 +360,8 @@
     <string name="update_close">Close</string>
     <string name="update_download">Download</string>
     <string name="update_later">Later</string>
-    <string name="deeplink_repo_added">Repository added</string>
-    <string name="deeplink_plugin_added">Plugin added</string>
+    <string name="deeplink_repo_added">Repository added successfully</string>
+    <string name="deeplink_plugin_added">Plugin added successfully</string>
     <string name="deeplink_confirm_title">Add from link?</string>
     <string name="deeplink_confirm_message">This link wants to add:\n%1$s\n\nOnly add from sources you trust.</string>
     <string name="deeplink_confirm_add">Add</string>

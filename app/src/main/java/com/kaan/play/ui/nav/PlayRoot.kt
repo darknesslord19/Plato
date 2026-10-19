@@ -11,7 +11,18 @@ import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.material3.Surface
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.NavigationRailItemDefaults
@@ -70,8 +81,12 @@ import com.kaan.play.ui.player.formatTime
 import com.kaan.play.ui.addons.AddonsScreen
 import com.kaan.play.ui.addons.CsReposScreen
 import com.kaan.play.ui.addons.InstalledAddonsScreen
+import com.kaan.play.ui.addons.NuvioPluginsScreen
+import com.kaan.play.ui.addons.NuvioReposScreen
 import com.kaan.play.ui.addons.PluginSettingsScreen
 import com.kaan.play.ui.addons.RepositoriesScreen
+import com.kaan.play.data.plugin.AddResult
+import com.kaan.play.data.plugin.DeepLinkEvent
 import com.kaan.play.ui.detail.DetailScreen
 import com.kaan.play.ui.detail.ProviderDetailScreen
 import com.kaan.play.ui.home.CategoryScreen
@@ -92,6 +107,8 @@ private const val ADDONS_ROUTE = "settings/addons?add={add}"
 private const val ADDONS_REPOS_ROUTE = "settings/addons/repos"
 private const val ADDONS_INSTALLED_ROUTE = "settings/addons/installed"
 private const val CS_REPOS_ROUTE = "settings/addons/csrepos"
+private const val NUVIO_REPOS_ROUTE = "settings/addons/nuviorepos"
+private const val NUVIO_PLUGINS_ROUTE = "settings/addons/nuvioplugins"
 private const val PLUGIN_ROUTE = "settings/addons/plugin/{id}"
 private const val PLAYER_SETTINGS_ROUTE = "settings/player"
 private const val ABOUT_ROUTE = "settings/about"
@@ -131,8 +148,8 @@ private fun CappedFontScale(content: @Composable () -> Unit) {
 enum class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector) {
     Home("home", R.string.tab_home, PlayIcons.Home),
     Search("search", R.string.tab_search, PlayIcons.Search),
-    Library("library", R.string.tab_library, PlayIcons.Library),
-    Settings("settings", R.string.tab_settings, PlayIcons.Settings),
+    Library("library", R.string.tab_library, PlayIcons.Folder),
+    Settings("settings", R.string.tab_settings, PlayIcons.Gear),
 }
 
 @Composable
@@ -175,6 +192,20 @@ fun PlayRoot() {
     val pendingAddonUrl by container.pendingAddonUrl.collectAsStateWithLifecycle()
     LaunchedEffect(pendingAddonUrl) {
         if (pendingAddonUrl != null) openAddons(startAdding = false)
+    }
+
+    // play://add deep link onayından sonra ilgili bölüme otomatik geçiş
+    LaunchedEffect(container.deepLinks) {
+        container.deepLinks.events.collect { event ->
+            if (event is DeepLinkEvent.Added) {
+                openTab(Tab.Settings)
+                when (event.result) {
+                    is AddResult.CsRepo -> navController.navigate(CS_REPOS_ROUTE) { launchSingleTop = true }
+                    is AddResult.Addon -> navController.navigate(NUVIO_REPOS_ROUTE) { launchSingleTop = true }
+                    is AddResult.PluginRepo -> navController.navigate(NUVIO_PLUGINS_ROUTE) { launchSingleTop = true }
+                }
+            }
+        }
     }
 
     // Oynat: aktif eklenti yoksa tek yol eklenti eklemektir. Aynı içerik yarım izlenmişse önce
@@ -336,21 +367,81 @@ fun PlayRoot() {
     ) { padding ->
         Row(Modifier.padding(padding)) {
         if (showNav && layout.useRail) CappedFontScale {
-            NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
-                // Menü öğeleri dikeyde ortalanır; kumandada Yukarı/Aşağı ile gezilir, Sağ içeriğe geçer.
-                Spacer(Modifier.weight(1f))
-                Tab.entries.forEach { tab ->
-                    NavigationRailItem(
-                        selected = selected(tab),
-                        onClick = { openTab(tab) },
-                        icon = { Icon(tab.icon, contentDescription = stringResource(tab.label)) },
-                        alwaysShowLabel = true,
-                        label = { Text(stringResource(tab.label), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        colors = railColors,
-                        modifier = Modifier.focusRing(RoundedCornerShape(16.dp)).padding(vertical = 4.dp),
-                    )
+            Row(modifier = Modifier.fillMaxHeight()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(184.dp)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = 12.dp),
+                ) {
+                    // Logo
+                    Row(
+                        modifier = Modifier.padding(start = 8.dp, top = 24.dp, bottom = 28.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = PlayIcons.PlayTriangle,
+                            contentDescription = null,
+                            tint = Color(0xFF00E5FF),
+                            modifier = Modifier.size(28.dp),
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Play",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 22.sp,
+                            ),
+                            color = Color.White,
+                        )
+                    }
+
+                    // Menü öğeleri
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Tab.entries.forEach { tab ->
+                            val isSelected = selected(tab)
+                            val shape = RoundedCornerShape(14.dp)
+                            Surface(
+                                onClick = { openTab(tab) },
+                                shape = shape,
+                                color = if (isSelected) Color(0xFF062A3B) else Color.Transparent,
+                                border = if (isSelected) BorderStroke(1.5.dp, Color(0xFF00E5FF)) else null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRing(shape),
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(
+                                        imageVector = tab.icon,
+                                        contentDescription = stringResource(tab.label),
+                                        tint = if (isSelected) Color(0xFF00E5FF) else Color(0xFFC0D0E0),
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Text(
+                                        text = stringResource(tab.label),
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                        ),
+                                        color = if (isSelected) Color(0xFF00E5FF) else Color(0xFFC0D0E0),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
-                Spacer(Modifier.weight(1f))
+                VerticalDivider(
+                    color = Color(0xFF1E3A5F).copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxHeight(),
+                )
             }
         }
         NavHost(
@@ -413,11 +504,23 @@ fun PlayRoot() {
                         onOpenRepos = { navController.navigate(ADDONS_REPOS_ROUTE) },
                         onOpenInstalled = { navController.navigate(ADDONS_INSTALLED_ROUTE) },
                         onOpenCsRepos = { navController.navigate(CS_REPOS_ROUTE) },
+                        onOpenNuvioRepos = { navController.navigate(NUVIO_REPOS_ROUTE) },
+                        onOpenNuvioPlugins = { navController.navigate(NUVIO_PLUGINS_ROUTE) },
                     )
                 }
             }
             composable(ADDONS_REPOS_ROUTE) { ReadableWidth { RepositoriesScreen(onBack = { navController.popBackStack() }) } }
             composable(CS_REPOS_ROUTE) { ReadableWidth { CsReposScreen(onBack = { navController.popBackStack() }, container = rememberContainer()) } }
+            composable(NUVIO_REPOS_ROUTE) { ReadableWidth { NuvioReposScreen(onBack = { navController.popBackStack() }, container = rememberContainer()) } }
+            composable(NUVIO_PLUGINS_ROUTE) {
+                ReadableWidth {
+                    NuvioPluginsScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenPlugin = { navController.navigate("settings/addons/plugin/$it") },
+                        container = rememberContainer(),
+                    )
+                }
+            }
             composable(ADDONS_INSTALLED_ROUTE) {
                 ReadableWidth {
                     InstalledAddonsScreen(

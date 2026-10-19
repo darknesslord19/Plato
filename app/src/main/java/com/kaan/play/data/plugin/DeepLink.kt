@@ -18,6 +18,11 @@ sealed interface DeepLinkEvent {
     data object Invalid : DeepLinkEvent
 }
 
+data class DeepLinkPayload(
+    val url: String,
+    val expectedType: SourceType?,
+)
+
 /** Android'den bağımsız bağlantı kuralları (birim testli). */
 object DeepLink {
     const val SCHEME = "play"
@@ -27,16 +32,31 @@ object DeepLink {
     fun nuvioParam(nuvio: String?, nuvioPlugin: String?): String? =
         listOf(nuvio, nuvioPlugin).firstOrNull { !it.isNullOrBlank() }
 
+    fun parse(
+        scheme: String?,
+        host: String?,
+        repo: String?,
+        nuvio: String?,
+        nuvioPlugin: String? = null,
+    ): DeepLinkPayload? {
+        if (scheme != SCHEME || host != HOST) return null
+        val (raw, type) = when {
+            !repo.isNullOrBlank() -> repo to SourceType.CLOUDSTREAM
+            !nuvioPlugin.isNullOrBlank() -> nuvioPlugin to SourceType.NUVIO_PLUGIN
+            !nuvio.isNullOrBlank() -> nuvio to SourceType.NUVIO_REPO
+            else -> return null
+        }
+        val trimmed = raw.trim()
+        val url = trimmed.toHttpUrlOrNull() ?: return null
+        if (url.scheme != "https" && url.scheme != "http") return null
+        return DeepLinkPayload(url.toString(), type)
+    }
+
     /**
      * Eklenecek adres; bağlantı `play://add` değilse, `repo`/`nuvio` yoksa ya da değer http(s) adresi değilse null.
-     * Tür (addon / Nuvio deposu / CloudStream deposu) parametre adından değil, adresin içeriğinden anlaşılır.
      */
-    fun target(scheme: String?, host: String?, repo: String?, nuvio: String?): String? {
-        if (scheme != SCHEME || host != HOST) return null
-        val raw = listOf(repo, nuvio).firstOrNull { !it.isNullOrBlank() }?.trim() ?: return null
-        val url = raw.toHttpUrlOrNull() ?: return null
-        return url.toString().takeIf { url.scheme == "https" || url.scheme == "http" }
-    }
+    fun target(scheme: String?, host: String?, repo: String?, nuvio: String?): String? =
+        parse(scheme, host, repo, nuvio)?.url
 }
 
 /**
@@ -51,28 +71,38 @@ class DeepLinkHandler(
     private val channel = Channel<DeepLinkEvent>(Channel.BUFFERED)
     val events: Flow<DeepLinkEvent> = channel.receiveAsFlow()
 
-    /** Onay bekleyen adres; null = onay penceresi kapalı. Etkinlik yeniden oluşsa da (döndürme) pencere kalır. */
-    private val _pending = MutableStateFlow<String?>(null)
-    val pending: StateFlow<String?> = _pending.asStateFlow()
+    /** Onay bekleyen yük; null = onay penceresi kapalı. Etkinlik yeniden oluşsa da (döndürme) pencere kalır. */
+    private val _pending = MutableStateFlow<DeepLinkPayload?>(null)
+    val pending: StateFlow<DeepLinkPayload?> = _pending.asStateFlow()
 
-    fun handle(scheme: String?, host: String?, repo: String?, nuvio: String?) {
+    private val _busy = MutableStateFlow(false)
+    val busy: StateFlow<Boolean> = _busy.asStateFlow()
+
+    fun handle(scheme: String?, host: String?, repo: String?, nuvio: String?, nuvioPlugin: String? = null) {
         if (scheme != DeepLink.SCHEME) return
-        val target = DeepLink.target(scheme, host, repo, nuvio)
-        if (target == null) channel.trySend(DeepLinkEvent.Invalid) else _pending.value = target
+        val payload = DeepLink.parse(scheme, host, repo, nuvio, nuvioPlugin)
+        if (payload == null) channel.trySend(DeepLinkEvent.Invalid) else _pending.value = payload
     }
 
     fun dismiss() {
+        if (_busy.value) return
         _pending.value = null
     }
 
     fun confirm() {
-        val target = _pending.value ?: return
-        _pending.value = null
+        val payload = _pending.value ?: return
+        if (_busy.value) return
+        _busy.value = true
         scope.launch {
             val event = try {
-                DeepLinkEvent.Added(installer.add(target))
+                val result = installer.add(payload.url, payload.expectedType)
+                _pending.value = null
+                DeepLinkEvent.Added(result)
             } catch (e: AddonException) {
+                _pending.value = null
                 DeepLinkEvent.Failed(e)
+            } finally {
+                _busy.value = false
             }
             channel.send(event)
         }

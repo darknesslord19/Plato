@@ -52,4 +52,37 @@ class DeepLinkTest {
         assertEquals(url, DeepLink.nuvioParam("  ", url))
         assertNull(DeepLink.nuvioParam("", null))
     }
+
+    @Test
+    fun `parse fonksiyonu repo parametresini CLOUDSTREAM olarak ayristirir`() {
+        val payload = DeepLink.parse("play", "add", repoUrl, null, null)
+        assertEquals(repoUrl, payload?.url)
+        assertEquals(SourceType.CLOUDSTREAM, payload?.expectedType)
+    }
+
+    @Test
+    fun `parse fonksiyonu nuvio parametresini NUVIO_REPO olarak ayristirir`() {
+        val nuvioUrl = "https://example.com/manifest.json"
+        val payload = DeepLink.parse("play", "add", null, nuvioUrl, null)
+        assertEquals(nuvioUrl, payload?.url)
+        assertEquals(SourceType.NUVIO_REPO, payload?.expectedType)
+    }
+
+    @Test
+    fun `parse fonksiyonu nuvio_plugin parametresini NUVIO_PLUGIN olarak ayristirir`() {
+        val pluginUrl = "https://example.com/plugins/manifest.json"
+        val payload = DeepLink.parse("play", "add", null, null, pluginUrl)
+        assertEquals(pluginUrl, payload?.url)
+        assertEquals(SourceType.NUVIO_PLUGIN, payload?.expectedType)
+    }
+
+    @Test
+    fun `parse fonksiyonu gecersiz sema veya host durumunda null dondurur`() {
+        assertNull(DeepLink.parse("https", "add", repoUrl, null, null))
+        assertNull(DeepLink.parse("play", "invalid", repoUrl, null, null))
+        assertNull(DeepLink.parse("play", "add", null, null, null))
+        assertNull(DeepLink.parse("play", "add", "   ", "", " "))
+        assertNull(DeepLink.parse("play", "add", "ftp://example.com/repo.json", null, null))
+    }
 }
+

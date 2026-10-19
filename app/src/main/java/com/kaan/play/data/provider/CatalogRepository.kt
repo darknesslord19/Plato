@@ -143,6 +143,45 @@ class CatalogRepository(
         }
     }
 
+    /**
+     * Bir katalog satırının sonraki sayfa öğelerini çeker ("Tümünü göster" ızgarası için).
+     */
+    suspend fun loadMore(
+        providerId: String,
+        rowId: String,
+        page: Int,
+    ): List<CatalogItem> = withContext(Dispatchers.IO) {
+        try {
+            when {
+                providerId.startsWith("cs:") -> {
+                    val pluginRowId = providerId.removePrefix("cs:").toLongOrNull() ?: return@withContext emptyList()
+                    val plugin = pluginDao.byId(pluginRowId) ?: return@withContext emptyList()
+                    val catalog = CsCatalog(pluginRowId, plugin.name, csRepository, csRuntime)
+                    catalog.loadMore(rowId, page)
+                }
+                providerId.startsWith("nuvio_addon:") -> {
+                    val addonRowId = providerId.removePrefix("nuvio_addon:").toLongOrNull() ?: return@withContext emptyList()
+                    val addonEntity = addonDao.byId(addonRowId) ?: return@withContext emptyList()
+                    val manifest = PlayJson.decodeFromString(AddonManifest.serializer(), addonEntity.manifestJson)
+                    val addon = Addon(
+                        id = addonEntity.id,
+                        type = addonEntity.type,
+                        sourceUrl = addonEntity.sourceUrl,
+                        manifest = manifest,
+                        enabled = addonEntity.enabled,
+                        addedAt = addonEntity.addedAt,
+                    )
+                    val catalog = NuvioAddonCatalog(addon, httpClient)
+                    catalog.loadMore(rowId, page)
+                }
+                else -> emptyList()
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "loadMore hatası ($providerId / $rowId / p=$page): ${t.message}", t)
+            emptyList()
+        }
+    }
+
     private companion object {
         const val TAG = "PlayCatalog"
     }

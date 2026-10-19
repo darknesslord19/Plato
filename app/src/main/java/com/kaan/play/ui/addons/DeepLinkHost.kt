@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -27,27 +28,62 @@ import com.kaan.play.data.plugin.DeepLinkEvent
 import com.kaan.play.data.plugin.DeepLinkHandler
 import com.kaan.play.ui.components.TextButton
 import com.kaan.play.ui.tv.rememberInitialFocus
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import com.kaan.play.data.plugin.SourceType
 import kotlinx.coroutines.flow.Flow
 
 /**
- * `play://add` bağlantısı: önce onay penceresi (adres görünür, "Ekle" / "Vazgeç"), sonra sonucu
+ * `play://add` bağlantısı: önce onay penceresi (adres ve tür görünür, "Ekle" / "Vazgeç"), sonra sonucu
  * (eklendi / hata / geçersiz) alttan kısa bir Snackbar ile gösterir.
  */
 @Composable
 fun DeepLinkHost(handler: DeepLinkHandler) {
     val pending by handler.pending.collectAsStateWithLifecycle()
-    pending?.let { url ->
+    val busy by handler.busy.collectAsStateWithLifecycle()
+    pending?.let { payload ->
         val focus = rememberInitialFocus()
+        val typeName = when (payload.expectedType) {
+            SourceType.CLOUDSTREAM -> stringResource(R.string.addons_choice_cs_title)
+            SourceType.NUVIO_REPO -> stringResource(R.string.addons_choice_nuvio_repo_title)
+            SourceType.NUVIO_PLUGIN -> stringResource(R.string.addons_choice_nuvio_plugin_title)
+            null -> stringResource(R.string.addons_title)
+        }
         AlertDialog(
-            onDismissRequest = handler::dismiss,
+            onDismissRequest = { if (!busy) handler.dismiss() },
             title = { Text(stringResource(R.string.deeplink_confirm_title)) },
-            text = { Text(stringResource(R.string.deeplink_confirm_message, url), maxLines = 8, overflow = TextOverflow.Ellipsis) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.deeplink_confirm_message, "${payload.url}\n\n[$typeName]"),
+                        maxLines = 8,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (busy) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Text(
+                                text = stringResource(R.string.addons_add_checking),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(start = 12.dp),
+                            )
+                        }
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = handler::confirm, modifier = Modifier.focusRequester(focus)) {
+                TextButton(onClick = handler::confirm, enabled = !busy, modifier = Modifier.focusRequester(focus)) {
                     Text(stringResource(R.string.deeplink_confirm_add))
                 }
             },
-            dismissButton = { TextButton(onClick = handler::dismiss) { Text(stringResource(R.string.common_cancel)) } },
+            dismissButton = {
+                TextButton(onClick = handler::dismiss, enabled = !busy) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
         )
     }
     DeepLinkSnackbar(handler.events)
