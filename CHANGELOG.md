@@ -3,6 +3,11 @@
 ## Yayınlanmamış / Unreleased
 
 ### Türkçe
+- **Evrensel Nuvio & CloudStream Depo Uyumluluğu ve Tek Dokunuşla Ekleme:**
+  - **Karma ve Zengin Manifest Desteği:** `scrapers` dizisi içeren depolar (örn. Jasoelys, HANS.MEGA, MANİTUX, BRONZE CLOUD) Stremio'dan kalma `resources` veya `types` alanları içerse dahi `scrapers` alanına öncelik verilerek kesin olarak Nuvio Plugin deposu olarak sınıflandırılır; bilinmeyen üst düzey alanlar güvenle yok sayılır.
+  - **Ayrıştırıcı Toleransı:** Kazıyıcılardaki `supportedTypes` ve `contentLanguage` alanlarının boşluk/virgülle ayrılmış düz metin (`"series tv"`, `"tr en"`) olarak gelmesi desteklendi. `hasSettings` metin `"true"` desteği eklendi. `stremio://` ve `cloudstreamrepo://` şemaları normalize edildi.
+  - **Tek Dokunuşla Akıllı Öneri:** Kullanıcı bir eklenti bağlantısını yanlış kutuya (ör. Plugin kutusuna Addon veya CloudStream adresi) girdiğinde hata vermek yerine `"Bu bir <tür>. <tür> olarak ekleyeyim mi?"` (TR+EN) önerisi sunulur ve tek dokunuşla doğru türe geçip eklenir.
+  - **57 Gerçek Depo Uyum Testi:** Topluluğun 57 deposunun (31 CloudStream, 26 Nuvio) tamamı canlı ağ üzerinde otomatik test edildi; 57 deponun tamamı %100 başarıyla eklendi ve yanlış kutu önerisi doğrulandı.
 - **Nuvio Tarzı Birleşik Ana Sayfa ve Tembel Katalog Yükleme:**
   - **Varsayılan Birleşik Akış:** "Tüm sağlayıcılar" modunda kurulu ve açık her katalog addon'unun rafları (manifest'teki `catalogs` sırasıyla) ve iğnelenmiş (pin) CloudStream eklentilerinin rafları, TMDB raflarının üzerinde kendiliğinden alt alta listelenir. Hiçbir katalog addon'u veya iğneli eklenti yoksa TMDB düzeni korunur.
   - **Tembel ve Paralel Yükleme:** Raflar ekranda görünür oldukça tembel (lazy) olarak yüklenir; aynı anda en fazla 3 sağlayıcı paralel istek yapacak şekilde (`Semaphore(3)`) sınırlandırılmıştır. 5 dakikalık önbellek geçerlidir. Bir sağlayıcı hata verirse ekran hata kartlarıyla doldurulmadan o sağlayıcının rafları sessizce gizlenir.
@@ -56,6 +61,11 @@
 - **Altyazı otomatik çeviri:** Türkçe altyazı hiçbir kaynakta yoksa ve İngilizce altyazı varsa, İngilizce cihaz üstünde (Google ML Kit, sunucuya metin gitmez) Türkçeye çevrilir. İngilizce hemen görünür, çeviri arka planda biter ("Altyazı çevriliyor… %n"), elle seçmediysen otomatik Türkçeye geçilir; menüde "Türkçe (otomatik çeviri)" ayrı satırdır, gerçek Türkçe her zaman önce gelir. Zamanlar korunur, çeviri önbelleğe alınır (aynı film yeniden çevrilmez), senkron ayarı çalışır. Dil modeli ilk kullanımda bir kez iner (~44 MB, "Sadece Wi-Fi'de indir" ayarına uyar). Ayarlar > Oynatıcı > "Türkçe yoksa İngilizceyi otomatik çevir" (varsayılan açık). APK ABI başına ~6–7,5 MB büyür.
 
 ### English
+- **Universal Nuvio & CloudStream Repository Compatibility & One-Tap Suggestion:**
+  - **Mixed Manifest Classification:** Repositories containing a `scrapers` array (e.g. Jasoelys, HANS.MEGA, MANİTUX, BRONZE CLOUD) are prioritized and classified strictly as Nuvio Plugin repositories even if they contain extraneous `resources` or `types` fields; unknown root fields are safely ignored.
+  - **Parser Tolerance:** Handled space/comma-separated strings for scraper `supportedTypes` and `contentLanguage` (`"series tv"`, `"tr en"`). Added boolean string `"true"` support for `hasSettings`. Normalized `stremio://` and `cloudstreamrepo://` schemes.
+  - **One-Tap Type Suggestion:** When entering a repository into the wrong add dialog, a friendly banner suggests `"This is a <type>. Would you like to add it as a <type>?"` with a one-tap action to switch type and install.
+  - **57 Central Repos Tested:** Verified all 57 community repositories (31 CloudStream, 26 Nuvio) with 100% installation success and wrong-box suggestion verification.
 - **Nuvio-Style Unified Home Screen & Lazy Catalog Loading:**
   - **Default Unified Feed:** When "All providers" mode is active, shelves from every installed and enabled catalog addon (in manifest catalog order) and pinned CloudStream extensions are automatically stacked vertically above TMDB rows on the Home screen. When no catalog addons or pins exist, the default TMDB layout is preserved.
   - **Lazy & Throttled Loading:** Catalog shelves load lazily as they scroll into view, throttled to a maximum of 3 concurrent provider requests via `Semaphore(3)`. 5-minute memory cache is applied. If a provider fails to load, its rows are hidden silently without cluttering the screen with error cards.

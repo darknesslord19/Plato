@@ -44,6 +44,8 @@ tools/com/
 tools/inspect_animecix.py
 tools/inspect_*.py
 tools/test_*.py
+tools/update_*.py
+app/docs/
 *.jar
 !libs/*.jar
 !gradle/wrapper/*.jar

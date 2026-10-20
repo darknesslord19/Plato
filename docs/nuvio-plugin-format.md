@@ -206,25 +206,28 @@ OkHttp; bağlantı/okuma/yazma zaman aşımı 30 sn; yönlendirme izlenir (`redi
 
 ## 4. Addon ile eklenti deposu manifest'ini ayırt etmek **[DOĞRULANDI]**
 
-17 "nuvio" girişi canlı çekilip sınıflandırıldı (hepsi HTTP 200) (`central_repos.json` → `type: "nuvio"`, `nuvioKind`):
+Nuvio açık kaynak kodları (`NuvioTV` ve `NuvioMobile`) ve topluluk depoları (`central_repos.json` içindeki 57 depo: 31 CloudStream, 26 Nuvio) incelendiğinde depolama kuralları şu şekildedir:
 
-| Tür | Ayırt edici alan | Örnek |
-|---|---|---|
-| Stremio protokollü **addon** | `resources` (dizi), `types`, `catalogs`, `id` (dize), çoğunda `idPrefixes`, `behaviorHints` | nexus, SKCZ, TORRENTİNO, OPEN SUBTİTLES … (14 tane) |
-| Nuvio **eklenti deposu** | **`scrapers` (nesne dizisi)**; `resources/types/catalogs` **yok** | mooncrown (32), wekmed (16), **MANİTUX (6)** |
-| CloudStream tarzı harici depo (Nuvio `EXTERNAL_DEX`) | `pluginLists` (URL dizisi) + `manifestVersion` (TV `ExternalRepoManifest`) | bu araştırmada örneği yok |
+### 4.1 URL Hazırlama ve Normalleştirme
+- `stremio://` ve `cloudstreamrepo://` şemaları doğrudan `https://` şemasına dönüştürülür.
+- Adres bir `.json` ya da `.cs3` dosyası ile bitmiyorsa, sondaki `/` atılarak `/manifest.json` eklenir (`AddonUrl.normalize`).
 
-**Önemli bulgu:** `central_repos.json` içinde **MANİTUX** `nuvioKind: "addon"` diye etiketli ama canlı manifest'i `{id, name, logo, version, author, scrapers:[…6]}`; yani **eklenti deposu** (yanlış etiket). Etiketlere güvenilmemeli, içerik bakılmalı.
+### 4.2 Sınıflandırma ve Öncelik Sırası (Nuvio Mantığı)
+Nuvio manifest'leri indirirken türü katı şema zorlamasıyla değil, anahtar alanların varlığına göre belirler:
+1. **Nuvio Plugin Deposu (`scrapers` dizisi):**
+   - Manifest içinde nesne içeren bir `scrapers` dizisi varsa (veya boş `scrapers: []` ve `resources` yoksa) depo **kesinlikle Nuvio Plugin Deposu**dur.
+   - Dosyada `resources` (`["stream", "subtitles"]`), `types` veya Stremio alanlarının bulunması (örn. `jasoleys`, `HANS.MEGA`, `BRONZE CLOUD`, `MANİTUX`) bu sonucu değiştirmez; `scrapers` her zaman önceliklidir.
+   - Bilinmeyen üst alanlar (`description`, `author`, `logo`, `id`, `types`, `resources` vb.) yok sayılır.
+2. **CloudStream Harici Depo (`pluginLists` veya `manifestVersion` + `plugins`):**
+   - Manifest'te `pluginLists` URL dizisi varsa veya `manifestVersion` ile birlikte `plugins` dizisi yer alıyorsa CloudStream deposudur.
+3. **Nuvio Addon (`id` + `resources`):**
+   - Manifest'te metin formatında `id` ve `resources` dizisi var ve `scrapers` alanı yoksa **Addon** olarak sınıflandırılır.
+   - `catalogs` dizisi içeren addon'larda `types: ["tv"]` olsa dahi (canlı TV/IPTV/spor katalogları) katalog sunulduğu için geçerli kabul edilir.
 
-**Önerilen güvenilir ayırıcı (sıralı kural):**
-1. JSON nesnesi ve `scrapers` bir **dolu dizi**, her elemanda `id`+`filename` var, `resources` **yok** → *eklenti deposu*.
-2. `resources` dizi (ve `types` dizi) var → *Stremio addon* (mevcut Faz 1 yolu).
-3. `pluginLists` var → *CloudStream tarzı* (Faz 3 kapsamı; Faz 2'de "desteklenmiyor" de).
-4. Aksi halde geçersiz.
-
-Boş `scrapers: []` + `resources` yok → ne olduğu belirsiz; Mobil bunu "boş depo" sayıyor (kabul edilir ama uyarı verilebilir). Bu kural, hatalı etiketli girişleri de (MANİTUX) doğru sınıflar. URL'ye bakmak yeterli değil (`/manifest.json` iki türde de ortak).
-
-Uygulamanın kendi sırası (TV): URL `.json` ile bitip `manifest.json` değilse önce harici formatı dener; değilse `…/manifest.json` indirip `PluginManifest` olarak ayrıştırır, olmazsa harici formata düşer.
+### 4.3 Hoşgörülü Ayrıştırıcı Kuralları (Tolerans)
+- **Tür ve Dil Normalleştirmesi:** Kazıyıcılardaki `supportedTypes` ve `contentLanguage` alanları gerçek depolarda hem JSON dizisi (`["movie", "tv"]`) hem de boşluk veya virgülle ayrılmış düz metin (`"series tv"`, `"tr en"`) olarak gelebilmektedir. Ayrıştırıcı iki biçimi de kabul edip diziye dönüştürür.
+- **Ayar Bayrağı:** `hasSettings` alanı boolean (`true/false`) haricinde metin `"true"` değerini de boolean true olarak yorumlar.
+- **Tek Dokunuşla Akıllı Öneri:** Kullanıcı depoyu yanlış bir kutuya girerse (örn. Nuvio Plugin kutusuna Addon veya CloudStream adresi verilirse), reddetmek yerine `"Bu bir <tür>. <tür> olarak ekleyeyim mi?"` (TR+EN) önerisi çıkar ve tek dokunuşla doğru türe geçip ekleme tamamlanır.
 
 ---
 

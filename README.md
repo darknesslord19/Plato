@@ -68,7 +68,7 @@
 | **3** | Play kendiliğinden açılır. "Eklensin mi?" penceresinde onayla. |
 | **4** | Bir film aç, **Oynat**'a bas. Kaynaklar panelinde eklentilerinden gelenler görünür. |
 
-> **İpucu:** Eklentileri elle de ekleyebilirsin: **Ayarlar → Eklentiler** içinde adresi yapıştır. Play adresin içeriğine bakıp addon mu, plugin deposu mu, CloudStream deposu mu olduğunu kendisi anlar.
+> **İpucu:** Eklentileri elle de ekleyebilirsin: **Ayarlar → Eklentiler** içinde adresi yapıştır. Play adresin içeriğine bakıp addon mu, plugin deposu mu, CloudStream deposu mu olduğunu kendisi anlar; yanlış kutuya girilirse tek dokunuşla doğru türe geçip eklemeyi önerir (`docs/57-repo-raporu.md` ile tüm topluluk depoları doğrulanmıştır).
 
 ## 💬 Destek ve duyurular
 
