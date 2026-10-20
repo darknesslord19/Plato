@@ -202,6 +202,8 @@
 
     <!-- Eklenti deposu (Faz 2) -->
     <string name="add_done_addon">Addon added</string>
+    <string name="addon_type_catalog">Catalog extension</string>
+    <string name="addon_type_subtitles">Subtitle extension</string>
     <string name="add_done_repo">Addon repository added</string>
     <string name="add_done_repo_skipped">Addon repository added · %1$d skipped</string>
     <string name="plugins_note">Addons are written by third parties; Play doesn\'t provide content.</string>

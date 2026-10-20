@@ -125,7 +125,14 @@ fun ProviderCategoryScreen(
                             onOpenProviderDetail(item.providerId, item.rawUrl)
                         } else {
                             scope.launch {
-                                resolveAndOpenPoster(item, container.tmdb, onOpenDetail, onOpenSearch)
+                                resolveAndOpenPoster(
+                                    item = item,
+                                    tmdb = container.tmdb,
+                                    addons = container.addons,
+                                    onOpenDetail = onOpenDetail,
+                                    onOpenProviderDetail = onOpenProviderDetail,
+                                    onOpenSearch = onOpenSearch,
+                                )
                             }
                         }
                     },

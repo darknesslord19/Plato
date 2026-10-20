@@ -87,6 +87,16 @@ class TmdbRepository(
         return service.search(q, lang(), page).toPage()
     }
 
+    /** IMDb kimliğine göre TMDB'de ara. Bulunursa (MediaType, tmdbId), yoksa null döner. */
+    suspend fun findByImdb(imdbId: String): Pair<MediaType, Int>? {
+        val result = bestEffort { service.findByImdb(imdbId, lang()) } ?: return null
+        val movie = result.movieResults.firstOrNull()
+        if (movie != null) return MediaType.Movie to movie.id
+        val tv = result.tvResults.firstOrNull()
+        if (tv != null) return MediaType.Tv to tv.id
+        return null
+    }
+
     suspend fun detail(type: MediaType, id: Int): MediaDetail {
         val primary = service.detail(type.tmdbPath, id, lang(), imageLanguages())
         val merged = if (needsFallback() && primary.overview.isNullOrBlank()) {

@@ -124,8 +124,20 @@ fun HomeScreen(
     val validSelected = remember(allProviders, selectedProviders) {
         allProviders.filter { it.id in selectedProviders }
     }
+
+    // Gizlenen sağlayıcı önceden seçiliyse sessizce düşür
+    LaunchedEffect(allProviders, selectedProviders) {
+        if (allProviders.isNotEmpty() && selectedProviders.isNotEmpty() && !isAllSelected) {
+            val validIds = selectedProviders.filter { id -> allProviders.any { it.id == id } }.toSet()
+            if (validIds != selectedProviders) {
+                container.providers.setSelectedProviders(validIds)
+            }
+        }
+    }
+
+    val effectiveIsAll = isAllSelected || (allProviders.isNotEmpty() && validSelected.isEmpty())
     val pillText = when {
-        validSelected.isEmpty() -> stringResource(R.string.provider_pill_select)
+        effectiveIsAll || validSelected.isEmpty() -> stringResource(R.string.provider_pill_select)
         validSelected.size == 1 -> validSelected.first().name
         else -> stringResource(R.string.provider_pill_multiple, validSelected.first().name, validSelected.size - 1)
     }
@@ -133,7 +145,7 @@ fun HomeScreen(
     Box(Modifier.fillMaxSize()) {
         when {
             hasSource == null -> Box(Modifier.fillMaxSize())
-            !isAllSelected -> ProviderCatalogView(
+            !effectiveIsAll -> ProviderCatalogView(
                 selectedIds = selectedProviders,
                 validSelected = validSelected,
                 onOpenDetail = onOpenDetail,
@@ -152,7 +164,7 @@ fun HomeScreen(
         // Yüzen hap buton (sağ altta, alt menünün hemen üzerinde)
         ProviderPillButton(
             text = pillText,
-            isSelected = !isAllSelected,
+            isSelected = !effectiveIsAll,
             onClick = { showProviderSelector = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -673,7 +685,14 @@ private fun ProviderCatalogView(
                                             onOpenProviderDetail(item.providerId, item.rawUrl)
                                         } else {
                                             scope.launch {
-                                                resolveAndOpenPoster(item, container.tmdb, onOpenDetail, onOpenSearch)
+                                                resolveAndOpenPoster(
+                                                    item = item,
+                                                    tmdb = container.tmdb,
+                                                    addons = container.addons,
+                                                    onOpenDetail = onOpenDetail,
+                                                    onOpenProviderDetail = onOpenProviderDetail,
+                                                    onOpenSearch = onOpenSearch,
+                                                )
                                             }
                                         }
                                     },
@@ -804,15 +823,59 @@ internal fun cleanCatalogTitle(raw: String): String {
 }
 
 /**
- * Afişe dokunulduğunda: TMDB'de başlıkla aranır, eşleşme varsa detayı açılır,
- * yoksa o başlıkla Arama ekranı açılır.
+ * Afişe dokunulduğunda:
+ * 1. `tmdb:...` ise doğrudan TMDB Detay ekranını aç (başlık araması yapmadan).
+ * 2. `tt...` ise TMDB find API ile IMDb kimliğini çöz ve TMDB Detay ekranını aç.
+ * 3. Başka id ise addon'un `meta` kaynağıyla sağlayıcı detay ekranını aç.
+ * 4. O da yoksa veya çözülemezse başlıkla TMDB'de ara.
  */
 internal suspend fun resolveAndOpenPoster(
     item: CatalogItem,
     tmdb: TmdbRepository,
+    addons: com.kaan.play.data.addon.AddonRepository? = null,
     onOpenDetail: (MediaType, Int) -> Unit,
+    onOpenProviderDetail: ((providerId: String, url: String) -> Unit)? = null,
     onOpenSearch: (String) -> Unit,
 ) {
+    // 1. tmdb:... ise başlık araması yapmadan doğrudan TMDB Detay ekranını aç
+    if (item.id.startsWith("tmdb:")) {
+        val idPart = item.id.removePrefix("tmdb:")
+        val (mediaType, parsedId) = when {
+            idPart.startsWith("movie:") -> MediaType.Movie to idPart.removePrefix("movie:").toIntOrNull()
+            idPart.startsWith("series:") || idPart.startsWith("tv:") -> MediaType.Tv to idPart.removePrefix("series:").removePrefix("tv:").toIntOrNull()
+            else -> item.mediaType to idPart.toIntOrNull()
+        }
+        if (parsedId != null) {
+            onOpenDetail(mediaType, parsedId)
+            return
+        }
+    }
+
+    // 2. tt... ise TMDB find ile IMDb kimliğinden TMDB Detay ekranını aç
+    if (item.id.startsWith("tt")) {
+        val found = withContext(Dispatchers.IO) { tmdb.findByImdb(item.id) }
+        if (found != null) {
+            onOpenDetail(found.first, found.second)
+            return
+        }
+    }
+
+    // 3. Başka id ise addon'un meta kaynağıyla basit detay
+    if (item.providerId.startsWith("nuvio_addon:") && onOpenProviderDetail != null && addons != null) {
+        val addonRowId = item.providerId.removePrefix("nuvio_addon:").toLongOrNull() ?: 0L
+        val addon = withContext(Dispatchers.IO) { addons.byId(addonRowId) }
+        val hasMeta = addon?.manifest?.resources?.any { it.name == com.kaan.play.data.addon.AddonManifest.META } == true
+        if (hasMeta) {
+            val typeStr = when (item.mediaType) {
+                MediaType.Tv -> "series"
+                MediaType.Movie -> "movie"
+            }
+            onOpenProviderDetail(item.providerId, "$typeStr/${item.id}")
+            return
+        }
+    }
+
+    // 4. O da yoksa başlıkla ara
     val clean = cleanCatalogTitle(item.title)
     try {
         var search = withContext(Dispatchers.IO) { tmdb.search(clean) }

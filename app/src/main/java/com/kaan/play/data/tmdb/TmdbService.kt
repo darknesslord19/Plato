@@ -46,6 +46,9 @@ internal class TmdbService(
             "query" to query, "page" to page.toString(), "include_adult" to "false",
         )
 
+    suspend fun findByImdb(imdbId: String, language: String): FindResultDto =
+        get("find/$imdbId", FindResultDto.serializer(), language, "external_source" to "imdb_id")
+
     /**
      * Tek istekte: `external_ids` (IMDb kimliği), `credits` (oyuncu/ekip), `images` (başlık logosu) ve yaş sınırı
      * (filmde `release_dates`, dizide `content_ratings`).

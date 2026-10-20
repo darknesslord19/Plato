@@ -45,6 +45,14 @@ data class AddonManifest(
     val providesStreams: Boolean
         get() = servesPlayableType(STREAM)
 
+    /** Katalog sunuyor mu? */
+    val providesCatalogs: Boolean
+        get() = resources.any { it.name == CATALOG } && catalogs.isNotEmpty()
+
+    /** Altyazı sunuyor mu? */
+    val providesSubtitles: Boolean
+        get() = servesPlayableType(SUBTITLES)
+
     private fun supports(resource: String, type: String, contentId: String): Boolean =
         resources.filter { it.name == resource }.any { r ->
             val allowedTypes = r.types ?: types
@@ -59,6 +67,8 @@ data class AddonManifest(
     companion object {
         const val STREAM = "stream"
         const val SUBTITLES = "subtitles"
+        const val CATALOG = "catalog"
+        const val META = "meta"
         private val PLAYABLE_TYPES = setOf("movie", "series")
     }
 }

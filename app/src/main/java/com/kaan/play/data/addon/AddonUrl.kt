@@ -36,7 +36,12 @@ object AddonUrl {
     }
 
     /** `https://host/yol/manifest.json` -> `https://host/yol` (sonda eğik çizgi yok). */
-    fun baseOf(manifestUrl: String): String = manifestUrl.removeSuffix("/$MANIFEST")
+    fun baseOf(manifestUrl: String): String =
+        if (manifestUrl.endsWith("/$MANIFEST", ignoreCase = true)) {
+            manifestUrl.removeSuffix("/$MANIFEST")
+        } else {
+            manifestUrl.substringBeforeLast('/')
+        }
 
     private fun invalid() = AddonException(AddonException.Kind.InvalidUrl)
 }

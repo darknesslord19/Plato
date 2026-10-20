@@ -4,22 +4,27 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.kaan.play.data.addon.AddonManifest
+import com.kaan.play.data.cloudstream.CsRepository
 import com.kaan.play.data.db.AddonDao
 import com.kaan.play.data.db.AddonType
 import com.kaan.play.data.db.PluginDao
+import com.kaan.play.data.net.PlayJson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Sağlayıcıların (CloudStream eklentileri, Nuvio addon ve eklentileri) listesini ve
+ * Sağlayıcıların (yalnızca kataloğu olan CloudStream ve Nuvio sağlayıcıları) listesini ve
  * seçili/sabitlenmiş durumlarını DataStore üzerinden yöneten depo.
  */
 class ProviderRepository(
     private val addonDao: AddonDao,
     private val pluginDao: PluginDao,
     private val dataStore: DataStore<Preferences>,
+    private val csRepository: CsRepository? = null,
 ) {
 
     val pinnedProviders: Flow<Set<String>> = dataStore.data.map { prefs ->
@@ -30,12 +35,27 @@ class ProviderRepository(
         prefs[SELECTED_PROVIDERS] ?: emptySet()
     }.distinctUntilChanged()
 
+    private val csHasCatalogCache = ConcurrentHashMap<Long, Boolean>()
+
+    private suspend fun csPluginHasCatalog(pluginId: Long): Boolean {
+        val repo = csRepository ?: return true
+        csHasCatalogCache[pluginId]?.let { return it }
+        val apis = runCatching { repo.loadApis(pluginId) }.getOrDefault(emptyList())
+        val hasCatalog = apis.any { api ->
+            api.hasMainPage || runCatching { !api.mainPage.isNullOrEmpty() }.getOrDefault(false)
+        }
+        csHasCatalogCache[pluginId] = hasCatalog
+        return hasCatalog
+    }
+
     private val csProviders: Flow<List<ProviderItem>> = combine(
         pluginDao.observeOfType(AddonType.CLOUDSTREAM_REPO),
         addonDao.observeOfType(AddonType.CLOUDSTREAM_REPO),
     ) { plugins, repos ->
+        plugins to repos
+    }.map { (plugins, repos) ->
         val repoMap = repos.associateBy { it.id }
-        plugins.filter { it.enabled }.map { p ->
+        plugins.filter { it.enabled && csPluginHasCatalog(it.id) }.map { p ->
             val repoName = repoMap[p.repoId]?.name.orEmpty()
             val sub = if (repoName.isNotBlank()) "CloudStream · $repoName" else "CloudStream"
             val id = "cs:${p.id}"
@@ -43,23 +63,15 @@ class ProviderRepository(
         }
     }
 
-    private val nuvioProviders: Flow<List<ProviderItem>> = combine(
-        addonDao.observeOfType(AddonType.NUVIO_ADDON),
-        pluginDao.observeOfType(AddonType.NUVIO_PLUGIN_REPO),
-        addonDao.observeOfType(AddonType.NUVIO_PLUGIN_REPO),
-    ) { addons, plugins, repos ->
-        val repoMap = repos.associateBy { it.id }
-        val addonItems = addons.filter { it.enabled }.map { a ->
+    private val nuvioProviders: Flow<List<ProviderItem>> = addonDao.observeOfType(AddonType.NUVIO_ADDON).map { addons ->
+        addons.filter { a ->
+            if (!a.enabled) return@filter false
+            val manifest = runCatching { PlayJson.decodeFromString(AddonManifest.serializer(), a.manifestJson) }.getOrNull()
+            manifest != null && manifest.catalogs.isNotEmpty()
+        }.map { a ->
             val id = "nuvio_addon:${a.id}"
             ProviderItem(id = id, name = a.name, subtitle = "Nuvio · ${a.name}", kind = ProviderKind.NuvioAddon)
         }
-        val pluginItems = plugins.filter { it.enabled }.map { p ->
-            val repoName = repoMap[p.repoId]?.name.orEmpty()
-            val sub = if (repoName.isNotBlank()) "Nuvio · $repoName" else "Nuvio"
-            val id = "nuvio_plugin:${p.id}"
-            ProviderItem(id = id, name = p.name, subtitle = sub, kind = ProviderKind.NuvioPlugin)
-        }
-        addonItems + pluginItems
     }
 
     /**

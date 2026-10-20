@@ -369,6 +369,12 @@ internal fun AddonRow(addon: Addon, onToggle: (Boolean) -> Unit, onRemove: () ->
     val name = addon.manifest.name
     val host = remember(addon.sourceUrl) { addon.sourceUrl.toHttpUrlOrNull()?.host ?: addon.sourceUrl }
     val toggleLabel = stringResource(R.string.addons_enabled_toggle, name)
+    val typeLabel = when {
+        !addon.manifest.providesStreams && addon.manifest.providesCatalogs -> stringResource(R.string.addon_type_catalog)
+        !addon.manifest.providesStreams && addon.manifest.providesSubtitles -> stringResource(R.string.addon_type_subtitles)
+        else -> null
+    }
+    val detail = if (typeLabel != null) "$typeLabel • $host" else host
 
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -383,7 +389,7 @@ internal fun AddonRow(addon: Addon, onToggle: (Boolean) -> Unit, onRemove: () ->
             Column(modifier = Modifier.weight(1f).alpha(if (addon.enabled) 1f else 0.5f)) {
                 Text(text = name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    text = stringResource(R.string.addons_row_info, addon.manifest.version ?: "–", host),
+                    text = stringResource(R.string.addons_row_info, addon.manifest.version ?: "–", detail),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

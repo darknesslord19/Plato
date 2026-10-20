@@ -51,9 +51,58 @@ import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
+import com.kaan.play.data.net.PlayJson
+import com.kaan.play.data.stream.fetchAddonText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import kotlin.math.abs
+import kotlin.time.Duration.Companion.seconds
+
+@Serializable
+private data class StremioMetaDetailResponse(
+    val meta: StremioMetaDetail? = null,
+)
+
+@Serializable
+private data class StremioMetaDetail(
+    val id: String,
+    val type: String = "movie",
+    val name: String,
+    val genres: List<String> = emptyList(),
+    val poster: String? = null,
+    val background: String? = null,
+    val banner: String? = null,
+    val backdrop: String? = null,
+    val description: String? = null,
+    val releaseInfo: String? = null,
+    val year: String? = null,
+    val imdbRating: String? = null,
+    val videos: List<StremioMetaVideo> = emptyList(),
+)
+
+@Serializable
+private data class StremioMetaVideo(
+    val id: String,
+    val title: String? = null,
+    val name: String? = null,
+    val season: Int? = null,
+    val episode: Int? = null,
+    val released: String? = null,
+    val thumbnail: String? = null,
+    val overview: String? = null,
+)
+
+private data class ProviderEpisodeItem(
+    val data: String,
+    val name: String?,
+    val season: Int?,
+    val episode: Int?,
+    val description: String?,
+    val posterUrl: String?,
+    val runTime: Int? = null,
+)
 
 private sealed interface ProviderDetailUiState {
     data object Loading : ProviderDetailUiState
@@ -61,7 +110,7 @@ private sealed interface ProviderDetailUiState {
     data class Ready(
         val detail: MediaDetail,
         val isSeries: Boolean,
-        val csEpisodes: List<com.lagradost.cloudstream3.Episode>,
+        val episodes: List<ProviderEpisodeItem>,
         val movieDataUrl: String?,
         val syntheticId: Int,
     ) : ProviderDetailUiState
@@ -92,86 +141,184 @@ fun ProviderDetailScreen(
 
     LaunchedEffect(providerId, url, refreshKey) {
         state = ProviderDetailUiState.Loading
-        val pluginRowId = providerId.removePrefix("cs:").toLongOrNull() ?: 0L
         val loadedState: ProviderDetailUiState = withContext(Dispatchers.IO) {
             try {
-                val apis: List<MainAPI> = container.csRepos.loadApis(pluginRowId)
-                val api = apis.firstOrNull()
-                if (api == null) {
-                    return@withContext ProviderDetailUiState.Error("Eklenti API'si bulunamadı")
-                }
+                if (providerId.startsWith("nuvio_addon:")) {
+                    val addonRowId = providerId.removePrefix("nuvio_addon:").toLongOrNull() ?: 0L
+                    val addon = container.addons.byId(addonRowId)
+                        ?: return@withContext ProviderDetailUiState.Error("Eklenti bulunamadı")
 
-                val loadResp: LoadResponse? = try {
-                    api.load(url)
-                } catch (t: Throwable) {
-                    Log.e("ProviderDetail", "api.load failed: ${t.message}", t)
-                    null
-                }
+                    val metaUrl = when {
+                        url.startsWith("http://") || url.startsWith("https://") -> url
+                        url.contains('/') -> "${addon.baseUrl}/meta/$url.json"
+                        else -> "${addon.baseUrl}/meta/movie/$url.json"
+                    }
+                    val httpUrl = metaUrl.toHttpUrlOrNull()
+                        ?: return@withContext ProviderDetailUiState.Error("Geçersiz meta adresi")
 
-                if (loadResp == null) {
-                    return@withContext ProviderDetailUiState.Error("İçerik yüklenemedi")
-                }
+                    val jsonText = fetchAddonText(
+                        container.httpClient,
+                        httpUrl,
+                        limit = 15.seconds,
+                        maxBytes = 5L * 1024 * 1024,
+                    )
+                    val resp = PlayJson.decodeFromString(StremioMetaDetailResponse.serializer(), jsonText)
+                    val meta = resp.meta ?: return@withContext ProviderDetailUiState.Error("Meta bilgisi bulunamadı")
 
-                val isSeries = loadResp is TvSeriesLoadResponse || loadResp is AnimeLoadResponse
-                val csEpisodes: List<com.lagradost.cloudstream3.Episode> = when (loadResp) {
-                    is TvSeriesLoadResponse -> loadResp.episodes
-                    is AnimeLoadResponse -> loadResp.episodes.values.flatten()
-                    else -> emptyList()
-                }
+                    val isSeries = meta.type.lowercase() in listOf("series", "tv")
+                    val episodes: List<ProviderEpisodeItem> = if (isSeries) {
+                        meta.videos.map { v ->
+                            ProviderEpisodeItem(
+                                data = v.id,
+                                name = v.title ?: v.name,
+                                season = v.season ?: 1,
+                                episode = v.episode ?: 1,
+                                description = v.overview,
+                                posterUrl = v.thumbnail,
+                            )
+                        }
+                    } else {
+                        emptyList()
+                    }
 
-                val movieDataUrl = when (loadResp) {
-                    is MovieLoadResponse -> loadResp.dataUrl
-                    is LiveStreamLoadResponse -> loadResp.dataUrl
-                    else -> url
-                }
+                    val seasonNums = if (isSeries) {
+                        episodes.map { it.season ?: 1 }.distinct().sorted()
+                    } else {
+                        emptyList()
+                    }
 
-                val seasonNums = if (isSeries) {
-                    csEpisodes.map { it.season ?: 1 }.distinct().sorted()
+                    val seasonInfos = seasonNums.map { sNum ->
+                        SeasonInfo(
+                            number = sNum,
+                            name = "Sezon $sNum",
+                            episodeCount = episodes.count { (it.season ?: 1) == sNum },
+                            posterPath = null,
+                        )
+                    }
+
+                    val mediaType = if (isSeries) MediaType.Tv else MediaType.Movie
+                    val summary = MediaSummary(
+                        id = syntheticId,
+                        type = mediaType,
+                        title = meta.name,
+                        overview = meta.description.orEmpty(),
+                        posterPath = meta.poster,
+                        backdropPath = meta.background ?: meta.backdrop ?: meta.banner ?: meta.poster,
+                        year = meta.releaseInfo?.take(4)?.toIntOrNull() ?: meta.year?.take(4)?.toIntOrNull(),
+                        rating = meta.imdbRating?.toDoubleOrNull(),
+                    )
+
+                    val detail = MediaDetail(
+                        summary = summary,
+                        imdbId = if (meta.id.startsWith("tt")) meta.id else null,
+                        tagline = "",
+                        genres = meta.genres,
+                        runtimeMinutes = null,
+                        seasons = seasonInfos,
+                    )
+
+                    if (selectedSeason == null && seasonNums.isNotEmpty()) {
+                        selectedSeason = seasonNums.first()
+                    }
+
+                    ProviderDetailUiState.Ready(
+                        detail = detail,
+                        isSeries = isSeries,
+                        episodes = episodes,
+                        movieDataUrl = meta.id,
+                        syntheticId = syntheticId,
+                    )
                 } else {
-                    emptyList()
-                }
+                    val pluginRowId = providerId.removePrefix("cs:").toLongOrNull() ?: 0L
+                    val apis: List<MainAPI> = container.csRepos.loadApis(pluginRowId)
+                    val api = apis.firstOrNull()
+                    if (api == null) {
+                        return@withContext ProviderDetailUiState.Error("Eklenti API'si bulunamadı")
+                    }
 
-                val seasonInfos = seasonNums.map { sNum ->
-                    SeasonInfo(
-                        number = sNum,
-                        name = "Sezon $sNum",
-                        episodeCount = csEpisodes.count { (it.season ?: 1) == sNum },
-                        posterPath = null,
+                    val loadResp: LoadResponse? = try {
+                        api.load(url)
+                    } catch (t: Throwable) {
+                        Log.e("ProviderDetail", "api.load failed: ${t.message}", t)
+                        null
+                    }
+
+                    if (loadResp == null) {
+                        return@withContext ProviderDetailUiState.Error("İçerik yüklenemedi")
+                    }
+
+                    val isSeries = loadResp is TvSeriesLoadResponse || loadResp is AnimeLoadResponse
+                    val rawEpisodes: List<com.lagradost.cloudstream3.Episode> = when (loadResp) {
+                        is TvSeriesLoadResponse -> loadResp.episodes
+                        is AnimeLoadResponse -> loadResp.episodes.values.flatten()
+                        else -> emptyList()
+                    }
+                    val episodes: List<ProviderEpisodeItem> = rawEpisodes.map {
+                        ProviderEpisodeItem(
+                            data = it.data,
+                            name = it.name,
+                            season = it.season,
+                            episode = it.episode,
+                            description = it.description,
+                            posterUrl = it.posterUrl,
+                            runTime = it.runTime,
+                        )
+                    }
+
+                    val movieDataUrl = when (loadResp) {
+                        is MovieLoadResponse -> loadResp.dataUrl
+                        is LiveStreamLoadResponse -> loadResp.dataUrl
+                        else -> url
+                    }
+
+                    val seasonNums = if (isSeries) {
+                        episodes.map { it.season ?: 1 }.distinct().sorted()
+                    } else {
+                        emptyList()
+                    }
+
+                    val seasonInfos = seasonNums.map { sNum ->
+                        SeasonInfo(
+                            number = sNum,
+                            name = "Sezon $sNum",
+                            episodeCount = episodes.count { (it.season ?: 1) == sNum },
+                            posterPath = null,
+                        )
+                    }
+
+                    val mediaType = if (isSeries) MediaType.Tv else MediaType.Movie
+                    val summary = MediaSummary(
+                        id = syntheticId,
+                        type = mediaType,
+                        title = loadResp.name,
+                        overview = loadResp.plot.orEmpty(),
+                        posterPath = loadResp.posterUrl,
+                        backdropPath = loadResp.posterUrl,
+                        year = loadResp.year,
+                        rating = null,
+                    )
+
+                    val detail = MediaDetail(
+                        summary = summary,
+                        imdbId = null,
+                        tagline = "",
+                        genres = loadResp.tags ?: emptyList(),
+                        runtimeMinutes = null,
+                        seasons = seasonInfos,
+                    )
+
+                    if (selectedSeason == null && seasonNums.isNotEmpty()) {
+                        selectedSeason = seasonNums.first()
+                    }
+
+                    ProviderDetailUiState.Ready(
+                        detail = detail,
+                        isSeries = isSeries,
+                        episodes = episodes,
+                        movieDataUrl = movieDataUrl,
+                        syntheticId = syntheticId,
                     )
                 }
-
-                val mediaType = if (isSeries) MediaType.Tv else MediaType.Movie
-                val summary = MediaSummary(
-                    id = syntheticId,
-                    type = mediaType,
-                    title = loadResp.name,
-                    overview = loadResp.plot.orEmpty(),
-                    posterPath = loadResp.posterUrl,
-                    backdropPath = loadResp.posterUrl,
-                    year = loadResp.year,
-                    rating = null,
-                )
-
-                val detail = MediaDetail(
-                    summary = summary,
-                    imdbId = null,
-                    tagline = "",
-                    genres = loadResp.tags ?: emptyList(),
-                    runtimeMinutes = null,
-                    seasons = seasonInfos,
-                )
-
-                if (selectedSeason == null && seasonNums.isNotEmpty()) {
-                    selectedSeason = seasonNums.first()
-                }
-
-                ProviderDetailUiState.Ready(
-                    detail = detail,
-                    isSeries = isSeries,
-                    csEpisodes = csEpisodes,
-                    movieDataUrl = movieDataUrl,
-                    syntheticId = syntheticId,
-                )
             } catch (t: Throwable) {
                 Log.e("ProviderDetail", "Error in ProviderDetailScreen", t)
                 ProviderDetailUiState.Error(t.message ?: "Beklenmeyen hata")
@@ -206,7 +353,7 @@ fun ProviderDetailScreen(
             is ProviderDetailUiState.Ready -> {
                 val currentEpisodes = if (s.isSeries) {
                     val sNum = selectedSeason ?: 1
-                    val filtered = s.csEpisodes.filter { (it.season ?: 1) == sNum }
+                    val filtered = s.episodes.filter { (it.season ?: 1) == sNum }
                     filtered.mapIndexed { idx, ep ->
                         val epNumber = ep.episode ?: (idx + 1)
                         Episode(
@@ -235,9 +382,9 @@ fun ProviderDetailScreen(
                     onPlay = { season, episode ->
                         val dataUrl = if (s.isSeries) {
                             val sNum = season ?: selectedSeason ?: 1
-                            val ep = s.csEpisodes.firstOrNull {
+                            val ep = s.episodes.firstOrNull {
                                 (it.season ?: 1) == sNum && (it.episode == episode || (episode == null))
-                            } ?: s.csEpisodes.firstOrNull()
+                            } ?: s.episodes.firstOrNull()
                             ep?.data ?: url
                         } else {
                             s.movieDataUrl ?: url
@@ -246,7 +393,7 @@ fun ProviderDetailScreen(
                         val target = PlayTarget(
                             request = StreamRequest(
                                 tmdbId = s.syntheticId,
-                                imdbId = null,
+                                imdbId = s.detail.imdbId,
                                 type = if (s.isSeries) MediaType.Tv else MediaType.Movie,
                                 season = season ?: selectedSeason,
                                 episode = episode,

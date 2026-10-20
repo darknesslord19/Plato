@@ -96,8 +96,23 @@ class AddonManifestParserTest {
     }
 
     @Test
-    fun rejectsAddonsWithoutStreamOrSubtitlesResource() {
+    fun rejectsAddonsWithoutStreamOrSubtitlesOrCatalogsResource() {
+        fails(Kind.NoStreamResource, json = """{"id":"a","name":"B","types":["movie"],"resources":["meta"]}""")
         fails(Kind.NoStreamResource, json = """{"id":"a","name":"B","types":["movie"],"resources":["catalog","meta"]}""")
+        fails(Kind.NoStreamResource, json = """{"id":"a","name":"B","types":["movie"],"resources":["catalog","meta"],"catalogs":[]}""")
+    }
+
+    @Test
+    fun acceptsCatalogAddonsWhenCatalogsIsNotEmpty() {
+        val m = AddonManifestParser.parse(
+            """{"id":"org.jasoelys.catalog","name":"Jasoelys","types":["movie","series"],"resources":["catalog","meta"],"idPrefixes":["tt","tmdb:"],"catalogs":[{"type":"movie","id":"top"}]}""",
+        )
+        assertEquals("org.jasoelys.catalog", m.id)
+        assertTrue(m.providesCatalogs)
+        assertFalse(m.providesStreams)
+        assertFalse(m.providesSubtitles)
+        assertFalse(m.supportsStream("movie", "tmdb:123"))
+        assertEquals(1, m.catalogs.size)
     }
 
     @Test

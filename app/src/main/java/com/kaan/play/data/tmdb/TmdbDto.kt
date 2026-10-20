@@ -13,6 +13,12 @@ internal data class ListDto(
 )
 
 @Serializable
+internal data class FindResultDto(
+    @SerialName("movie_results") val movieResults: List<ItemDto> = emptyList(),
+    @SerialName("tv_results") val tvResults: List<ItemDto> = emptyList(),
+)
+
+@Serializable
 internal data class ItemDto(
     val id: Int,
     @SerialName("media_type") val mediaType: String? = null,

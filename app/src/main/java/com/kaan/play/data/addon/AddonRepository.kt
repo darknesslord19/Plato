@@ -81,6 +81,8 @@ class AddonRepository(
 
     suspend fun remove(id: Long) = dao.delete(id)
 
+    suspend fun byId(id: Long): Addon? = dao.byId(id)?.toAddon()
+
     private fun AddonEntity.toAddon() = Addon(
         id = id,
         type = type,

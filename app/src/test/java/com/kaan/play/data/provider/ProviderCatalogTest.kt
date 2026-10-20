@@ -229,6 +229,59 @@ class ProviderCatalogTest {
         assertEquals("https://images.metahub.space/poster/medium/tt0111161/img.jpg", item.posterUrl)
     }
 
+    @Test
+    fun nuvioAddonCatalogHandlesTmdbIdAndLoadMorePagination(): Unit = runBlocking {
+        val manifest = AddonManifest(
+            id = "org.jasoelys.catalog.v1000",
+            name = "Jasoelys",
+            types = listOf("movie", "series"),
+            resources = listOf(ManifestResource("catalog"), ManifestResource("meta")),
+            idPrefixes = listOf("tt", "tmdb:"),
+            catalogs = listOf(
+                ManifestCatalog(type = "movie", id = "top", name = "Popüler Filmler"),
+            ),
+        )
+        val addon = Addon(
+            id = 2L,
+            type = AddonType.NUVIO_ADDON,
+            sourceUrl = "https://katalog.jasoelys.workers.dev/manifest.json",
+            manifest = manifest,
+            enabled = true,
+            addedAt = 1000L,
+        )
+
+        val fakeClient = createFakeOkHttpClient { req ->
+            when (req.url.toString()) {
+                "https://katalog.jasoelys.workers.dev/catalog/movie/top.json" -> {
+                    val json = """{"metas":[{"id":"tmdb:1514026","type":"movie","name":"Buddy","poster":"https://img/1.jpg"}]}"""
+                    Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                        .body(json.toResponseBody("application/json".toMediaType())).build()
+                }
+                "https://katalog.jasoelys.workers.dev/catalog/movie/top/skip=20.json" -> {
+                    val json = """{"metas":[{"id":"tmdb:999","type":"movie","name":"Page 2 Film","poster":"https://img/2.jpg"}]}"""
+                    Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                        .body(json.toResponseBody("application/json".toMediaType())).build()
+                }
+                else -> {
+                    Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(404).message("Not Found")
+                        .body("".toResponseBody("application/json".toMediaType())).build()
+                }
+            }
+        }
+
+        val catalog = NuvioAddonCatalog(addon, fakeClient)
+        val rows = catalog.rows().first()
+        assertEquals(1, rows.size)
+        assertEquals("tmdb:1514026", rows[0].items[0].id)
+        assertEquals("Buddy", rows[0].items[0].title)
+
+        // loadMore (sayfa 2 -> skip=20)
+        val page2Items = catalog.loadMore("movie:top", page = 2)
+        assertEquals(1, page2Items.size)
+        assertEquals("tmdb:999", page2Items[0].id)
+        assertEquals("Page 2 Film", page2Items[0].title)
+    }
+
     private fun createFakeOkHttpClient(interceptor: (Request) -> Response): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor { chain -> interceptor(chain.request()) }

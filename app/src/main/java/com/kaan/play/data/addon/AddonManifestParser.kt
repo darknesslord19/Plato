@@ -41,10 +41,15 @@ object AddonManifestParser {
             catalogs = root.catalogs(),
         )
 
-        // Akış ya da altyazı sunan addon kabul edilir (yalnızca altyazı verenler kaynak listesinde görünmez, altyazı seçicisinde kullanılır).
-        val useful = listOf(AddonManifest.STREAM, AddonManifest.SUBTITLES)
-        if (manifest.resources.none { it.name in useful }) throw AddonException(Kind.NoStreamResource)
-        if (useful.none { manifest.servesPlayableType(it) }) throw AddonException(Kind.UnsupportedTypes)
+        // Akış, altyazı ya da katalog sunan addon kabul edilir (yalnızca altyazı veya katalog verenler akış kaynak listesinde görünmez).
+        val usefulStreams = listOf(AddonManifest.STREAM, AddonManifest.SUBTITLES)
+        val hasStreamOrSubs = manifest.resources.any { it.name in usefulStreams }
+        val hasCatalogs = manifest.resources.any { it.name == AddonManifest.CATALOG } && manifest.catalogs.isNotEmpty()
+
+        if (!hasStreamOrSubs && !hasCatalogs) throw AddonException(Kind.NoStreamResource)
+        if (hasStreamOrSubs && !hasCatalogs && usefulStreams.none { manifest.servesPlayableType(it) }) {
+            throw AddonException(Kind.UnsupportedTypes)
+        }
 
         return manifest
     }

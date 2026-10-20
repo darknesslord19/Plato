@@ -404,4 +404,25 @@ class TmdbRepositoryTest {
         assertEquals(1, hero.size)
         assertTrue(hero[0].genres.isEmpty())
     }
+
+    @Test
+    fun findByImdbReturnsMovieWhenFound() = runTest {
+        fixtures["find/tt0111161|tr-TR"] = """{"movie_results":[{"id":278,"title":"Esaretin Bedeli"}],"tv_results":[]}"""
+        val found = repo().findByImdb("tt0111161")
+        assertEquals(MediaType.Movie to 278, found)
+    }
+
+    @Test
+    fun findByImdbReturnsTvWhenFound() = runTest {
+        fixtures["find/tt0944947|tr-TR"] = """{"movie_results":[],"tv_results":[{"id":1399,"name":"Game of Thrones"}]}"""
+        val found = repo().findByImdb("tt0944947")
+        assertEquals(MediaType.Tv to 1399, found)
+    }
+
+    @Test
+    fun findByImdbReturnsNullWhenNotFound() = runTest {
+        fixtures["find/tt0000000|tr-TR"] = """{"movie_results":[],"tv_results":[]}"""
+        val found = repo().findByImdb("tt0000000")
+        assertNull(found)
+    }
 }

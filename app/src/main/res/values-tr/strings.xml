@@ -182,6 +182,8 @@
 
     <!-- Eklenti deposu (Faz 2) -->
     <string name="add_done_addon">Eklenti eklendi (addon)</string>
+    <string name="addon_type_catalog">Katalog eklentisi</string>
+    <string name="addon_type_subtitles">Altyazı eklentisi</string>
     <string name="add_done_repo">Eklenti deposu eklendi</string>
     <string name="add_done_repo_skipped">Eklenti deposu eklendi · %1$d atlandı</string>
     <string name="plugins_note">Eklentiler üçüncü taraflarca yazılır; Play içerik sağlamaz.</string>
