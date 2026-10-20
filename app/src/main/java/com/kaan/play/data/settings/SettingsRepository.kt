@@ -138,6 +138,14 @@ class SettingsRepository(val store: DataStore<Preferences>) {
         store.edit { it[ALWAYS_RESUME] = enabled }
     }
 
+    /** İlk açılışta varsayılan altyazı addon'larının eklendiğini gösteren bayrak (kullanıcı kararı, 2026-10-20). */
+    val defaultSubtitleAddonsSeeded: Flow<Boolean> =
+        store.data.map { it[DEFAULT_SUBTITLE_ADDONS_SEEDED] ?: false }
+
+    suspend fun setDefaultSubtitleAddonsSeeded(seeded: Boolean = true) {
+        store.edit { it[DEFAULT_SUBTITLE_ADDONS_SEEDED] = seeded }
+    }
+
     private fun Preferences.toSubtitleStyle(): SubtitleStyle {
         val d = SubtitleStyle()
         return SubtitleStyle(
@@ -181,5 +189,6 @@ class SettingsRepository(val store: DataStore<Preferences>) {
         private val SUB_COLOR = stringPreferencesKey("subtitle_color")
         private val SUB_BACKGROUND = stringPreferencesKey("subtitle_background")
         private val SUB_LANGUAGE = stringPreferencesKey("subtitle_language")
+        val DEFAULT_SUBTITLE_ADDONS_SEEDED = booleanPreferencesKey("default_subtitle_addons_seeded")
     }
 }

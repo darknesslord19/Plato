@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.kaan.play.data.addon.AddonRepository
+import com.kaan.play.data.addon.DefaultSubtitleAddons
 import com.kaan.play.data.addon.OkHttpManifestFetcher
 import com.kaan.play.data.db.PlayDatabase
 import com.kaan.play.data.download.DownloadCenter
@@ -64,6 +65,8 @@ import com.kaan.play.data.update.UpdateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -250,6 +253,11 @@ class AppContainer(context: Context) {
 
     val addons: AddonRepository by lazy {
         AddonRepository(database.addonDao(), OkHttpManifestFetcher(httpClient))
+    }
+
+    /** İlk açılışta varsayılan altyazı addon'larını (AltyazıDB, AltyazıTR) ekler (kullanıcı kararı, 2026-10-20). */
+    fun seedDefaultSubtitleAddons(): Job = appScope.launch {
+        DefaultSubtitleAddons.seedIfNeeded(database.addonDao(), settings.store)
     }
 
     /** Eklenti ayarları (`onSettings` ile bildirilen değerler), eklenti başına; ayrı bir DataStore dosyasında. */

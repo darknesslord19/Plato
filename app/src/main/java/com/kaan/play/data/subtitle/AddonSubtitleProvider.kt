@@ -65,12 +65,15 @@ class AddonSubtitleProvider(
     companion object {
         const val MAX_BYTES = 5L * 1024 * 1024
 
-        /** Bir addon'dan en çok bu kadar parça alınır (bazıları yüzlerce döndürür). */
+        /** Dil başına en çok bu kadar sonuç (Altyazı menüsü taşmasın: addon başına dil başına en çok 10 sonuç). */
+        const val MAX_PER_LANGUAGE = 10
+
+        /** Bir addon'dan en çok bu kadar parça alınır (tüm diller toplamı güvenlik sınırı). */
         const val MAX_PER_ADDON = 100
 
         /**
          * `{"subtitles":[...]}` -> parçalar; cevap bu biçimde değilse null. Bozuk tek kayıt yalnızca kendini düşürür,
-         * aynı adres tek kez alınır.
+         * aynı adres tek kez alınır. Addon başına dil başına en çok 10 sonuç gösterilir.
          */
         fun parse(origin: String, body: String): List<SubtitleTrack>? {
             val root = try {
@@ -79,6 +82,7 @@ class AddonSubtitleProvider(
                 return null
             }
             val array = (root as? JsonObject)?.get("subtitles") as? JsonArray ?: return null
+            val countByLang = mutableMapOf<String?, Int>()
             return array.asSequence()
                 .mapNotNull { it as? JsonObject }
                 .mapNotNull { obj ->
@@ -89,6 +93,15 @@ class AddonSubtitleProvider(
                     SubtitleTrack(url, SubtitleLanguages.normalize(lang), origin)
                 }
                 .distinctBy { it.url }
+                .filter { track ->
+                    val count = countByLang.getOrDefault(track.language, 0)
+                    if (count < MAX_PER_LANGUAGE) {
+                        countByLang[track.language] = count + 1
+                        true
+                    } else {
+                        false
+                    }
+                }
                 .take(MAX_PER_ADDON)
                 .toList()
         }
