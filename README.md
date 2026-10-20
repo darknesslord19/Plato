@@ -336,6 +336,36 @@ Uygulama açılışında (oturum başına bir kez, arka planda) `https://api.git
 - **Gizlilik:** GitHub'a yalnızca herkese açık bir GET gider, kimlik/cihaz/ayar bilgisi gönderilmez; GitHub istek yapan adresi (IP) görür. Tarayıcıya yalnızca `https://github.com` adresi verilir.
 - **Testler:** `UpdateRulesTest` (sürüm karşılaştırma, adres güvenliği) ve `UpdateApkRulesTest` (işlemci türü seçimi, ad/adres/boyut kuralları, `sha256sum` ayrıştırma), `UpdateFlowTest` (sahte release sunucusuyla: indirme + doğrulama + kurulum, özet/bayt bozulması, ağ kesilmesi, iptal, izin akışı, yeniden indirmeme, güvenli olmayan yönlendirme; **1.0.4:** Range ile devam, önceki oturumdan kalan `.part`, Range'i yok sayan sunucu, 416, yanlış `Content-Range`, bozuk devam sonrası baştan, otomatik yeniden deneme, "Tekrar dene", bildirimden geri yükleme ve yabancı girdi reddi) ve `UpdateCheckerTest` (yerel sahte sunucu: doğru istek, yeni/eski/eşit sürüm, taslak/ön sürüm, HTTP 404/403/429/5xx, bozuk ve aşırı büyük gövde, zaman aşımı, ulaşılamayan sunucu, oturumda tek kontrol, "Sonra" sonrası tekrar yok).
 
+## Uygulama içi duyurular
+Uygulama açılışında (oturum başına bir kez, arka planda) `https://raw.githubusercontent.com/liberta09/Play/main/announcements.json` adresi sorgulanır. Süresi geçmemiş (`until`), sürüm aralığına uyan (`minVersion` / `maxVersion`), daha önce görülmemiş ilk duyuru tek bir pencereyle ("Tamam", varsa "Aç") gösterilir. "Tamam" veya "Aç" (ve Geri tuşu) tıklandığında duyuru kimliği DataStore'da kalıcı olarak saklanır ve bir daha çıkmaz. Güncelleme penceresi çıkıyorsa duyuru aynı açılışta gösterilmez (sırayla, önce güncelleme).
+- **Sessiz hata:** ağ yok, 8 sn zaman aşımı, bozuk JSON ya da 64 KB'tan büyük gövde sessizce geçilir, açılış gecikmez.
+- **Gizlilik:** GitHub'a yalnızca herkese açık bir GET gider; kimlik, cihaz bilgisi veya ayar gönderilmez.
+
+### Duyuru nasıl yapılır?
+Deponun kök dizinindeki `announcements.json` dosyasına yeni bir duyuru nesnesi eklenir. `id` alanı benzersiz olmalıdır (ör. `YYYY-MM-DD-1`).
+```json
+{
+  "announcements": [
+    {
+      "id": "2026-10-21-1",
+      "title": "Bakım Bildirimi",
+      "message": "Sunucularımız bu gece 03:00 - 05:00 arasında güncellenecektir.",
+      "link": "https://example.com/duyuru",
+      "minVersion": "1.1.0",
+      "maxVersion": "1.2.0",
+      "until": "2026-12-31"
+    }
+  ]
+}
+```
+Alanlar:
+- `id` (zorunlu): Benzersiz duyuru kimliği.
+- `title` (zorunlu): Duyuru başlığı.
+- `message` (zorunlu): Duyuru mesajı.
+- `link` (isteğe bağlı): "Aç" düğmesine tıklandığında tarayıcıda açılacak bağlantı (yalnızca `https://`).
+- `minVersion` / `maxVersion` (isteğe bağlı): Duyurunun hedeflediği Play sürümleri (dahil).
+- `until` (isteğe bağlı): Duyurunun geçerli olduğu son tarih (`YYYY-MM-DD`).
+
 ## CloudStream eklenti uyumluluğu — Faz 3
 - **Jackson neden var ("tek JSON kütüphanesi" kuralının istisnası):** Play'in kendi kodu yalnızca kotlinx.serialization kullanır. Ama `.cs3` eklentileri CloudStream kütüphanesine derlenmiştir. Bu kütüphanenin JSON katmanı Jackson'dır: `mapper` bir `JsonMapper`'dır, eklentiler `JsonNode`, `TypeReference`, `ObjectMapper` ve `KotlinModule` sınıflarına doğrudan bağlanır. Çalışma anında bu sınıflar bulunmazsa eklenti `NoClassDefFoundError` verir. Bunlar kotlinx.serialization ile taklit edilemez, o yüzden `jackson-databind` + `jackson-module-kotlin` (2.17.2) eklendi. Jackson'ı yalnızca `com.lagradost.*` kabukları kullanır.
 - **ABI denetimi:** Kabuk sınıfları elle yazılır (kod kopyalanmaz), ama gerçek kütüphanenin ikili arayüzüyle birebir olmalıdır. Denetim yöntemi şöyle: cihazdaki eklenti DEX'leri (`files/cloudstream/*.dex`) ve APK'nın `classes*.dex` dosyaları `dexdump` ile dökülür. Eklentinin başvurduğu her sınıf, yöntem ve alan APK'da miras zinciriyle aranır, ayrıca `invoke-interface`/`invoke-virtual` türünün sınıf/arayüz tanımıyla uyumu denetlenir. 2026-10-13'te Manitux deposundan 11 eklentiyle bulunan uyumsuzluklar şunlardı: `SearchResponse`/`LoadResponse` sınıf olarak tanımlıydı (arayüz olmalı), `SubtitleFile` yanlış paketteydi, `Plugin.registerExtractorAPI` eksikti, `newHomePageResponse` imzası farklıydı. Düzeltmeden sonra eksik başvuru kalmadı.

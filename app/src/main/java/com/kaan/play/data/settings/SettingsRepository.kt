@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.kaan.play.data.stream.TorrentLinks
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -157,6 +158,18 @@ class SettingsRepository(val store: DataStore<Preferences>) {
         )
     }
 
+    /** Görülen uygulama içi duyuru kimlikleri kümesi. */
+    val seenAnnouncementIds: Flow<Set<String>> = store.data.map { prefs ->
+        prefs[SEEN_ANNOUNCEMENT_IDS] ?: emptySet()
+    }.distinctUntilChanged()
+
+    suspend fun markAnnouncementSeen(id: String) {
+        store.edit { prefs ->
+            val current = prefs[SEEN_ANNOUNCEMENT_IDS] ?: emptySet()
+            prefs[SEEN_ANNOUNCEMENT_IDS] = current + id
+        }
+    }
+
     companion object {
         val DEFAULT_THEME = ThemeMode.Dark
         const val DEFAULT_TIMEOUT_SECONDS = 15
@@ -190,5 +203,6 @@ class SettingsRepository(val store: DataStore<Preferences>) {
         private val SUB_BACKGROUND = stringPreferencesKey("subtitle_background")
         private val SUB_LANGUAGE = stringPreferencesKey("subtitle_language")
         val DEFAULT_SUBTITLE_ADDONS_SEEDED = booleanPreferencesKey("default_subtitle_addons_seeded")
+        val SEEN_ANNOUNCEMENT_IDS = stringSetPreferencesKey("seen_announcement_ids")
     }
 }

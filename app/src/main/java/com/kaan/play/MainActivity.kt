@@ -21,6 +21,7 @@ import com.kaan.play.ui.nav.PlayRoot
 import com.kaan.play.ui.theme.PlayTheme
 import com.kaan.play.ui.addons.DeepLinkHost
 import com.kaan.play.ui.update.UpdateDialog
+import com.kaan.play.ui.announcement.AnnouncementDialog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -36,6 +37,8 @@ class MainActivity : AppCompatActivity() {
         // Yalnızca debug derlemede, sahte release sunucusuyla denemek için: --es play_update_endpoint <adres>.
         val debugEndpoint = if (BuildConfig.DEBUG) intent.getStringExtra("play_update_endpoint") else null
         container.updateChecker.checkOnce(container.appScope, debugEndpoint)
+        val debugAnnounce = if (BuildConfig.DEBUG) intent.getStringExtra("play_announcements_endpoint") else null
+        container.announcementChecker.checkOnce(container.appScope, container.updateChecker, debugAnnounce)
         // Yalnızca debug derlemede, sahte altyazı servisiyle denemek için: --es play_subs_endpoint http://host:port (SubDL + OpenSubtitles).
         if (BuildConfig.DEBUG) intent.getStringExtra("play_subs_endpoint")?.let { DebugEndpoints.subsBase = it.trimEnd('/') }
         if (BuildConfig.DEBUG) {
@@ -82,6 +85,7 @@ class MainActivity : AppCompatActivity() {
                     PlayRoot()
                     SplashOverlay()
                     UpdateDialog(container.updateFlow)
+                    AnnouncementDialog(container.announcementChecker, container.updateFlow)
                     DeepLinkHost(container.deepLinks)
                 }
             }

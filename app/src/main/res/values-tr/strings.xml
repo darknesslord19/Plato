@@ -349,6 +349,8 @@
     <string name="update_close">Kapat</string>
     <string name="update_download">İndir</string>
     <string name="update_later">Sonra</string>
+    <string name="announcement_ok">Tamam</string>
+    <string name="announcement_open">Aç</string>
     <string name="deeplink_repo_added">Depo başarıyla eklendi</string>
     <string name="deeplink_plugin_added">Plugin başarıyla eklendi</string>
     <string name="deeplink_confirm_title">Bağlantıdan eklensin mi?</string>

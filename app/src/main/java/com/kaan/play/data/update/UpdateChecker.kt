@@ -41,6 +41,8 @@ class UpdateChecker(
     private val abis: List<String> = emptyList(),
 ) {
     private val started = AtomicBoolean(false)
+    private val _completed = MutableStateFlow(false)
+    val completed: StateFlow<Boolean> = _completed.asStateFlow()
 
     /**
      * Yalnızca debug derlemede, sahte release sunucusuyla denemek için: bu ana bilgisayar https şartı olmadan da kabul edilir.
@@ -64,12 +66,14 @@ class UpdateChecker(
             debugHost = debugEndpoint.toHttpUrlOrNull()?.host
         }
         scope.launch {
-            _available.value = try {
-                fetch()
+            try {
+                _available.value = fetch()
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                null // sessizce geç
+                _available.value = null // sessizce geç
+            } finally {
+                _completed.value = true
             }
         }
     }

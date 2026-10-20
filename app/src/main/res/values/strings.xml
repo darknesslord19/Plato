@@ -367,6 +367,8 @@
     <string name="update_close">Close</string>
     <string name="update_download">Download</string>
     <string name="update_later">Later</string>
+    <string name="announcement_ok">OK</string>
+    <string name="announcement_open">Open</string>
     <string name="deeplink_repo_added">Repository added successfully</string>
     <string name="deeplink_plugin_added">Plugin added successfully</string>
     <string name="deeplink_confirm_title">Add from link?</string>

@@ -60,6 +60,7 @@ import com.kaan.play.data.update.AndroidInstallPlatform
 import com.kaan.play.data.update.DownloadLauncher
 import com.kaan.play.data.update.UpdateDownloadService
 import com.kaan.play.data.update.UpdateChecker
+import com.kaan.play.data.announcement.AnnouncementChecker
 import com.kaan.play.data.update.UpdateDownloader
 import com.kaan.play.data.update.UpdateFlow
 import kotlinx.coroutines.CoroutineScope
@@ -528,6 +529,11 @@ class AppContainer(context: Context) {
 
     /** `play://add?repo=` / `play://add?nuvio=` bağlantıları: mevcut [sourceInstaller] ile ekler, sonucu Snackbar'a iletir. */
     val deepLinks: DeepLinkHandler by lazy { DeepLinkHandler(sourceInstaller, appScope) }
+
+    /** Uygulama içi duyuru kontrolü (GitHub raw announcements.json); oturumda bir kez, arka planda. */
+    val announcementChecker: AnnouncementChecker by lazy {
+        AnnouncementChecker(httpClient, json, BuildConfig.VERSION_NAME, settings)
+    }
 
     /** Uygulama içi güncelleme kontrolü (GitHub releases/latest); oturumda bir kez, etkinlik yeniden oluşsa da tekrarlanmaz. */
     val updateChecker: UpdateChecker by lazy {
