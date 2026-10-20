@@ -50,7 +50,6 @@ object PlayDiagRunner {
         val defaultRepos = listOf(
             "https://raw.githubusercontent.com/Wiojelt/TurkSinema/main/repo.json",
             "https://raw.githubusercontent.com/Wiojelt/WioSinema/builds/repo.json",
-            "https://raw.githubusercontent.com/baristomruk-max/BTVault/main/repo.json",
             "https://raw.githubusercontent.com/csprofesor/gsrepo/builds/repo.json",
         )
         for (repoUrl in defaultRepos) {
@@ -90,9 +89,39 @@ object PlayDiagRunner {
             if (enabled.isNotEmpty()) enabled else allInstalled
         }
 
+        val repoMap = runCatching {
+            container.database.addonDao().enabledOfType(com.kaan.play.data.db.AddonType.CLOUDSTREAM_REPO).associate { it.id to it.name }
+        }.getOrDefault(emptyMap())
+        Log.i(TAG, "CS Depoları: $repoMap")
+
+        val preferredRepos = mapOf(
+            "AnimeciX" to "gsrepo",
+            "Anizm" to "gsrepo",
+            "BelgeselX" to "gsrepo",
+            "DiziGom" to "gsrepo",
+            "DiziKorea" to "gsrepo",
+            "FullHDFilm" to "gsrepo",
+            "SetFilmIzle" to "gsrepo",
+            "SinemaCX" to "gsrepo",
+            "TavsiyeFilmIzle" to "gsrepo",
+            "SinemaTV" to "WioSinema",
+            "Watch2Movies" to "gsrepo",
+        )
+
         val targetPlugins = if (!filterNames.isNullOrEmpty()) {
-            allPlugins.filter { p -> filterNames.any { f -> p.name.contains(f, ignoreCase = true) || p.pluginId.contains(f, ignoreCase = true) } }
+            filterNames.mapNotNull { f ->
+                val candidates = allPlugins.filter { p -> p.name.contains(f, ignoreCase = true) || p.pluginId.contains(f, ignoreCase = true) }
+                if (candidates.isEmpty()) null
+                else {
+                    val prefKey = preferredRepos.keys.firstOrNull { it.contains(f, ignoreCase = true) || f.contains(it, ignoreCase = true) }
+                    val targetRepo = if (prefKey != null) preferredRepos[prefKey] else "TurkSinema"
+                    candidates.firstOrNull { repoMap[it.repoId]?.contains(targetRepo ?: "", ignoreCase = true) == true }
+                        ?: candidates.firstOrNull { repoMap[it.repoId]?.contains("TurkSinema", ignoreCase = true) == true }
+                        ?: candidates.first()
+                }
+            }
         } else {
+
             val standardNames = listOf(
                 "AnimeciX", "Anizm", "BelgeselX", "DDizi", "DiziBox",
                 "DiziGom", "DiziKorea", "Dizilla", "DiziMag", "DiziMom",
@@ -102,21 +131,23 @@ object PlayDiagRunner {
                 "TavsiyeFilmIzle", "Watch2Movies", "WebteIzle", "YabanciDizi"
             )
             standardNames.mapNotNull { stdName ->
-                allPlugins.firstOrNull { it.name.equals(stdName, ignoreCase = true) }
+                val candidates = allPlugins.filter { it.name.equals(stdName, ignoreCase = true) }
+                if (candidates.isEmpty()) null
+                else {
+                    val targetRepo = preferredRepos[stdName] ?: "TurkSinema"
+                    candidates.firstOrNull { repoMap[it.repoId]?.contains(targetRepo, ignoreCase = true) == true }
+                        ?: candidates.firstOrNull { repoMap[it.repoId]?.contains("TurkSinema", ignoreCase = true) == true }
+                        ?: candidates.first()
+                }
             }
         }
 
         Log.i(TAG, "Test edilecek eklenti sayısı: ${targetPlugins.size}")
 
-        val gate = Semaphore(3)
-        val results = coroutineScope {
-            targetPlugins.map { plugin ->
-                async {
-                    gate.withPermit {
-                        testPlugin(container, plugin)
-                    }
-                }
-            }.awaitAll()
+        val results = targetPlugins.map { plugin ->
+            val res = testPlugin(container, plugin)
+            kotlinx.coroutines.delay(500)
+            res
         }
 
         val outDir = File(context.filesDir, "diag")
@@ -338,21 +369,22 @@ object PlayDiagRunner {
         httpClient: OkHttpClient,
         stream: PlayableStream,
     ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
-        val requestBuilder = Request.Builder()
-            .url(stream.url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-
-        stream.headers.forEach { (k, v) ->
-            requestBuilder.header(k, v)
-        }
-
         // İlk ~512 KB indir (524288 bayt) ve medya imzasını kontrol et
         val maxBytes = 512 * 1024
         try {
-            val getReq = requestBuilder.get()
-                .header("Range", "bytes=0-${maxBytes - 1}")
-                .build()
-            val getResp = httpClient.newCall(getReq).execute()
+            val isM3u8 = stream.url.contains(".m3u8", ignoreCase = true)
+            fun buildReq(withRange: Boolean): Request {
+                val b = Request.Builder().url(stream.url)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                stream.headers.forEach { (k, v) -> b.header(k, v) }
+                if (withRange) b.header("Range", "bytes=0-${maxBytes - 1}")
+                return b.get().build()
+            }
+            var getResp = httpClient.newCall(buildReq(withRange = !isM3u8)).execute()
+            if (getResp.code in listOf(400, 416) && !isM3u8) {
+                getResp.close()
+                getResp = httpClient.newCall(buildReq(withRange = false)).execute()
+            }
             val code = getResp.code
             val body = getResp.body
             var bytesRead = 0

@@ -28,6 +28,7 @@ def main():
 
     # Clear logcat
     subprocess.run([ADB, "-s", dev, "logcat", "-c"])
+    subprocess.run([ADB, "-s", dev, "shell", "am", "force-stop", "com.kaan.play"])
 
     print("Launching Play with --ez play_diag true ...")
     cmd = [
@@ -56,7 +57,7 @@ def main():
     start_time = time.time()
     completed = False
     try:
-        while time.time() - start_time < 300: # 5 minutes max
+        while time.time() - start_time < 600: # 10 minutes max
             line = log_proc.stdout.readline()
             if not line:
                 time.sleep(0.5)
