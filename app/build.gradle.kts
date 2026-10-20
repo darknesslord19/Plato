@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.security.MessageDigest
 
 plugins {
     alias(libs.plugins.android.application)
@@ -30,9 +31,13 @@ android {
         applicationId = "com.kaan.play"
         minSdk = 24
         targetSdk = 37
-        versionCode = 5
-        versionName = "1.0.4"
+        versionCode = 6
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64"))
+        }
 
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         buildConfigField("String", "SUBDL_API_KEY", "\"$subdlApiKey\"")
@@ -82,12 +87,11 @@ android {
     // Yerel kütüphaneler APK içinde sıkıştırılır (libtorrent işlemci başına ~16 MB; sıkıştırılmadan APK çok büyür).
     // İşlemci türüne göre ayrı APK (libtorrent her türde ~14-16 MB): her cihaz yalnızca kendi türünü indirir.
     // AAB (Play Store) bundan etkilenmez; mağaza bölmeyi kendisi yapar.
+    // Tek evrensel APK (kullanıcı kararı 2026-10-19: telefon, tablet, TV aynı dosyayı kullanır).
+    // splits.abi kapalı; arm64-v8a, armeabi-v7a, x86_64 yerel kütüphaneleri aynı APK'da bulunur.
     splits {
         abi {
-            isEnable = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk = false
+            isEnable = false
         }
     }
 
@@ -98,6 +102,8 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+
+
 }
 
 configurations.all {
@@ -182,5 +188,34 @@ configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configu
     resolutionStrategy.dependencySubstitution {
         substitute(module("io.github.dokar3:quickjs-kt-android"))
             .using(module(libs.quickjs.kt.jvm.get().toString()))
+    }
+}
+
+
+// Release derlemesi sonunda Play-<sürüm>.apk ve Play-<sürüm>-SHA256.txt üretilir.
+tasks.matching { it.name == "assembleRelease" }.configureEach {
+    doLast {
+        val releaseDir = layout.buildDirectory.dir("outputs/apk/release").get().asFile
+        val targetApk = File(releaseDir, "Play-${android.defaultConfig.versionName}.apk")
+        val generatedApk = releaseDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") && it.name != targetApk.name }
+        if (generatedApk != null) {
+            generatedApk.copyTo(targetApk, overwrite = true)
+            generatedApk.delete()
+        }
+        if (targetApk.exists()) {
+            val md = MessageDigest.getInstance("SHA-256")
+            val hash = targetApk.inputStream().use { stream ->
+                val buffer = ByteArray(8192)
+                var read: Int
+                while (stream.read(buffer).also { read = it } > 0) {
+                    md.update(buffer, 0, read)
+                }
+                md.digest().joinToString("") { "%02x".format(it) }
+            }
+            val hashFile = File(releaseDir, "Play-${android.defaultConfig.versionName}-SHA256.txt")
+            hashFile.writeText("$hash *${targetApk.name}\n")
+            println("Release APK: ${targetApk.name} (${targetApk.length()} bytes)")
+            println("SHA-256: $hash -> ${hashFile.name}")
+        }
     }
 }

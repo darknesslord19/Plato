@@ -71,11 +71,11 @@ Kullanicinin karari (2026-10-21): isler saatlerce surmez. Kod isinin tamami en c
 
 ## 7. APK'yi kullaniciya ver
 
-Kullanici telefonunda deneyecekse (ya da is bir test surumuyle bittiyse) debug APK'lari masaustune kopyala:
+Kullanici telefonunda deneyecekse (ya da is bir test surumuyle bittiyse) debug APK'yi (`Play-debug.apk`) masaustune kopyala:
 ```
-$d=[Environment]::GetFolderPath("Desktop"); Get-ChildItem app\build\outputs\apk\debug -Filter *.apk | Copy-Item -Destination $d -Force
+$d=[Environment]::GetFolderPath("Desktop"); Copy-Item app\build\outputs\apk\debug\app-debug.apk (Join-Path $d "Play-debug.apk") -Force
 ```
-Kullanicinin karari (2026-10-19): Play TEK APK'dir; telefon, tablet ve TV kutusu ayni dosyayi kullanir. Tek APK'ya gecis yapildiysa masaustune yalnizca o tek dosyayi koy. Gecis henuz yapilmadiysa (splits.abi hala aciksa) yalnizca `arm64-v8a` APK'sini kopyala ve raporda bunu belirt; `x86_64` sadece LDPlayer icindir, kullaniciya verilmez.
+Kullanicinin karari (2026-10-19): Play TEK evrensel APK'dir (arm64-v8a, armeabi-v7a, x86_64 ayni dosyada); telefon, tablet ve TV kutusu ayni dosyayi kullanir. Masaustune tek `Play-debug.apk` dosyasini koy.
 
 ## 8. Belgeler
 

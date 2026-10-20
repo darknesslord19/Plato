@@ -21,15 +21,22 @@ object UpdateApkRules {
     const val MAX_HASH_FILE_BYTES = 16L * 1024
 
     /**
-     * [tag] sürümünün, [abis] (cihazın tercih sırası) içinden ilk uyan APK'sı. Adlar kesin eşleşir:
-     * `Play-<sürüm>-<abi>.apk` ve `Play-<sürüm>-SHA256.txt`; ikisinden biri yoksa ya da adres güvenli değilse null
-     * (kullanıcı release sayfasına yönlenir). Birden çok işlemci türü varsa en tercih edilen uyan kazanır.
+     * [tag] sürümünün APK'sı seçilir. Önce tek evrensel `Play-<sürüm>.apk` aranır; yoksa eski release'lerle uyum
+     * için [abis] (cihazın tercih sırası) içinden ilk uyan `Play-<sürüm>-<abi>.apk` seçilir. Adlar kesin eşleşir:
+     * `Play-<sürüm>.apk` (veya `Play-<sürüm>-<abi>.apk`) ve `Play-<sürüm>-SHA256.txt`; ikisinden biri yoksa ya da
+     * adres güvenli değilse null (kullanıcı release sayfasına yönlenir).
      */
     fun pick(tag: String, assets: List<ReleaseAsset>, abis: List<String>, debugHost: String? = null): UpdateApk? {
         val version = tag.trim().removePrefix("v").removePrefix("V")
         if (version.isEmpty()) return null
         val byName = assets.associateBy { it.name }
         val hashAsset = byName["Play-$version-SHA256.txt"]?.takeIf { isSafeDownload(it.url, debugHost) } ?: return null
+
+        val universal = byName["Play-$version.apk"]
+        if (universal != null && universal.size in 1..MAX_APK_BYTES && isSafeDownload(universal.url, debugHost)) {
+            return UpdateApk(universal.name, universal.url, universal.size, hashAsset.url)
+        }
+
         for (abi in abis) {
             val asset = byName["Play-$version-$abi.apk"] ?: continue
             if (asset.size !in 1..MAX_APK_BYTES || !isSafeDownload(asset.url, debugHost)) continue

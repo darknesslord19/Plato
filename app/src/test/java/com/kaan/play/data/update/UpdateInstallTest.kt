@@ -41,6 +41,53 @@ class UpdateApkRulesTest {
     private val all = assets("arm64-v8a", "armeabi-v7a", "x86_64")
 
     @Test
+    fun `evrensel apk varsa abi den bagimsiz ilk olarak o secilir`() {
+        val withUniversal = listOf(
+            ReleaseAsset("Play-1.1.0.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0.apk", 55_000_000),
+            ReleaseAsset("Play-1.1.0-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-arm64-v8a.apk", 13_000_000),
+            ReleaseAsset("Play-1.1.0-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-SHA256.txt", 200),
+        )
+        val picked = UpdateApkRules.pick("v1.1.0", withUniversal, listOf("arm64-v8a"))
+        assertNotNull(picked)
+        assertEquals("Play-1.1.0.apk", picked?.name)
+        assertEquals("https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0.apk", picked?.url)
+        assertEquals(55_000_000L, picked?.size)
+    }
+
+    @Test
+    fun `evrensel apk yoksa eski abi adlandirmasina geri dusulur`() {
+        val legacy = listOf(
+            ReleaseAsset("Play-1.0.3-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.0.3/Play-1.0.3-arm64-v8a.apk", 13_000_000),
+            ReleaseAsset("Play-1.0.3-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.0.3/Play-1.0.3-SHA256.txt", 200),
+        )
+        val picked = UpdateApkRules.pick("v1.0.3", legacy, listOf("arm64-v8a"))
+        assertNotNull(picked)
+        assertEquals("Play-1.0.3-arm64-v8a.apk", picked?.name)
+    }
+
+    @Test
+    fun `evrensel apk boyutu gecersizse abi adlandirmasina geri dusulur`() {
+        val list = listOf(
+            ReleaseAsset("Play-1.1.0.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0.apk", UpdateApkRules.MAX_APK_BYTES + 1),
+            ReleaseAsset("Play-1.1.0-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-arm64-v8a.apk", 13_000_000),
+            ReleaseAsset("Play-1.1.0-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-SHA256.txt", 200),
+        )
+        val picked = UpdateApkRules.pick("v1.1.0", list, listOf("arm64-v8a"))
+        assertEquals("Play-1.1.0-arm64-v8a.apk", picked?.name)
+    }
+
+    @Test
+    fun `evrensel apk adresi guvensizse abi adlandirmasina geri dusulur`() {
+        val list = listOf(
+            ReleaseAsset("Play-1.1.0.apk", "http://insecure.example.com/Play-1.1.0.apk", 55_000_000),
+            ReleaseAsset("Play-1.1.0-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-arm64-v8a.apk", 13_000_000),
+            ReleaseAsset("Play-1.1.0-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-SHA256.txt", 200),
+        )
+        val picked = UpdateApkRules.pick("v1.1.0", list, listOf("arm64-v8a"))
+        assertEquals("Play-1.1.0-arm64-v8a.apk", picked?.name)
+    }
+
+    @Test
     fun `cihazin en tercih ettigi islemci turu secilir`() {
         assertEquals("Play-1.0.3-arm64-v8a.apk", UpdateApkRules.pick("v1.0.3", all, listOf("arm64-v8a", "armeabi-v7a", "armeabi"))?.name)
         assertEquals("Play-1.0.3-armeabi-v7a.apk", UpdateApkRules.pick("v1.0.3", all, listOf("armeabi-v7a", "armeabi"))?.name)

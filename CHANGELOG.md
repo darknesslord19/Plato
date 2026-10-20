@@ -2,7 +2,11 @@
 
 ## Yayınlanmamış / Unreleased
 
+## [1.1.0] — 2026-10-21
+
 ### Türkçe
+- **Tek evrensel APK (Kullanıcı kararı 2026-10-19):** Telefon, tablet ve Android TV aynı APK dosyasını kullanır. `splits.abi` kapatılarak tek evrensel APK'ya (`Play-1.1.0.apk`) geçildi (`arm64-v8a`, `armeabi-v7a` ve `x86_64` yerel kütüphaneleri aynı dosyada). Uygulama içi güncelleme önce tek evrensel APK'yı arar, bulunamazsa eski sürümlerle uyumluluk için işlemci mimarisine özel adlara geri düşer.
+- **Hazır altyazı eklentileri (Kullanıcı kararı 2026-10-20):** İlk kurulumda AltyazıDB ve AltyazıTR altyazı eklentileri otomatik olarak eklenir ve açık gelir; video kaynağı/kataloğu gömülmez. Kullanıcı silerse bir daha geri gelmez. Menü taşmasını önlemek için eklenti ve dil başına en çok 10 altyazı sonucu listelenir.
 - **CloudStream Sıradaki Bölüm ve Devam Et Akışı:** Bitirilen CloudStream dizilerinde bir sonraki bölüm (`CsNextEpisodeFinder`) "İzlemeye devam et" satırında "Sıradaki: SX BX" olarak listelenir, tıklandığında doğrudan sıradaki bölüm oynatılır. Detay ekranındaki sezon seçimi ve bölüm tıklama akışı sağlamlaştırıldı.
 - **HTTP/2 PROTOCOL_ERROR Teşhisi ve HTTP/1.1 Geri Dönüşü:** Sunucu kaynaklı HTTP/2 akış sıfırlama (PROTOCOL_ERROR) durumlarında HTTP/1.1'e otomatik geri dönüş (`executeWithHttp1Fallback`) eklendi; tanı aracında torrent akışları atlama/ayrıştırma mantığı düzeltildi.
 - **Nuvio JS Eklentileri ve CloudStream Zaman Aşımı İyileştirmesi:** QuickJS eklentilerinde (Dizilla, SelcukFlix) geçersiz TMDB anahtarları ağ köprüsünde gerçek anahtarla ikame edildi (`substituteTmdbKey`); CloudStream kaynak çözümleme zaman aşımı 30 saniyeye çıkarıldı.
@@ -75,6 +79,8 @@
 - **Altyazı otomatik çeviri:** Türkçe altyazı hiçbir kaynakta yoksa ve İngilizce altyazı varsa, İngilizce cihaz üstünde (Google ML Kit, sunucuya metin gitmez) Türkçeye çevrilir. İngilizce hemen görünür, çeviri arka planda biter ("Altyazı çevriliyor… %n"), elle seçmediysen otomatik Türkçeye geçilir; menüde "Türkçe (otomatik çeviri)" ayrı satırdır, gerçek Türkçe her zaman önce gelir. Zamanlar korunur, çeviri önbelleğe alınır (aynı film yeniden çevrilmez), senkron ayarı çalışır. Dil modeli ilk kullanımda bir kez iner (~44 MB, "Sadece Wi-Fi'de indir" ayarına uyar). Ayarlar > Oynatıcı > "Türkçe yoksa İngilizceyi otomatik çevir" (varsayılan açık). APK ABI başına ~6–7,5 MB büyür.
 
 ### English
+- **Single universal APK (User decision 2026-10-19):** Phone, tablet, and Android TV use the same APK file. Disabled `splits.abi` in favour of a single universal APK (`Play-1.1.0.apk`) containing `arm64-v8a`, `armeabi-v7a`, and `x86_64` native libraries. In-app update first searches for the universal APK and falls back to ABI-specific names for older releases.
+- **Pre-seeded subtitle addons (User decision 2026-10-20):** AltyazıDB and AltyazıTR subtitle addons are pre-seeded and enabled on first launch; no video catalogs are bundled. If removed, they are never re-added. Capped at 10 results per addon and language to prevent UI overflow.
 - **Universal Nuvio & CloudStream Repository Compatibility & One-Tap Suggestion:**
   - **Mixed Manifest Classification:** Repositories containing a `scrapers` array (e.g. Jasoelys, HANS.MEGA, MANİTUX, BRONZE CLOUD) are prioritized and classified strictly as Nuvio Plugin repositories even if they contain extraneous `resources` or `types` fields; unknown root fields are safely ignored.
   - **Parser Tolerance:** Handled space/comma-separated strings for scraper `supportedTypes` and `contentLanguage` (`"series tv"`, `"tr en"`). Added boolean string `"true"` support for `hasSettings`. Normalized `stremio://` and `cloudstreamrepo://` schemes.
