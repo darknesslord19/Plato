@@ -157,6 +157,10 @@ class CentralReposCompatibilityTest {
 
     @Test
     fun testAll57ReposCompatibility() = runTest {
+        org.junit.Assume.assumeTrue(
+            "CentralReposCompatibilityTest canli internet testi; -Dplay.test.liveCentralRepos=true ile calisir",
+            System.getProperty("play.test.liveCentralRepos") == "true"
+        )
         val centralReposUrl = "https://raw.githubusercontent.com/liberta09/CloudStreamRepoManager/main/central_repos.json"
         val centralJsonRaw: String = try {
             val req = Request.Builder().url(centralReposUrl).build()
