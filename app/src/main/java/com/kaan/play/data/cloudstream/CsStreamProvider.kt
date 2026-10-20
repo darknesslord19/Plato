@@ -28,7 +28,7 @@ class CsStreamProvider(
     private val repository: CsRepository,
     private val runtime: CsRuntime,
     private val titleResolver: suspend (request: StreamRequest) -> String?,
-    private val timeoutMs: Long = 15_000L,
+    private val timeoutMs: Long = 30_000L,
 ) : StreamProvider {
 
     override fun streams(request: StreamRequest): Flow<StreamResult> = channelFlow {

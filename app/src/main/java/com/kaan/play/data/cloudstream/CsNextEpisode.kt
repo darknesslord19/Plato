@@ -22,8 +22,14 @@ class CsNextEpisodeFinder(private val csRepos: CsRepository) {
     suspend fun next(pluginId: String, contentUrl: String, dataUrl: String?, season: Int?, episode: Int?): CsNextEpisode? {
         val key = listOf(pluginId, contentUrl, dataUrl, season, episode).joinToString("|")
         synchronized(cache) { if (key in cache) return cache[key] }
-        val episodes = load(pluginId, contentUrl) ?: return null // ağ hatası önbelleğe girmez
+        android.util.Log.d("CsNextEpisode", "next() called: pluginId=$pluginId, contentUrl=$contentUrl, dataUrl=$dataUrl, s=$season, e=$episode")
+        val episodes = load(pluginId, contentUrl)
+        if (episodes == null) {
+            android.util.Log.w("CsNextEpisode", "load() returned null for pluginId=$pluginId, contentUrl=$contentUrl")
+            return null
+        }
         val result = pickNext(episodes, dataUrl, season, episode)
+        android.util.Log.d("CsNextEpisode", "pickNext returned: $result (from ${episodes.size} episodes)")
         synchronized(cache) { cache[key] = result }
         return result
     }
@@ -32,16 +38,35 @@ class CsNextEpisodeFinder(private val csRepos: CsRepository) {
         val repoId = pluginId.removePrefix("cs:").removePrefix("cs_").toLongOrNull()
         val plugin = csRepos.enabledPlugins().firstOrNull {
             it.id == repoId || "cs:${it.id}" == pluginId || it.pluginId == pluginId
-        } ?: return@withContext null
-        val api = csRepos.loadApis(plugin.id).firstOrNull() ?: return@withContext null
+        }
+        if (plugin == null) {
+            android.util.Log.w("CsNextEpisode", "Plugin not found for pluginId=$pluginId")
+            return@withContext null
+        }
+        val api = csRepos.loadApis(plugin.id).firstOrNull()
+        if (api == null) {
+            android.util.Log.w("CsNextEpisode", "api not found for plugin.id=${plugin.id}")
+            return@withContext null
+        }
         val response = withTimeoutOrNull(LOAD_TIMEOUT_MS) {
-            runCatching { api.load(contentUrl) }.getOrNull()
-        } ?: return@withContext null
-        when (response) {
+            try {
+                api.load(contentUrl)
+            } catch (t: Throwable) {
+                android.util.Log.w("CsNextEpisode", "api.load failed for $contentUrl: ${t.message}")
+                null
+            }
+        }
+        if (response == null) {
+            android.util.Log.w("CsNextEpisode", "api.load returned null or timed out for $contentUrl")
+            return@withContext null
+        }
+        val list = when (response) {
             is TvSeriesLoadResponse -> response.episodes
             is AnimeLoadResponse -> response.episodes.values.flatten()
             else -> emptyList()
         }.map { CsEpisodeRef(it.season, it.episode, it.data) }
+        android.util.Log.d("CsNextEpisode", "Loaded ${list.size} episodes for $contentUrl")
+        list
     }
 
     companion object {

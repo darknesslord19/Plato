@@ -31,15 +31,17 @@ class ContinueWatching(
 ) {
     val items: Flow<List<ContinueItem>> = library.latestPerContent.transformLatest { rows ->
         val finishedSeries = rows.filter { it.type == MediaType.Tv && WatchRules.isWatched(it.positionMs, it.durationMs) }
-        emit(build(rows, emptyMap()))
+        val firstPass = build(rows, emptyMap())
+        emit(firstPass)
         if (finishedSeries.isEmpty()) return@transformLatest
 
         val resolved = coroutineScope {
             finishedSeries.map { row ->
-                async { row.id to (try { nextEpisode(row) } catch (_: TmdbException) { null }) }
+                async { row.id to (try { nextEpisode(row) } catch (_: Exception) { null }) }
             }.awaitAll()
         }.mapNotNull { (id, next) -> next?.let { id to it } }.toMap()
-        if (resolved.isNotEmpty()) emit(build(rows, resolved))
+        val secondPass = build(rows, resolved)
+        if (resolved.isNotEmpty()) emit(secondPass)
     }
 
     private fun build(rows: List<WatchHistoryEntity>, next: Map<Long, Pair<Int, Int>>): List<ContinueItem> =

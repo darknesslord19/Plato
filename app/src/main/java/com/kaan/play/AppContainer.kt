@@ -231,11 +231,18 @@ class AppContainer(context: Context) {
             val pluginId = row.pluginId
             val contentUrl = row.contentUrl
             when {
-                // Eklenti içeriği: TMDB kimliği yok, sıradaki bölüm eklentinin listesinden.
-                pluginId != null && !contentUrl.isNullOrBlank() ->
-                    csNextEpisodes.next(pluginId, contentUrl, row.dataUrl, row.season, row.episode)
-                        ?.let { it.season to it.episode }
-                row.tmdbId > 0 -> nextEpisodes.next(row.tmdbId, row.season, row.episode)
+                // Eklenti içeriği: eklenti listesinden sıradaki bölüm; bulunamazsa veya TMDB eşleşmesi varsa TMDB yedek.
+                pluginId != null && !contentUrl.isNullOrBlank() -> {
+                    val cs = csNextEpisodes.next(pluginId, contentUrl, row.dataUrl, row.season, row.episode)
+                    if (cs != null) {
+                        cs.season to cs.episode
+                    } else if (row.tmdbId > 0) {
+                        try { nextEpisodes.next(row.tmdbId, row.season, row.episode) } catch (_: Exception) { null }
+                    } else {
+                        null
+                    }
+                }
+                row.tmdbId > 0 -> try { nextEpisodes.next(row.tmdbId, row.season, row.episode) } catch (_: Exception) { null }
                 else -> null
             }
         }
@@ -353,7 +360,7 @@ class AppContainer(context: Context) {
                 repository = csRepos,
                 runtime = csRuntime,
                 titleResolver = { req -> runCatching { tmdb.detail(req.type, req.tmdbId).summary.title }.getOrNull() },
-                timeoutMs = 15_000L,
+                timeoutMs = 30_000L,
             ),
         )
     }

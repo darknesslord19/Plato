@@ -310,6 +310,8 @@ fun PlayRoot() {
                         val next = container.csNextEpisodes.next(pluginId, contentUrl, entry.dataUrl, entry.season, entry.episode)
                         if (next != null) {
                             playEntry(entry.copy(dataUrl = next.dataUrl), next.season, next.episode, 0L)
+                        } else {
+                            playEntry(entry, item.season, item.episode, 0L)
                         }
                     }
                 } else {

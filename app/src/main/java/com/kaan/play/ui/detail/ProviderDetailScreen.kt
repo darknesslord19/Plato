@@ -380,7 +380,7 @@ fun ProviderDetailScreen(
                 DetailContent(
                     detail = s.detail,
                     isFavorite = false,
-                    selectedSeason = selectedSeason,
+                    selectedSeason = selectedSeason ?: s.detail.seasons.firstOrNull()?.number ?: 1,
                     episodes = Loadable.Ready(currentEpisodes),
                     twoPane = layout.twoPane,
                     screenHeight = layout.heightDp.dp,

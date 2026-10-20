@@ -3,6 +3,9 @@
 ## Yayınlanmamış / Unreleased
 
 ### Türkçe
+- **CloudStream Sıradaki Bölüm ve Devam Et Akışı:** Bitirilen CloudStream dizilerinde bir sonraki bölüm (`CsNextEpisodeFinder`) "İzlemeye devam et" satırında "Sıradaki: SX BX" olarak listelenir, tıklandığında doğrudan sıradaki bölüm oynatılır. Detay ekranındaki sezon seçimi ve bölüm tıklama akışı sağlamlaştırıldı.
+- **HTTP/2 PROTOCOL_ERROR Teşhisi ve HTTP/1.1 Geri Dönüşü:** Sunucu kaynaklı HTTP/2 akış sıfırlama (PROTOCOL_ERROR) durumlarında HTTP/1.1'e otomatik geri dönüş (`executeWithHttp1Fallback`) eklendi; tanı aracında torrent akışları atlama/ayrıştırma mantığı düzeltildi.
+- **Nuvio JS Eklentileri ve CloudStream Zaman Aşımı İyileştirmesi:** QuickJS eklentilerinde (Dizilla, SelcukFlix) geçersiz TMDB anahtarları ağ köprüsünde gerçek anahtarla ikame edildi (`substituteTmdbKey`); CloudStream kaynak çözümleme zaman aşımı 30 saniyeye çıkarıldı.
 - **Altyazı Başlıkları ve 403 Engellerinin Çözülmesi:** CloudStream ve Nuvio eklentilerinde altyazıların 403 Forbidden hatası almasını önlemek için akışın `Referer`, `User-Agent` ve `proxyHeaders` başlıkları altyazı indirme isteklerine iletildi (başlıklar loglanmaz). FilmMakinesi ("By Any Means" 1275 satır Türkçe altyazı) ve çevrimdışı altyazı indirme istekleri doğrulandı.
 - **Başlık Temizleme (`TitleCleaner`):** Film ve dizi başlıklarındaki site ekleri ("izle", "Türkçe Dublaj izle", "Full HD izle", "(2026)" vb.) temizlendi, yıl bilgisi ayrıştırılarak ekranda ve aramalarda temiz başlık kullanımı sağlandı.
 - **Çevrimiçi Kimlik Çözümleme Pipeline'ı (`MediaIdentityResolver`):** CloudStream içeriklerinde eksik olan IMDb/TMDB kimlikleri `syncData` -> TMDB başlık+yıl araması -> `external_ids` -> SubDL başlık araması sırasıyla çözülerek `PlaySession`'a ve EN->TR otomatik çeviriye bağlandı.

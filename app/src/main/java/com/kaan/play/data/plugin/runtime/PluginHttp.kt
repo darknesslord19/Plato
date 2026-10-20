@@ -128,12 +128,23 @@ internal class PluginHttp(
     /** `api_key` (ya da herhangi bir sorgu değeri) yer tutucuysa gerçek anahtarla değiştirir; yalnızca TMDB ana makinesinde. */
     private fun substituteTmdbKey(url: HttpUrl): Pair<HttpUrl, Boolean> {
         if (tmdbKey.isBlank() || url.host != tmdbHost || (tmdbHttpsOnly && url.scheme != "https")) return url to false
-        if ((0 until url.querySize).none { url.queryParameterValue(it) == PluginPrelude.TMDB_PLACEHOLDER }) return url to false
-        // Parametre sırası ve adları korunur; yalnızca yer tutucu değerler değişir.
+        val hasMatch = (0 until url.querySize).any {
+            val name = url.queryParameterName(it)
+            val value = url.queryParameterValue(it)
+            value == PluginPrelude.TMDB_PLACEHOLDER || name.equals("api_key", ignoreCase = true)
+        }
+        if (!hasMatch) return url to false
+        // Parametre sırası ve adları korunur; yer tutucu veya api_key değerleri gerçek anahtarla değişir.
         val builder = url.newBuilder().query(null)
         for (i in 0 until url.querySize) {
+            val name = url.queryParameterName(i)
             val value = url.queryParameterValue(i)
-            builder.addQueryParameter(url.queryParameterName(i), if (value == PluginPrelude.TMDB_PLACEHOLDER) tmdbKey else value)
+            val newValue = if (value == PluginPrelude.TMDB_PLACEHOLDER || name.equals("api_key", ignoreCase = true)) {
+                tmdbKey
+            } else {
+                value
+            }
+            builder.addQueryParameter(name, newValue)
         }
         return builder.build() to true
     }

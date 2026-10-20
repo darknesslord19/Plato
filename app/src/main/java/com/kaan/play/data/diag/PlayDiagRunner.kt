@@ -367,8 +367,14 @@ object PlayDiagRunner {
                     break
                 }
             }
-            val mediaStatus = if (mediaOk) "OK ($probeMsg)" else "X ($probeMsg)"
-            val errorReason = if (mediaOk) "-" else "Medya doğrulanamadı: $probeMsg"
+            val mediaStatus = if (probeMsg == "torrent, atlandı") {
+                "torrent, atlandı"
+            } else if (mediaOk) {
+                "OK ($probeMsg)"
+            } else {
+                "X ($probeMsg)"
+            }
+            val errorReason = if (mediaOk || probeMsg == "torrent, atlandı") "-" else "Medya doğrulanamadı: $probeMsg"
 
             Log.i(TAG, "[${plugin.name}] Medya sonucu: $mediaStatus ($errorReason)")
 
@@ -544,7 +550,15 @@ object PlayDiagRunner {
             }
 
             val streamStatus = if (streams.isNotEmpty()) "OK (${streams.size} akış)" else "X (0 akış)"
-            val mediaStatus = if (mediaOk) "OK ($probeMsg)" else if (streams.isNotEmpty()) "X ($probeMsg)" else "-"
+            val mediaStatus = if (probeMsg == "torrent, atlandı") {
+                "torrent, atlandı"
+            } else if (mediaOk) {
+                "OK ($probeMsg)"
+            } else if (streams.isNotEmpty()) {
+                "X ($probeMsg)"
+            } else {
+                "-"
+            }
 
             val subs = streams.flatMap { it.subtitles }
             val subSourceStatus = if (subs.isNotEmpty()) {
@@ -561,7 +575,7 @@ object PlayDiagRunner {
                 subSourceStatus = subSourceStatus,
                 subAddonStatus = subAddonStr,
                 subOnlineStatus = subOnlineStr,
-                errorReason = if (mediaOk) "-" else if (streams.isEmpty()) "Akış bulunamadı" else probeMsg,
+                errorReason = if (mediaOk || probeMsg == "torrent, atlandı") "-" else if (streams.isEmpty()) "Akış bulunamadı" else probeMsg,
             )
         }
 
@@ -641,7 +655,15 @@ object PlayDiagRunner {
                     break
                 }
             }
-            val mediaStatus = if (mediaOk) "OK ($probeMsg)" else if (playableStreams.isNotEmpty()) "X ($probeMsg)" else "-"
+            val mediaStatus = if (probeMsg == "torrent, atlandı") {
+                "torrent, atlandı"
+            } else if (mediaOk) {
+                "OK ($probeMsg)"
+            } else if (playableStreams.isNotEmpty()) {
+                "X ($probeMsg)"
+            } else {
+                "-"
+            }
 
             val subs = playableStreams.flatMap { it.subtitles }
             val subSourceStatus = if (subs.isNotEmpty()) {
@@ -658,7 +680,7 @@ object PlayDiagRunner {
                 subSourceStatus = subSourceStatus,
                 subAddonStatus = subAddonStr,
                 subOnlineStatus = subOnlineStr,
-                errorReason = if (mediaOk) "-" else if (playableStreams.isEmpty()) "Akış bulunamadı" else probeMsg,
+                errorReason = if (mediaOk || probeMsg == "torrent, atlandı") "-" else if (playableStreams.isEmpty()) "Akış bulunamadı" else probeMsg,
             )
         }
 
@@ -687,6 +709,9 @@ object PlayDiagRunner {
         httpClient: OkHttpClient,
         stream: PlayableStream,
     ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        if (stream.url.startsWith("magnet:") || stream.url.startsWith("torrent:") || stream.torrentFileIdx != null) {
+            return@withContext true to "torrent, atlandı"
+        }
         val maxBytes = 512 * 1024
         try {
             val isM3u8 = stream.url.contains(".m3u8", ignoreCase = true)
@@ -697,10 +722,25 @@ object PlayDiagRunner {
                 if (withRange) b.header("Range", "bytes=0-${maxBytes - 1}")
                 return b.get().build()
             }
-            var getResp = httpClient.newCall(buildReq(withRange = !isM3u8)).execute()
+            fun executeWithHttp1Fallback(req: Request): okhttp3.Response {
+                return try {
+                    httpClient.newCall(req).execute()
+                } catch (e: Exception) {
+                    val isProtocol = e.message?.contains("PROTOCOL_ERROR", ignoreCase = true) == true
+                    if (isProtocol) {
+                        val http1Client = httpClient.newBuilder()
+                            .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+                            .build()
+                        http1Client.newCall(req).execute()
+                    } else {
+                        throw e
+                    }
+                }
+            }
+            var getResp = executeWithHttp1Fallback(buildReq(withRange = !isM3u8))
             if (getResp.code in listOf(400, 416) && !isM3u8) {
                 getResp.close()
-                getResp = httpClient.newCall(buildReq(withRange = false)).execute()
+                getResp = executeWithHttp1Fallback(buildReq(withRange = false))
             }
             val code = getResp.code
             val body = getResp.body

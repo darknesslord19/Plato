@@ -70,3 +70,4 @@ tools/parse_*.py
 tools/patch_*.py
 tools/print_*.py
 tools/search_*.py
+tools/read_db.py

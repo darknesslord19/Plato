@@ -390,7 +390,7 @@ private fun LazyListScope.episodeSection(
             }
         } else {
             items(episodes.value, key = { it.number }) { episode ->
-                EpisodeRow(episode, horizontalPadding) { selectedSeason?.let { onPlay(it, episode.number) } }
+                EpisodeRow(episode, horizontalPadding) { onPlay(selectedSeason ?: 1, episode.number) }
             }
         }
     }
