@@ -65,6 +65,9 @@ open class CloudflareKiller : Interceptor {
         response.close()
         Log.d(TAG, "Cloudflare engeli algılandı: ${request.url}")
 
+        // Elimizdeki cf_clearance (bellek + WebView deposu) bu yanıtla geçersiz çıktı. Silinmezse çözücü onu
+        // önbellekten/çerez deposundan anında "çözüldü" sayar ve hiç yeniden denemez (DiziBox boş liste hatası).
+        CloudflareSolver.invalidate(host, request.url.toString())
         val solveResult = CloudflareSolver.solve(request.url.toString())
         if (solveResult is CloudflareResult.Success) {
             val creds = solveResult.credentials

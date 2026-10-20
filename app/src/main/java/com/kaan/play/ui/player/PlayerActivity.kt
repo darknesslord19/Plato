@@ -37,8 +37,6 @@ import com.kaan.play.data.subtitle.SubtitleLoader
 import com.kaan.play.data.subtitle.SubtitleProvider
 import com.kaan.play.data.subtitle.TrackLoader
 import com.kaan.play.ui.theme.PlayTheme
-import com.lagradost.cloudstream3.AnimeLoadResponse
-import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.emptyFlow
@@ -370,55 +368,12 @@ class PlayerActivity : AppCompatActivity() {
     /**
      * CloudStream eklentisiyle oynatılan dizide sıradaki (sezon, bölüm, dataUrl).
      */
-    private suspend fun findNextCloudStreamEpisode(): Triple<Int, Int, String>? = withContext(Dispatchers.IO) {
+    private suspend fun findNextCloudStreamEpisode(): Triple<Int, Int, String>? {
         val r = session.target.request
-        val pluginIdStr = r.pluginId ?: return@withContext null
-        val repoId = pluginIdStr.removePrefix("cs:").removePrefix("cs_").toLongOrNull()
-        val plugin = appContainer.csRepos.enabledPlugins().firstOrNull {
-            it.id == repoId || "cs:${it.id}" == pluginIdStr || it.pluginId == pluginIdStr
-        } ?: return@withContext null
-        val apis = appContainer.csRepos.loadApis(plugin.id)
-        val api = apis.firstOrNull() ?: return@withContext null
-        val contentUrl = r.contentUrl ?: return@withContext null
-        val loadResp = try {
-            api.load(contentUrl)
-        } catch (_: Throwable) {
-            null
-        } ?: return@withContext null
-
-        val csEpisodes: List<com.lagradost.cloudstream3.Episode> = when (loadResp) {
-            is TvSeriesLoadResponse -> loadResp.episodes
-            is AnimeLoadResponse -> loadResp.episodes.values.flatten()
-            else -> emptyList()
-        }
-        if (csEpisodes.isEmpty()) return@withContext null
-
-        val season = r.season ?: 1
-        val episode = r.episode ?: 1
-
-        var currIdx = if (!r.dataUrl.isNullOrBlank()) {
-            csEpisodes.indexOfFirst { it.data == r.dataUrl }
-        } else -1
-
-        if (currIdx == -1) {
-            currIdx = csEpisodes.indexOfFirst {
-                (it.season ?: 1) == season && (it.episode ?: (csEpisodes.indexOf(it) + 1)) == episode
-            }
-        }
-
-        val nextEp = if (currIdx != -1 && currIdx + 1 < csEpisodes.size) {
-            csEpisodes[currIdx + 1]
-        } else {
-            csEpisodes.filter {
-                val s = it.season ?: 1
-                val e = it.episode ?: 0
-                s > season || (s == season && e > episode)
-            }.minWithOrNull(compareBy({ it.season ?: 1 }, { it.episode ?: 0 }))
-        } ?: return@withContext null
-
-        val nextSeason = nextEp.season ?: season
-        val nextEpisode = nextEp.episode ?: (episode + 1)
-        Triple(nextSeason, nextEpisode, nextEp.data)
+        val pluginId = r.pluginId ?: return null
+        val contentUrl = r.contentUrl ?: return null
+        val next = appContainer.csNextEpisodes.next(pluginId, contentUrl, r.dataUrl, r.season, r.episode) ?: return null
+        return Triple(next.season, next.episode, next.dataUrl)
     }
 
     /**
@@ -436,7 +391,8 @@ class PlayerActivity : AppCompatActivity() {
                 return csNext.first to csNext.second
             }
         }
-        if (session.offline == null) return appContainer.nextEpisodes.next(r.tmdbId, season, episode)
+        // Eklenti içeriğinin TMDB kimliği yoktur (eksi sayılı yerel kimlik): TMDB'ye sorulmaz.
+        if (session.offline == null) return if (r.tmdbId > 0) appContainer.nextEpisodes.next(r.tmdbId, season, episode) else null
         return appContainer.downloads.rows.first()
             .filter {
                 it.tmdbId == r.tmdbId && it.type == MediaType.Tv && it.status == DownloadStatus.Completed &&
