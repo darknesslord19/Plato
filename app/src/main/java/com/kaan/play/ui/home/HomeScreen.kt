@@ -74,6 +74,9 @@ import com.kaan.play.ui.tv.rememberFocusMemory
 import com.kaan.play.ui.tv.rememberInitialFocus
 import com.kaan.play.ui.tv.rememberPlayLayout
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import com.kaan.play.ui.tv.FocusMemory
 
 import androidx.compose.runtime.mutableIntStateOf
 import com.kaan.play.data.provider.CatalogItem
@@ -156,7 +159,14 @@ fun HomeScreen(
                 onOpenProviderCategory = { activeProviderRow = it },
             )
             hasSource == false -> HomeEmptyState(onAddAddon)
-            else -> HomeContent(onOpenDetail, onOpenCategory, onContinue)
+            else -> HomeContent(
+                onOpenDetail = onOpenDetail,
+                onOpenCategory = onOpenCategory,
+                onContinue = onContinue,
+                onOpenProviderDetail = onOpenProviderDetail,
+                onOpenProviderCategory = { activeProviderRow = it },
+                onOpenSearch = onOpenSearch,
+            )
         }
 
         StatusBarScrim()
@@ -214,7 +224,14 @@ private fun HomeContent(
     onOpenDetail: (MediaType, Int) -> Unit,
     onOpenCategory: (HomeRow) -> Unit,
     onContinue: (ContinueItem) -> Unit,
+    onOpenProviderDetail: (providerId: String, url: String) -> Unit = { _, _ -> },
+    onOpenProviderCategory: (CatalogRow) -> Unit = {},
+    onOpenSearch: (String) -> Unit = {},
 ) {
+    val container = rememberContainer()
+    val homeProviders by container.providers.homeProviders.collectAsStateWithLifecycle(initialValue = emptyList())
+    val loadSemaphore = remember { Semaphore(3) }
+
     // Dil değişince (etkinlik yeniden kurulur) yeni dille taze bir ViewModel: satırlar yeni dilde yüklenir.
     val vm = containerViewModel(key = "home-${AppLanguage.effective().iso}") { HomeViewModel(it.tmdb, it.continueWatching) }
     val rows by vm.rows.collectAsStateWithLifecycle()
@@ -276,6 +293,20 @@ private fun HomeContent(
                         }
                     }
                 }
+            }
+        }
+        homeProviders.forEach { provider ->
+            item(key = "home_provider_${provider.id}") {
+                LazyProviderSection(
+                    provider = provider,
+                    cardWidth = cardWidth,
+                    focus = focus,
+                    loadSemaphore = loadSemaphore,
+                    onOpenDetail = onOpenDetail,
+                    onOpenProviderDetail = onOpenProviderDetail,
+                    onOpenProviderCategory = onOpenProviderCategory,
+                    onOpenSearch = onOpenSearch,
+                )
             }
         }
         HomeRow.entries.forEach { row ->
@@ -429,6 +460,190 @@ internal fun HomeRow.titleRes(): Int = when (this) {
     HomeRow.PopularSeries -> R.string.home_row_popular_series
 }
 
+
+private sealed interface ProviderSectionUiState {
+    data object Loading : ProviderSectionUiState
+    data class Ready(val rows: List<CatalogRow>) : ProviderSectionUiState
+    data object Hidden : ProviderSectionUiState
+}
+
+@Composable
+private fun LazyProviderSection(
+    provider: ProviderItem,
+    cardWidth: Dp,
+    focus: FocusMemory,
+    loadSemaphore: Semaphore,
+    onOpenDetail: (MediaType, Int) -> Unit,
+    onOpenProviderDetail: (providerId: String, url: String) -> Unit,
+    onOpenProviderCategory: (CatalogRow) -> Unit,
+    onOpenSearch: (String) -> Unit,
+) {
+    val container = rememberContainer()
+    val scope = rememberCoroutineScope()
+
+    var state by remember(provider.id) {
+        val cached = container.catalogRepository.cache.get(provider.id)
+        mutableStateOf<ProviderSectionUiState>(
+            when {
+                cached == null -> ProviderSectionUiState.Loading
+                cached.isEmpty() -> ProviderSectionUiState.Hidden
+                else -> ProviderSectionUiState.Ready(cached)
+            }
+        )
+    }
+
+    LaunchedEffect(provider.id) {
+        if (state is ProviderSectionUiState.Ready) return@LaunchedEffect
+        loadSemaphore.withPermit {
+            try {
+                val result = container.catalogRepository.loadCatalog(setOf(provider.id))
+                state = when (result) {
+                    is CatalogResult.Success -> {
+                        val valid = result.rows.filter { it.items.isNotEmpty() }
+                        if (valid.isNotEmpty()) ProviderSectionUiState.Ready(valid)
+                        else ProviderSectionUiState.Hidden
+                    }
+                    else -> ProviderSectionUiState.Hidden
+                }
+            } catch (_: Throwable) {
+                state = ProviderSectionUiState.Hidden
+            }
+        }
+    }
+
+    when (val current = state) {
+        is ProviderSectionUiState.Loading -> {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = ScreenPadding),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(140.dp)
+                            .height(20.dp)
+                            .clip(MaterialTheme.shapes.small)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(12.dp)
+                            .clip(MaterialTheme.shapes.small)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    )
+                }
+                SkeletonRow(cardWidth = cardWidth)
+            }
+        }
+        is ProviderSectionUiState.Hidden -> {
+            // Sessizce gizlenir (ekran hata kartlarıyla dolmasın)
+        }
+        is ProviderSectionUiState.Ready -> {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                current.rows.forEach { row ->
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = ScreenPadding),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(MaterialTheme.shapes.small)
+                                    .clickable { onOpenProviderCategory(row) }
+                                    .padding(vertical = 2.dp),
+                            ) {
+                                Text(
+                                    text = row.title,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = row.providerName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .clip(MaterialTheme.shapes.small)
+                                    .focusRing(MaterialTheme.shapes.small)
+                                    .focusMemory(focus, "see_all_${row.providerId}_${row.id}")
+                                    .clickable { onOpenProviderCategory(row) }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.provider_catalog_show_all),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Icon(
+                                    imageVector = PlayIcons.Forward,
+                                    contentDescription = stringResource(R.string.provider_catalog_show_all),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = ScreenPadding),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            itemsIndexed(row.items, key = { index, item -> "${row.providerId}_${row.id}_${item.id}_$index" }) { _, item ->
+                                PosterCard(
+                                    title = item.title,
+                                    subtitle = item.subtitle,
+                                    imageUrl = item.posterUrl,
+                                    onClick = {
+                                        if (!item.rawUrl.isNullOrBlank() && item.providerId.startsWith("cs:")) {
+                                            onOpenProviderDetail(item.providerId, item.rawUrl)
+                                        } else {
+                                            scope.launch {
+                                                resolveAndOpenPoster(
+                                                    item = item,
+                                                    tmdb = container.tmdb,
+                                                    addons = container.addons,
+                                                    onOpenDetail = onOpenDetail,
+                                                    onOpenProviderDetail = onOpenProviderDetail,
+                                                    onOpenSearch = onOpenSearch,
+                                                )
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .width(cardWidth)
+                                        .focusMemory(focus, "${row.providerId}_${row.id}_${item.id}"),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /**
  * Sağlayıcı kataloğu arayüz durumları.
  */
@@ -525,6 +740,9 @@ private fun ProviderCatalogView(
                     onOpenDetail = onOpenDetail,
                     onOpenCategory = onOpenCategory,
                     onContinue = onContinue,
+                    onOpenProviderDetail = onOpenProviderDetail,
+                    onOpenProviderCategory = onOpenProviderCategory,
+                    onOpenSearch = onOpenSearch,
                 )
             }
         }

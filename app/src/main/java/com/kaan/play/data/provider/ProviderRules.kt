@@ -68,4 +68,23 @@ object ProviderRules {
     fun isAllProviders(selectedIds: Set<String>): Boolean {
         return selectedIds.isEmpty() || selectedIds.contains(ProviderConstants.ALL_PROVIDERS_ID)
     }
+
+    /**
+     * Varsayılan ana sayfa ("Tüm sağlayıcılar") için sağlayıcı sırası:
+     * 1. Kurulu ve açık Nuvio katalog eklentileri (eklenme sırasıyla)
+     * 2. Sabitlenmiş (iğnelenmiş) CloudStream eklentileri (kendi aralarında alfabetik)
+     */
+    fun buildHomeProviders(
+        nuvioProviders: List<ProviderItem>,
+        csProviders: List<ProviderItem>,
+        pinnedIds: Set<String>,
+    ): List<ProviderItem> {
+        val pinnedCs = csProviders
+            .filter { it.id in pinnedIds }
+            .sortedWith(
+                compareBy<ProviderItem, String>(String.CASE_INSENSITIVE_ORDER) { it.name }
+                    .thenBy { it.id },
+            )
+        return nuvioProviders + pinnedCs
+    }
 }

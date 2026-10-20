@@ -287,4 +287,42 @@ class ProviderCatalogTest {
             .addInterceptor { chain -> interceptor(chain.request()) }
             .build()
     }
+
+    @Test
+    fun buildHomeProvidersOrdersNuvioFirstThenPinnedCsAlphabetically() {
+        val nuvioAddons = listOf(
+            ProviderItem(id = "nuvio_addon:1", name = "Jasoelys", subtitle = "Nuvio · Jasoelys", kind = ProviderKind.NuvioAddon),
+            ProviderItem(id = "nuvio_addon:2", name = "Cinemeta", subtitle = "Nuvio · Cinemeta", kind = ProviderKind.NuvioAddon),
+        )
+        val csPlugins = listOf(
+            ProviderItem(id = "cs:10", name = "VidMoly", subtitle = "CloudStream", kind = ProviderKind.CloudStream),
+            ProviderItem(id = "cs:20", name = "Sinefy", subtitle = "CloudStream", kind = ProviderKind.CloudStream),
+            ProviderItem(id = "cs:30", name = "DiziBox", subtitle = "CloudStream", kind = ProviderKind.CloudStream),
+        )
+        // Yalnızca cs:20 (Sinefy) ve cs:30 (DiziBox) iğnelenmiş
+        val pinned = setOf("cs:20", "cs:30")
+
+        val result = ProviderRules.buildHomeProviders(nuvioAddons, csPlugins, pinned)
+
+        assertEquals(4, result.size)
+        // 1. ve 2.: Nuvio katalog addon'ları (eklenme sırasıyla)
+        assertEquals("nuvio_addon:1", result[0].id)
+        assertEquals("Jasoelys", result[0].name)
+        assertEquals("nuvio_addon:2", result[1].id)
+        assertEquals("Cinemeta", result[1].name)
+        // 3. ve 4.: İğnelenmiş CloudStream eklentileri (alfabetik: DiziBox sonra Sinefy)
+        assertEquals("cs:30", result[2].id)
+        assertEquals("DiziBox", result[2].name)
+        assertEquals("cs:20", result[3].id)
+        assertEquals("Sinefy", result[3].name)
+    }
+
+    @Test
+    fun buildHomeProvidersReturnsEmptyWhenNoCatalogsOrPins() {
+        val csPlugins = listOf(
+            ProviderItem(id = "cs:10", name = "VidMoly", subtitle = "CloudStream", kind = ProviderKind.CloudStream),
+        )
+        val result = ProviderRules.buildHomeProviders(emptyList(), csPlugins, emptySet())
+        assertTrue(result.isEmpty())
+    }
 }

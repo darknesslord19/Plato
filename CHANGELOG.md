@@ -3,6 +3,11 @@
 ## Yayınlanmamış / Unreleased
 
 ### Türkçe
+- **Nuvio Tarzı Birleşik Ana Sayfa ve Tembel Katalog Yükleme:**
+  - **Varsayılan Birleşik Akış:** "Tüm sağlayıcılar" modunda kurulu ve açık her katalog addon'unun rafları (manifest'teki `catalogs` sırasıyla) ve iğnelenmiş (pin) CloudStream eklentilerinin rafları, TMDB raflarının üzerinde kendiliğinden alt alta listelenir. Hiçbir katalog addon'u veya iğneli eklenti yoksa TMDB düzeni korunur.
+  - **Tembel ve Paralel Yükleme:** Raflar ekranda görünür oldukça tembel (lazy) olarak yüklenir; aynı anda en fazla 3 sağlayıcı paralel istek yapacak şekilde (`Semaphore(3)`) sınırlandırılmıştır. 5 dakikalık önbellek geçerlidir. Bir sağlayıcı hata verirse ekran hata kartlarıyla doldurulmadan o sağlayıcının rafları sessizce gizlenir.
+  - **Raf Başlığı ve Sağlayıcı Rozeti:** Her rafın sol üstünde katalog adı, altında sağlayıcı rozeti (ör. "Jasoelys"); sağ üstte ise "Tümünü göster >" düğmesi yer alır.
+  - **Katalog Tam Sayfa & Sayfalama:** "Tümünü göster" tıklandığında `ProviderCategoryScreen` açılarak kataloğun tüm içeriği ızgarada listelenir, aşağı kaydırıldıkça sonraki sayfalar (`loadMore`) otomatik yüklenir.
 - **Katalog Eklentileri, Afiş Doğrudan Detay ve Seçici Filtreleme:**
   - **Katalog Addon'ları Desteği:** `AddonManifestParser`, akış ya da altyazı sunmasa dahi `catalog` kaynağı ve dolu `catalogs` listesi içeren Stremio eklentilerini (örn. Jasoelys) kabul edecek şekilde güncellendi. Yalnızca katalog sunan eklentiler akış kaynak listesine dahil edilmez ve akış isteği almaz. Eklenti listelerinde türü "Katalog eklentisi" (EN: "Catalog extension") olarak gösterilir.
   - **Afiş Tıklaması ve Doğrudan Detay:** Katalog öğesinin kimliği `tt...` (IMDb) veya `tmdb:...` ise başlık araması yapılmadan doğrudan TMDB Detay ekranı açılır (`tt...` -> TMDB find API). Farklı kimliklerde eklentinin `meta` kaynağıyla basit detay ekranı açılır, bulunamazsa başlıkla aranır.
@@ -51,6 +56,11 @@
 - **Altyazı otomatik çeviri:** Türkçe altyazı hiçbir kaynakta yoksa ve İngilizce altyazı varsa, İngilizce cihaz üstünde (Google ML Kit, sunucuya metin gitmez) Türkçeye çevrilir. İngilizce hemen görünür, çeviri arka planda biter ("Altyazı çevriliyor… %n"), elle seçmediysen otomatik Türkçeye geçilir; menüde "Türkçe (otomatik çeviri)" ayrı satırdır, gerçek Türkçe her zaman önce gelir. Zamanlar korunur, çeviri önbelleğe alınır (aynı film yeniden çevrilmez), senkron ayarı çalışır. Dil modeli ilk kullanımda bir kez iner (~44 MB, "Sadece Wi-Fi'de indir" ayarına uyar). Ayarlar > Oynatıcı > "Türkçe yoksa İngilizceyi otomatik çevir" (varsayılan açık). APK ABI başına ~6–7,5 MB büyür.
 
 ### English
+- **Nuvio-Style Unified Home Screen & Lazy Catalog Loading:**
+  - **Default Unified Feed:** When "All providers" mode is active, shelves from every installed and enabled catalog addon (in manifest catalog order) and pinned CloudStream extensions are automatically stacked vertically above TMDB rows on the Home screen. When no catalog addons or pins exist, the default TMDB layout is preserved.
+  - **Lazy & Throttled Loading:** Catalog shelves load lazily as they scroll into view, throttled to a maximum of 3 concurrent provider requests via `Semaphore(3)`. 5-minute memory cache is applied. If a provider fails to load, its rows are hidden silently without cluttering the screen with error cards.
+  - **Row Header & Provider Badge:** Each shelf displays its catalog title and provider badge (e.g. "Jasoelys") with a "Show all >" button on the right.
+  - **Full-Page Catalog Grid & Pagination:** Tapping "Show all" opens `ProviderCategoryScreen` displaying the entire catalog in a grid with infinite-scroll pagination (`loadMore`).
 - **Catalog Addons Support, Direct Poster Details & Selector Filtering:**
   - **Catalog Addon Support:** `AddonManifestParser` now accepts Stremio addons that provide `catalog` resources and a non-empty `catalogs` list (e.g. Jasoelys), even without stream or subtitle resources. Addons providing catalogs only do not enter stream source lists or receive stream requests. Displayed as "Katalog eklentisi" / "Catalog extension" in addon lists.
   - **Direct Poster Details:** Clicking a catalog item with an IMDb ID (`tt...`) or TMDB ID (`tmdb:...`) directly opens the TMDB Detail screen without querying search (`tt...` -> TMDB find API). Other IDs fallback to the addon's `meta` resource, or title search.

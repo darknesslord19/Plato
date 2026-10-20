@@ -407,7 +407,7 @@ class AppContainer(context: Context) {
     /** Ana sayfa boş durumu için: hiç akış addon'u, Nuvio deposu veya CS deposu yok mu? (null: henüz yüklenmedi). */
     val hasAnySource: Flow<Boolean> by lazy {
         combine(addons.addons, plugins.repos, csRepos.repos) { a, r, cs ->
-            a.any { it.manifest.providesStreams } || r.isNotEmpty() || cs.isNotEmpty()
+            a.any { it.manifest.providesStreams || it.manifest.providesCatalogs } || r.isNotEmpty() || cs.isNotEmpty()
         }
     }
 

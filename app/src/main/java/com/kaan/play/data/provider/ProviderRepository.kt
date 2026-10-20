@@ -87,6 +87,19 @@ class ProviderRepository(
         ProviderRules.applyPinningAndSort(combined, pinned)
     }
 
+    /**
+     * Varsayılan ana sayfada ("Tüm sağlayıcılar") görünecek sağlayıcıların sıralı listesi:
+     * 1) Kurulu ve açık Nuvio katalog addon'ları (eklenme sırasıyla)
+     * 2) İğnelenmiş (pinned) CloudStream eklentileri (kendi aralarında alfabetik)
+     */
+    val homeProviders: Flow<List<ProviderItem>> = combine(
+        nuvioProviders,
+        csProviders,
+        pinnedProviders,
+    ) { nuvio, cs, pinned ->
+        ProviderRules.buildHomeProviders(nuvio, cs, pinned)
+    }
+
     suspend fun setSelectedProviders(selected: Set<String>) {
         dataStore.edit { prefs ->
             val filtered = selected - ProviderConstants.ALL_PROVIDERS_ID
