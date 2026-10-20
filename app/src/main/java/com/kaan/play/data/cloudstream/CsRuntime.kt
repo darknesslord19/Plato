@@ -109,9 +109,11 @@ class CsRuntime {
         extApis.removeAll {
             it.mainUrl.contains("hotlinger", ignoreCase = true) ||
             it.mainUrl.contains("pichive", ignoreCase = true) ||
-            it.mainUrl.contains("dplayer", ignoreCase = true)
+            it.mainUrl.contains("dplayer", ignoreCase = true) ||
+            it.mainUrl.contains("japierdolevid", ignoreCase = true) ||
+            it.mainUrl.contains("bysejikuar", ignoreCase = true)
         }
-        val pichiveExts = listOf(
+        val customExts = listOf(
             com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Pichive", "https://four.pichive.online"),
             com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Pichive", "https://pichive.online"),
             com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Hotlinger", "https://sn.hotlinger.com"),
@@ -119,8 +121,10 @@ class CsRuntime {
             com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://four.dplayer82.site"),
             com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://sn.dplayer82.site"),
             com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://dplayer82.site"),
+            com.kaan.play.data.cloudstream.extractors.JapierdoleExtractor("Japierdole", "https://japierdolevid.com"),
+            com.kaan.play.data.cloudstream.extractors.ByseJikuar(),
         )
-        for (ext in pichiveExts) {
+        for (ext in customExts) {
             extApis.add(0, ext)
         }
 
@@ -132,7 +136,10 @@ class CsRuntime {
                     data = data,
                     isCasting = false,
                     subtitleCallback = { subs += it },
-                    callback = { links += it },
+                    callback = { link ->
+                        registerLoopbackPortIfAny(link.url)
+                        links += link
+                    },
                 )
             } catch (t: Throwable) {
                 Log.d(TAG, "${api.name}: loadLinks hata ${t.javaClass.simpleName}: ${t.message}", t)
@@ -381,6 +388,17 @@ class CsRuntime {
             results += mainPage(api, page, timeoutMs)
         }
         return results
+    }
+
+    private fun registerLoopbackPortIfAny(url: String) {
+        runCatching {
+            val parsed = java.net.URL(url)
+            val host = (parsed.host ?: "").removePrefix("[").removeSuffix("]").trim().lowercase()
+            val port = if (parsed.port != -1) parsed.port else parsed.defaultPort
+            if (port in 1..65535 && (host == "localhost" || host == "127.0.0.1" || host.startsWith("127."))) {
+                PlayNetworkGuard.allowLoopbackPort(port)
+            }
+        }
     }
 
     private companion object {

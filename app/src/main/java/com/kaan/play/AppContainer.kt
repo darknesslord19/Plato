@@ -70,6 +70,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
+import okhttp3.ResponseBody.Companion.toResponseBody
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
@@ -96,17 +97,56 @@ class AppContainer(context: Context) {
             val req = chain.request()
             // Güvenlik denetimi
             com.kaan.play.data.cloudstream.PlayNetworkGuard.checkUrl(req.url.toString())
-            // sn.hotlinger.com -> four.pichive.online rewrite
-            if (req.url.host.contains("sn.hotlinger.com")) {
+            // 1. sn.hotlinger.com -> four.pichive.online rewrite
+            val finalReq = if (req.url.host.contains("sn.hotlinger.com")) {
                 val newUrl = req.url.newBuilder().host("four.pichive.online").build()
-                val newReq = req.newBuilder()
+                req.newBuilder()
                     .url(newUrl)
                     .header("Referer", "https://selcukflix.app/")
                     .build()
-                chain.proceed(newReq)
             } else {
-                chain.proceed(req)
+                req
             }
+
+            val resp = chain.proceed(finalReq)
+
+            // 2. SezonlukDizi HTML köprüsü: Güncel dataAlternatif22 ve dataEmbed22 uç noktalarını enjekte eder
+            if (finalReq.url.host.contains("sezonlukdizi", ignoreCase = true)) {
+                val contentType = resp.body?.contentType()?.toString()?.lowercase().orEmpty()
+                if (contentType.contains("html") || contentType.isEmpty()) {
+                    val bodyString = resp.body?.string().orEmpty()
+                    if (bodyString.contains("dilsec") && !bodyString.contains("dataAlternatif")) {
+                        val injected = bodyString + "\n<!-- <script src=\"/ajax/dataAlternatif22.asp\"></script><script src=\"/ajax/dataEmbed22.asp\"></script> -->"
+                        val newBody = injected.toResponseBody(resp.body?.contentType())
+                        return@addInterceptor resp.newBuilder().body(newBody).build()
+                    } else {
+                        val newBody = bodyString.toResponseBody(resp.body?.contentType())
+                        return@addInterceptor resp.newBuilder().body(newBody).build()
+                    }
+                }
+            }
+
+            // 3. SinemaTV shortener2.link M3U8 göreli yol düzeltmesi
+            if (finalReq.url.host.contains("shortener2.link", ignoreCase = true)) {
+                val bodyString = resp.body?.string().orEmpty()
+                if (bodyString.startsWith("#EXTM3U") && bodyString.contains("#EXT-X-STREAM-INF")) {
+                    val query = finalReq.url.query
+                    val rewritten = bodyString.lineSequence().joinToString("\n") { line ->
+                        if (line.startsWith("/") && !line.startsWith("/content-router/r/")) {
+                            "/content-router/r$line" + if (!query.isNullOrEmpty()) "?$query" else ""
+                        } else {
+                            line
+                        }
+                    }
+                    val newBody = rewritten.toResponseBody(resp.body?.contentType())
+                    return@addInterceptor resp.newBuilder().body(newBody).build()
+                } else {
+                    val newBody = bodyString.toResponseBody(resp.body?.contentType())
+                    return@addInterceptor resp.newBuilder().body(newBody).build()
+                }
+            }
+
+            resp
         }
         .build()
 
