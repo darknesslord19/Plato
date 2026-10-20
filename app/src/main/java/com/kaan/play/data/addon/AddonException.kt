@@ -1,12 +1,16 @@
 package com.kaan.play.data.addon
 
+import com.kaan.play.data.plugin.SourceType
+
 /**
  * Addon ekleme/doğrulama hatası. Arayüz [kind]'a göre yerelleştirilmiş mesaj seçer;
- * [detail] alan adı ([Kind.MissingField], [Kind.InvalidField]) ya da HTTP kodu ([Kind.Http]) taşır.
+ * [detail] alan adı ([Kind.MissingField], [Kind.InvalidField]) ya da HTTP kodu ([Kind.Http]) taşır;
+ * [detectedType] [Kind.KindMismatch] durumunda adresin gerçekte hangi türe ait olduğunu taşır.
  */
 class AddonException(
     val kind: Kind,
     val detail: String? = null,
+    val detectedType: SourceType? = null,
     cause: Throwable? = null,
 ) : Exception("Addon $kind${detail?.let { ": $it" }.orEmpty()}", cause) {
 

@@ -180,8 +180,10 @@ class PluginRepositoryTest {
         assertEquals(ManifestKind.PluginRepo, ManifestKind.classify("""{"id":"x","name":"n","logo":"l","version":"1","scrapers":[{"id":"a","filename":"a.js"}]}"""))
         assertEquals(ManifestKind.PluginRepo, ManifestKind.classify("""{"name":"n","scrapers":[]}"""))
         assertEquals(ManifestKind.Addon, ManifestKind.classify("""{"id":"org.x","name":"A","version":"1","resources":["stream"],"types":["movie"],"catalogs":[]}"""))
-        // Her ikisi de varsa addon (resources) kazanır: addon'a yalnızca addon alanlarıyla istek gider.
-        assertEquals(ManifestKind.Addon, ManifestKind.classify("""{"id":"x","name":"n","resources":["stream"],"types":["movie"],"scrapers":[{"id":"a","filename":"a.js"}]}"""))
+        // Nuvio kuralı: nesne dizisi olarak scrapers varsa PLUGIN DEPOSU; resources/types bunu değiştirmez.
+        assertEquals(ManifestKind.PluginRepo, ManifestKind.classify("""{"id":"x","name":"n","resources":["stream"],"types":["movie"],"scrapers":[{"id":"a","filename":"a.js"}]}"""))
+        // jasoelys örneği: id alanı yok, resources [stream, subtitles], scrapers var -> PluginRepo
+        assertEquals(ManifestKind.PluginRepo, ManifestKind.classify("""{"name":"jasoelys","version":"1.0.0","description":"Nuvio Sağlayıcı Deposu","resources":["stream","subtitles"],"types":["movie","series","tv"],"scrapers":[{"id":"animecix","name":"AnimeCix","filename":"providers/animecix.js"}]}"""))
         assertEquals(ManifestKind.External, ManifestKind.classify("""{"name":"n","manifestVersion":1,"pluginLists":["https://x/plugins.json"]}"""))
         assertEquals(ManifestKind.Unknown, ManifestKind.classify("""{"name":"n"}"""))
         try { ManifestKind.classify("<html>"); fail() } catch (e: AddonException) { assertEquals(Kind.NotJson, e.kind) }

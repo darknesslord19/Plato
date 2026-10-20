@@ -54,13 +54,13 @@ data class PluginScraperEntry(
 
 /** İçeriğine göre manifest türü. Etikete ya da adrese değil, yalnızca alanlara bakılır. */
 enum class ManifestKind {
-    /** Stremio protokollü addon: `resources` var. */
+    /** Stremio protokollü addon: `resources` ve zorunlu `id` var, `scrapers` yok. */
     Addon,
 
-    /** JS kazıyıcı deposu: `scrapers` dizisi var, `resources` yok. */
+    /** Nuvio JS kazıyıcı deposu: `scrapers` nesne dizisi var (`resources`/`types` bunu değiştirmez). */
     PluginRepo,
 
-    /** CloudStream tarzı harici depo (`pluginLists`): Faz 3. */
+    /** CloudStream tarzı harici depo (`pluginLists` veya `manifestVersion` + `plugins`). */
     External,
 
     /** Hiçbirine uymuyor; addon ayrıştırıcısı kesin hatayı verir. */
@@ -77,12 +77,42 @@ enum class ManifestKind {
                 throw AddonException(Kind.NotJson, cause = e)
             }
             if (root !is JsonObject) throw AddonException(Kind.NotJson)
-            return when {
-                root["resources"] is JsonArray -> Addon
-                root["scrapers"] is JsonArray -> PluginRepo
-                root["pluginLists"] is JsonArray -> External
-                else -> Unknown
+
+            // Kural 1 (Nuvio mantığı): `scrapers` nesne dizisi varsa KESİNLİKLE PLUGIN DEPOSU.
+            // `resources` veya `types` olması bunu değiştirmez (örn. jasoelys, hans-mega, bronzecloud).
+            val scrapers = root["scrapers"]
+            if (scrapers is JsonArray && (scrapers.any { it is JsonObject } || (scrapers.isEmpty() && root["resources"] == null))) {
+                return PluginRepo
             }
+
+            // Kural 2: CloudStream deposu (pluginLists veya manifestVersion + plugins)
+            val pluginLists = root["pluginLists"]
+            if (pluginLists is JsonArray && pluginLists.isNotEmpty()) {
+                return External
+            }
+            if (root["manifestVersion"] != null && root["plugins"] is JsonArray) {
+                return External
+            }
+
+            // Kural 3: Addon için zorunlu `id` ve `resources` dizisi gerekir; `scrapers` olmamalıdır
+            val id = (root["id"] as? JsonPrimitive)?.takeIf { it.isString }?.content?.trim()
+            val resources = root["resources"]
+            if (!id.isNullOrEmpty() && resources is JsonArray && scrapers == null) {
+                return Addon
+            }
+
+            // Yedek toleranslar
+            if (scrapers is JsonArray && scrapers.isNotEmpty()) {
+                return PluginRepo
+            }
+            if (resources is JsonArray && !id.isNullOrEmpty()) {
+                return Addon
+            }
+            if (pluginLists is JsonArray) {
+                return External
+            }
+
+            return Unknown
         }
     }
 }
@@ -90,7 +120,7 @@ enum class ManifestKind {
 object PluginRepoManifestParser {
 
     /** Bir depodan alınacak en çok kazıyıcı sayısı (gerçek depolar 6–43). */
-    const val MAX_SCRAPERS = 100
+    const val MAX_SCRAPERS = 200
 
     /**
      * Depo manifest'ini doğrular. Eksik/bozuk girişler (kimlik ya da dosya adı yok, adres çözülemiyor, http(s) değil,
@@ -140,7 +170,10 @@ object PluginRepoManifestParser {
             description = obj.string("description"),
             supportedTypes = obj.strings("supportedTypes").ifEmpty { listOf("movie", "tv") },
             contentLanguage = obj.strings("contentLanguage"),
-            hasSettings = (obj["hasSettings"] as? JsonPrimitive)?.content == "true",
+            hasSettings = when (val p = obj["hasSettings"]) {
+                is JsonPrimitive -> p.content.equals("true", ignoreCase = true)
+                else -> false
+            },
         )
     }
 
@@ -160,8 +193,16 @@ object PluginRepoManifestParser {
 
     private fun JsonObject.strings(field: String): List<String> {
         val v: JsonElement = this[field] ?: return emptyList()
-        if (v is JsonNull || v !is JsonArray) return emptyList()
-        return v.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content?.trim()?.ifEmpty { null } }
+        if (v is JsonNull) return emptyList()
+        if (v is JsonArray) {
+            return v.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content?.trim()?.ifEmpty { null } }
+        }
+        if (v is JsonPrimitive && v.isString) {
+            val content = v.content.trim()
+            if (content.isEmpty()) return emptyList()
+            return content.split(',', ' ', ';', '\t').map { it.trim() }.filter { it.isNotEmpty() }
+        }
+        return emptyList()
     }
 }
 

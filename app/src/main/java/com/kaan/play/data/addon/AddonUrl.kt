@@ -16,7 +16,12 @@ object AddonUrl {
         val raw = input.trim()
         if (raw.isEmpty() || raw.any { it.isWhitespace() }) throw invalid()
 
-        val withScheme = if ("://" in raw) raw else "https://$raw"
+        val withScheme = when {
+            raw.startsWith("stremio://", ignoreCase = true) -> "https://" + raw.substring(10)
+            raw.startsWith("cloudstreamrepo://", ignoreCase = true) -> "https://" + raw.substring(18)
+            "://" in raw -> raw
+            else -> "https://$raw"
+        }
         val url = withScheme.toHttpUrlOrNull() ?: throw invalid()
         if (url.query != null) throw invalid()
 
