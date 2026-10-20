@@ -54,3 +54,19 @@ w3cdom_*.java
 *.xml
 ui.xml
 /oynatma-tanisi.md
+
+# Gecici analiz, cikarim ve yamalar
+*.zip
+*.log
+tools/*.js
+tools/analyze_*.py
+tools/check_*.py
+tools/decompile_*.py
+tools/disasm_*.py
+tools/dump_*.py
+tools/fetch_*.py
+tools/find_*.py
+tools/parse_*.py
+tools/patch_*.py
+tools/print_*.py
+tools/search_*.py

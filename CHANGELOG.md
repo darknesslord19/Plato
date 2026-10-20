@@ -3,6 +3,13 @@
 ## Yayınlanmamış / Unreleased
 
 ### Türkçe
+- **Ağ Güvenliği Daraltması (`PlayNetworkGuard`):** `localhost` ve `127.x` üzerindeki serbest döngü adresleri yalnızca Play'in kendi Torrent HTTP sunucu portu ve eklentilerin çalışma anında dinamik açtığı yerel vekil portlarıyla sınırlandırıldı; yetkisiz loopback, `0.0.0.0`, `::` ve `::1` tamamen engellendi. IPv6 sabit denetimi alan adlarından ayrıştırılarak `fc*` ile başlayan genel alan adlarının (örn. `fcbarcelona.com`) yanlışlıkla engellenmesi giderildi. HintFilmIzle'nin yerel vekil üzerinden akışı doğrulandı.
+- **Çıkarıcı (Extractor) İyileştirmeleri ve Yeni Çözücüler:**
+  - **SezonlukDizi:** Byse CDN (`bysejikuar.com`) için `ByseJikuar` çıkarıcısı eklendi; sitenin güncel `dataAlternatif22` ve `dataEmbed22` AJAX uç noktaları HTML köprüsü ile desteklendi ve 1080p M3U8 akış doğrulaması sağlandı.
+  - **SinemaTV:** `shortener2.link` M3U8 ana oynatma listelerindeki göreli rotalar `/content-router/r/` köprüsüyle normalize edilerek HTTP 401 yetkilendirme engeli çözüldü; 720p akışları sorunsuz oynatılır hale getirildi.
+  - **DiziMag:** `japierdolevid.com` korumalı oynatıcısı için `JapierdoleExtractor` (AES-CBC ve challenge çözücü) eklendi ve birim testlerle doğrulandı.
+- **Güçlendirilmiş Oynatma Tanısı:** Oynatma tanısında medya geçerliliği yalnızca HTTP HEAD ile değil, ilk ~512 KB'taki gerçek medya imzaları (`#EXTM3U`, MP4 `ftyp`, MKV `EBML`, TS `0x47`) ile ölçülecek şekilde güçlendirildi; bilinmeyen çözünürlüklerde `?` formatına geçildi.
+- **Canlı Depo Test İzolasyonu:** `CentralReposCompatibilityTest` canlı ağ bağımlılığı varsayılan birim test koşumundan ayrılarak `play.test.liveCentralRepos` sistem özelliğine bağlandı.
 - **Evrensel Nuvio & CloudStream Depo Uyumluluğu ve Tek Dokunuşla Ekleme:**
   - **Karma ve Zengin Manifest Desteği:** `scrapers` dizisi içeren depolar (örn. Jasoelys, HANS.MEGA, MANİTUX, BRONZE CLOUD) Stremio'dan kalma `resources` veya `types` alanları içerse dahi `scrapers` alanına öncelik verilerek kesin olarak Nuvio Plugin deposu olarak sınıflandırılır; bilinmeyen üst düzey alanlar güvenle yok sayılır.
   - **Ayrıştırıcı Toleransı:** Kazıyıcılardaki `supportedTypes` ve `contentLanguage` alanlarının boşluk/virgülle ayrılmış düz metin (`"series tv"`, `"tr en"`) olarak gelmesi desteklendi. `hasSettings` metin `"true"` desteği eklendi. `stremio://` ve `cloudstreamrepo://` şemaları normalize edildi.

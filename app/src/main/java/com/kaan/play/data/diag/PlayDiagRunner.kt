@@ -17,6 +17,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
@@ -46,30 +47,63 @@ object PlayDiagRunner {
         filterNames: List<String>? = null,
     ): File = withContext(Dispatchers.IO) {
         Log.i(TAG, "=== CloudStream Oynatma Tanısı Başlatıldı ===")
-        val allPlugins = container.csRepos.enabledPlugins().let { enabled ->
-            if (enabled.isNotEmpty()) enabled else {
-                // Eğer açık eklenti yoksa, kurulu tüm CS eklentilerini dene
-                container.csRepos.plugins
-                container.database.pluginDao().enabledOfType(com.kaan.play.data.db.AddonType.CLOUDSTREAM_REPO).map {
-                    InstalledCsPlugin(
-                        id = it.id,
-                        repoId = it.repoId,
-                        pluginId = it.pluginId,
-                        name = it.name,
-                        version = it.version,
-                        description = it.description,
-                        language = it.contentLanguage,
-                        tvTypes = it.supportedTypes.split(',').filter { s -> s.isNotBlank() },
-                        enabled = it.enabled,
-                    )
+        val defaultRepos = listOf(
+            "https://raw.githubusercontent.com/Wiojelt/TurkSinema/main/repo.json",
+            "https://raw.githubusercontent.com/Wiojelt/WioSinema/builds/repo.json",
+            "https://raw.githubusercontent.com/baristomruk-max/BTVault/main/repo.json",
+            "https://raw.githubusercontent.com/csprofesor/gsrepo/builds/repo.json",
+        )
+        for (repoUrl in defaultRepos) {
+            try {
+                if (container.database.addonDao().countBySourceUrl(repoUrl) == 0) {
+                    Log.i(TAG, "Depo kuruluyor: $repoUrl")
+                    container.sourceInstaller.add(repoUrl)
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "Depo kurulumu atlandı: $repoUrl (${e.message})")
             }
+        }
+        runCatching {
+            container.csRepos.setAllEnabled(true)
+        }
+
+        val allInstalled = runCatching {
+            container.database.pluginDao().observeOfType(com.kaan.play.data.db.AddonType.CLOUDSTREAM_REPO).first().map {
+                InstalledCsPlugin(
+                    id = it.id,
+                    repoId = it.repoId,
+                    pluginId = it.pluginId,
+                    name = it.name,
+                    version = it.version,
+                    description = it.description,
+                    language = it.contentLanguage,
+                    tvTypes = it.supportedTypes.split(',').filter { s -> s.isNotBlank() },
+                    enabled = it.enabled,
+                )
+            }
+        }.getOrDefault(emptyList())
+
+        val allPlugins = if (!filterNames.isNullOrEmpty()) {
+            allInstalled
+        } else {
+            val enabled = container.csRepos.enabledPlugins()
+            if (enabled.isNotEmpty()) enabled else allInstalled
         }
 
         val targetPlugins = if (!filterNames.isNullOrEmpty()) {
             allPlugins.filter { p -> filterNames.any { f -> p.name.contains(f, ignoreCase = true) || p.pluginId.contains(f, ignoreCase = true) } }
         } else {
-            allPlugins
+            val standardNames = listOf(
+                "AnimeciX", "Anizm", "BelgeselX", "DDizi", "DiziBox",
+                "DiziGom", "DiziKorea", "Dizilla", "DiziMag", "DiziMom",
+                "DiziPal", "FilmMakinesi", "FilmModu", "FullHDFilm", "HDFilmCehennemi",
+                "HDFilmIzle", "HintFilmIzle", "JetFilmizle", "KultFilmler", "SelcukFlix",
+                "SetFilmIzle", "SezonlukDizi", "SinemaCX", "SinemaTV", "SineWix",
+                "TavsiyeFilmIzle", "Watch2Movies", "WebteIzle", "YabanciDizi"
+            )
+            standardNames.mapNotNull { stdName ->
+                allPlugins.firstOrNull { it.name.equals(stdName, ignoreCase = true) }
+            }
         }
 
         Log.i(TAG, "Test edilecek eklenti sayısı: ${targetPlugins.size}")
@@ -233,7 +267,8 @@ object PlayDiagRunner {
             }
 
             val firstStream = streams.first()
-            val linkStatus = "OK (${streams.size} link, ${firstStream.resolution ?: "auto"}p)"
+            val qualityStr = firstStream.resolution?.let { "${it}p" } ?: "?"
+            val linkStatus = "OK (${streams.size} link, $qualityStr)"
 
             // 4. Doğrudan link medya testi (HEAD / 64KB GET) - streams içindeki linklerden çalışan var mı dene
             var mediaOk = false
@@ -311,50 +346,87 @@ object PlayDiagRunner {
             requestBuilder.header(k, v)
         }
 
-        // 1. Önce HEAD dene
-        try {
-            val headReq = requestBuilder.head().build()
-            val headResp = httpClient.newCall(headReq).execute()
-            val code = headResp.code
-            headResp.close()
-            if (code in 200..299) {
-                return@withContext true to "HEAD $code"
-            }
-        } catch (_: Exception) {
-            // HEAD reddedilirse GET ile dene
-        }
-
-        // 2. 64KB GET dene
+        // İlk ~512 KB indir (524288 bayt) ve medya imzasını kontrol et
+        val maxBytes = 512 * 1024
         try {
             val getReq = requestBuilder.get()
-                .header("Range", "bytes=0-65535")
+                .header("Range", "bytes=0-${maxBytes - 1}")
                 .build()
             val getResp = httpClient.newCall(getReq).execute()
             val code = getResp.code
             val body = getResp.body
             var bytesRead = 0
+            val buffer = ByteArray(maxBytes)
             if (body != null) {
-                val buf = ByteArray(8192)
                 body.byteStream().use { input ->
-                    while (bytesRead < 65536) {
-                        val r = input.read(buf, 0, (65536 - bytesRead).coerceAtMost(buf.size))
+                    while (bytesRead < maxBytes) {
+                        val r = input.read(buffer, bytesRead, maxBytes - bytesRead)
                         if (r == -1) break
                         bytesRead += r
                     }
                 }
             }
             getResp.close()
+
             Log.d(TAG, "probeMedia [${stream.source.addonName}]: url=${stream.url} code=$code bytes=$bytesRead headers=${stream.headers}")
-            if (code in 200..299 || code == 206) {
-                val kb = bytesRead / 1024
-                return@withContext true to "GET $code (${kb}KB)"
-            } else {
+            if (code !in 200..299 && code != 206) {
                 return@withContext false to "HTTP $code"
+            }
+
+            val signature = detectMediaSignature(buffer, bytesRead)
+            if (signature != null) {
+                val kb = (bytesRead + 1023) / 1024
+                return@withContext true to "$signature ${kb}KB"
+            } else {
+                return@withContext false to "Geçersiz imza (HTTP $code, ${bytesRead / 1024}KB)"
             }
         } catch (e: Exception) {
             val msg = e.message ?: e.javaClass.simpleName
             Log.w(TAG, "probeMedia [${stream.source.addonName}] GET istisna: $msg (url=${stream.url})")
             return@withContext false to msg.take(40)
         }
+    }
+
+    private fun detectMediaSignature(bytes: ByteArray, length: Int): String? {
+        if (length < 4) return null
+
+        // 1. M3U8 / HLS playlist
+        val headText = String(bytes, 0, minOf(length, 1024), Charsets.ISO_8859_1)
+        if (headText.contains("#EXTM3U") || headText.contains("#EXT-X-STREAM-INF") || headText.contains("#EXTINF")) {
+            return "M3U8"
+        }
+
+        // 2. MKV / WebM (EBML: 0x1A 0x45 0xDF 0xA3)
+        if (length >= 4 &&
+            bytes[0] == 0x1A.toByte() &&
+            bytes[1] == 0x45.toByte() &&
+            bytes[2] == 0xDF.toByte() &&
+            bytes[3] == 0xA3.toByte()
+        ) {
+            return "MKV"
+        }
+
+        // 3. MP4 (box header: 4 bayt boyut + "ftyp")
+        if (length >= 8) {
+            val scanLimit = minOf(length - 4, 64)
+            for (i in 0..scanLimit) {
+                if (bytes[i] == 'f'.code.toByte() &&
+                    bytes[i + 1] == 't'.code.toByte() &&
+                    bytes[i + 2] == 'y'.code.toByte() &&
+                    bytes[i + 3] == 'p'.code.toByte()
+                ) {
+                    return "MP4"
+                }
+            }
+        }
+
+        // 4. MPEG-TS (senkronizasyon baytı 0x47, 188 bayt aralıklarla)
+        if (length >= 188 && bytes[0] == 0x47.toByte()) {
+            if (length < 376 || bytes[188] == 0x47.toByte()) {
+                return "TS"
+            }
+        }
+
+        return null
     }
 }

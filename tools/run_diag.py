@@ -79,7 +79,7 @@ def main():
         print("\n" + diag_content + "\n")
         
         # Save to local file as well
-        local_out = os.path.join(os.path.dirname(__file__), "..", "oynatma-tanisi.md")
+        local_out = os.path.join(os.path.dirname(__file__), "..", "docs", "oynatma-tanisi.md")
         with open(local_out, "w", encoding="utf-8") as f:
             f.write(diag_content)
         print(f"Saved locally to: {os.path.abspath(local_out)}")
