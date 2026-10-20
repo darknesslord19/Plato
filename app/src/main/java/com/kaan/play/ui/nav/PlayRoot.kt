@@ -310,8 +310,10 @@ fun PlayRoot() {
                         val next = container.csNextEpisodes.next(pluginId, contentUrl, entry.dataUrl, entry.season, entry.episode)
                         if (next != null) {
                             playEntry(entry.copy(dataUrl = next.dataUrl), next.season, next.episode, 0L)
-                        } else {
-                            playEntry(entry, item.season, item.episode, 0L)
+                        } else if (entry.tmdbId > 0) {
+                            // Eklentinin listesi alınamadı: eski bölümün verisiyle OYNATMA (aynı bölüm tekrar açılırdı);
+                            // TMDB kimliğiyle sıradaki bölümün kaynakları tüm eklentilerden aranır.
+                            playEntry(entry.copy(pluginId = null, dataUrl = null, contentUrl = null), item.season, item.episode, 0L)
                         }
                     }
                 } else {

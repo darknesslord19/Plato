@@ -237,12 +237,12 @@ class AppContainer(context: Context) {
                     if (cs != null) {
                         cs.season to cs.episode
                     } else if (row.tmdbId > 0) {
-                        try { nextEpisodes.next(row.tmdbId, row.season, row.episode) } catch (_: Exception) { null }
+                        try { nextEpisodes.next(row.tmdbId, row.season, row.episode) } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; null }
                     } else {
                         null
                     }
                 }
-                row.tmdbId > 0 -> try { nextEpisodes.next(row.tmdbId, row.season, row.episode) } catch (_: Exception) { null }
+                row.tmdbId > 0 -> try { nextEpisodes.next(row.tmdbId, row.season, row.episode) } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; null }
                 else -> null
             }
         }

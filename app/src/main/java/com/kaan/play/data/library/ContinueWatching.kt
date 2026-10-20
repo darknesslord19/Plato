@@ -37,7 +37,7 @@ class ContinueWatching(
 
         val resolved = coroutineScope {
             finishedSeries.map { row ->
-                async { row.id to (try { nextEpisode(row) } catch (_: Exception) { null }) }
+                async { row.id to (try { nextEpisode(row) } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; null }) }
             }.awaitAll()
         }.mapNotNull { (id, next) -> next?.let { id to it } }.toMap()
         val secondPass = build(rows, resolved)

@@ -22,14 +22,14 @@ class CsNextEpisodeFinder(private val csRepos: CsRepository) {
     suspend fun next(pluginId: String, contentUrl: String, dataUrl: String?, season: Int?, episode: Int?): CsNextEpisode? {
         val key = listOf(pluginId, contentUrl, dataUrl, season, episode).joinToString("|")
         synchronized(cache) { if (key in cache) return cache[key] }
-        android.util.Log.d("CsNextEpisode", "next() called: pluginId=$pluginId, contentUrl=$contentUrl, dataUrl=$dataUrl, s=$season, e=$episode")
+        if (com.kaan.play.BuildConfig.DEBUG) android.util.Log.d("CsNextEpisode", "next(): s=$season e=$episode")
         val episodes = load(pluginId, contentUrl)
         if (episodes == null) {
-            android.util.Log.w("CsNextEpisode", "load() returned null for pluginId=$pluginId, contentUrl=$contentUrl")
+            if (com.kaan.play.BuildConfig.DEBUG) android.util.Log.w("CsNextEpisode", "bölüm listesi alınamadı")
             return null
         }
         val result = pickNext(episodes, dataUrl, season, episode)
-        android.util.Log.d("CsNextEpisode", "pickNext returned: $result (from ${episodes.size} episodes)")
+        if (com.kaan.play.BuildConfig.DEBUG) android.util.Log.d("CsNextEpisode", "sıradaki: ${result?.season}/${result?.episode} (${episodes.size} bölüm)")
         synchronized(cache) { cache[key] = result }
         return result
     }
@@ -40,24 +40,24 @@ class CsNextEpisodeFinder(private val csRepos: CsRepository) {
             it.id == repoId || "cs:${it.id}" == pluginId || it.pluginId == pluginId
         }
         if (plugin == null) {
-            android.util.Log.w("CsNextEpisode", "Plugin not found for pluginId=$pluginId")
+            if (com.kaan.play.BuildConfig.DEBUG) android.util.Log.w("CsNextEpisode", "eklenti bulunamadı")
             return@withContext null
         }
         val api = csRepos.loadApis(plugin.id).firstOrNull()
         if (api == null) {
-            android.util.Log.w("CsNextEpisode", "api not found for plugin.id=${plugin.id}")
+            if (com.kaan.play.BuildConfig.DEBUG) android.util.Log.w("CsNextEpisode", "eklenti API yok")
             return@withContext null
         }
         val response = withTimeoutOrNull(LOAD_TIMEOUT_MS) {
             try {
                 api.load(contentUrl)
             } catch (t: Throwable) {
-                android.util.Log.w("CsNextEpisode", "api.load failed for $contentUrl: ${t.message}")
+                if (com.kaan.play.BuildConfig.DEBUG) android.util.Log.w("CsNextEpisode", "load hatası: ${t.javaClass.simpleName}")
                 null
             }
         }
         if (response == null) {
-            android.util.Log.w("CsNextEpisode", "api.load returned null or timed out for $contentUrl")
+            if (com.kaan.play.BuildConfig.DEBUG) android.util.Log.w("CsNextEpisode", "load boş/zaman aşımı")
             return@withContext null
         }
         val list = when (response) {
@@ -65,7 +65,7 @@ class CsNextEpisodeFinder(private val csRepos: CsRepository) {
             is AnimeLoadResponse -> response.episodes.values.flatten()
             else -> emptyList()
         }.map { CsEpisodeRef(it.season, it.episode, it.data) }
-        android.util.Log.d("CsNextEpisode", "Loaded ${list.size} episodes for $contentUrl")
+        if (com.kaan.play.BuildConfig.DEBUG) android.util.Log.d("CsNextEpisode", "${list.size} bölüm")
         list
     }
 
