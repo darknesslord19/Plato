@@ -37,6 +37,7 @@ sealed interface AddDialogState {
         val input: String = "",
         val busy: Boolean = false,
         val error: AddonException? = null,
+        val suggestedType: SourceType? = null,
     ) : AddDialogState
 }
 
@@ -104,8 +105,15 @@ class AddonsViewModel(
 
     fun onInputChange(text: String) {
         _dialog.update {
-            if (it is AddDialogState.Input) it.copy(input = text, error = null) else it
+            if (it is AddDialogState.Input) it.copy(input = text, error = null, suggestedType = null) else it
         }
+    }
+
+    fun acceptSuggestion() {
+        val current = _dialog.value as? AddDialogState.Input ?: return
+        val newType = current.suggestedType ?: return
+        _dialog.value = current.copy(type = newType, error = null, suggestedType = null)
+        submit()
     }
 
     fun submit() {
@@ -119,7 +127,13 @@ class AddonsViewModel(
                 _added.emit(result)
             } catch (e: AddonException) {
                 _dialog.update {
-                    if (it is AddDialogState.Input) it.copy(busy = false, error = e) else it
+                    if (it is AddDialogState.Input) {
+                        it.copy(
+                            busy = false,
+                            error = e,
+                            suggestedType = if (e.kind == AddonException.Kind.KindMismatch) e.detectedType else null,
+                        )
+                    } else it
                 }
             }
         }

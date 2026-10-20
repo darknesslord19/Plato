@@ -180,6 +180,11 @@
     <string name="addon_error_mismatch_cloudstream">This link is not a CloudStream repository. Please select the correct source type.</string>
     <string name="addon_error_mismatch_nuvio_repo">This link is not a Nuvio repository. Please select the correct source type.</string>
     <string name="addon_error_mismatch_nuvio_plugin">This link is not a Nuvio plugin. Please select the correct source type.</string>
+    <string name="addon_suggest_type">This is a %1$s. Add as %1$s?</string>
+    <string name="addon_suggest_add_action">Add as %1$s</string>
+    <string name="source_type_cloudstream">CloudStream Repository</string>
+    <string name="source_type_nuvio_repo">Nuvio Addon</string>
+    <string name="source_type_nuvio_plugin">Nuvio Plugin</string>
 
     <!-- Add Addon Choice Dialog -->
     <string name="addons_choice_title">Add addon</string>

@@ -19,6 +19,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import com.kaan.play.ui.components.IconButton
+import com.kaan.play.ui.components.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.shape.CircleShape
@@ -341,6 +342,7 @@ fun AddonsScreen(
                 state = state,
                 onInputChange = vm::onInputChange,
                 onConfirm = vm::submit,
+                onAcceptSuggestion = vm::acceptSuggestion,
                 onDismiss = vm::dismissAdd,
             )
         }
@@ -584,6 +586,7 @@ private fun AddSourceInputDialog(
     state: AddDialogState.Input,
     onInputChange: (String) -> Unit,
     onConfirm: () -> Unit,
+    onAcceptSuggestion: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val field = rememberCursorField(state.input, onInputChange)
@@ -651,11 +654,37 @@ private fun AddSourceInputDialog(
                             modifier = Modifier.padding(start = 12.dp),
                         )
                     }
-                    state.error != null -> Text(
-                        text = state.error.userMessage(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                    state.error != null -> {
+                        if (state.suggestedType != null) {
+                            val suggestedTypeName = when (state.suggestedType) {
+                                SourceType.CLOUDSTREAM -> stringResource(R.string.source_type_cloudstream)
+                                SourceType.NUVIO_REPO -> stringResource(R.string.source_type_nuvio_repo)
+                                SourceType.NUVIO_PLUGIN -> stringResource(R.string.source_type_nuvio_plugin)
+                            }
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.addon_suggest_type, suggestedTypeName),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Button(
+                                    onClick = onAcceptSuggestion,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(stringResource(R.string.addon_suggest_add_action, suggestedTypeName))
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = state.error.userMessage(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 }
             }
         },

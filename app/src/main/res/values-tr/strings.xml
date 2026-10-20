@@ -160,6 +160,11 @@
     <string name="addon_error_mismatch_cloudstream">Bu bağlantı bir CloudStream deposu değil. Lütfen doğru kaynak türünü seçin.</string>
     <string name="addon_error_mismatch_nuvio_repo">Bu bağlantı bir Nuvio deposu değil. Lütfen doğru kaynak türünü seçin.</string>
     <string name="addon_error_mismatch_nuvio_plugin">Bu bağlantı bir Nuvio plugin kaynağı değil. Lütfen doğru kaynak türünü seçin.</string>
+    <string name="addon_suggest_type">Bu bir %1$s. %1$s olarak ekleyeyim mi?</string>
+    <string name="addon_suggest_add_action">%1$s olarak ekle</string>
+    <string name="source_type_cloudstream">CloudStream Deposu</string>
+    <string name="source_type_nuvio_repo">Nuvio Eklentisi</string>
+    <string name="source_type_nuvio_plugin">Nuvio Plugin</string>
 
     <!-- Eklenti Ekle Seçenekleri -->
     <string name="addons_choice_title">Eklenti ekle</string>
