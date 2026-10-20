@@ -14,6 +14,26 @@ data class ResolvedIdentity(
 object MediaIdentityResolver {
 
     /**
+     * Yanlış eşleşme, kimliği olmamaktan kötüdür (yanlış filmin altyazısı, karışan geçmiş). Bu yüzden:
+     * yıl biliniyorsa yalnızca ±1 yıl tutan aday (başlığı da tutan önde); yıl bilinmiyorsa yalnızca başlığı
+     * birebir tutan aday. Hiçbiri yoksa eşleşme yok (null).
+     */
+    internal fun pickCandidate(candidates: List<com.kaan.play.data.model.MediaSummary>, cleanTitle: String, year: Int?): com.kaan.play.data.model.MediaSummary? {
+        val wanted = normalize(cleanTitle)
+        fun titleOk(c: com.kaan.play.data.model.MediaSummary) = wanted.isNotEmpty() && normalize(c.title) == wanted
+        return if (year != null) {
+            val yearOk = candidates.filter { c -> c.year != null && kotlin.math.abs(c.year - year) <= 1 }
+            yearOk.firstOrNull(::titleOk) ?: yearOk.firstOrNull()
+        } else {
+            candidates.firstOrNull(::titleOk)
+        }
+    }
+
+    private fun normalize(s: String): String = s.lowercase(java.util.Locale.ROOT)
+        .replace('ı', 'i').replace('ğ', 'g').replace('ü', 'u').replace('ş', 's').replace('ö', 'o').replace('ç', 'c')
+        .filter { it.isLetterOrDigit() }
+
+    /**
      * Kimlik çözümleme sırası:
      * 1. Eklentinin LoadResponse'undaki imdb/tmdb kimliği (syncData içinde)
      * 2. Yoksa temizlenmiş başlık + yıl ile TMDB araması -> eşleşen kaydın detail'inden external_ids.imdbId
@@ -82,13 +102,7 @@ object MediaIdentityResolver {
         try {
             val page = tmdb.search(cleanTitle)
             val candidates = page.items.filter { it.type == type }
-            val matched = if (year != null) {
-                candidates.firstOrNull { c ->
-                    c.year == year || (c.year != null && kotlin.math.abs(c.year - year) <= 1)
-                } ?: candidates.firstOrNull()
-            } else {
-                candidates.firstOrNull()
-            }
+            val matched = pickCandidate(candidates, cleanTitle, year)
 
             if (matched != null) {
                 val matchedTmdbId = matched.id

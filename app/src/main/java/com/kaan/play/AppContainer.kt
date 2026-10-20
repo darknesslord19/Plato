@@ -221,8 +221,24 @@ class AppContainer(context: Context) {
         )
     }
 
+    /** CloudStream dizilerinde sıradaki bölüm (eklentinin kendi bölüm listesinden). */
+    val csNextEpisodes: com.kaan.play.data.cloudstream.CsNextEpisodeFinder by lazy {
+        com.kaan.play.data.cloudstream.CsNextEpisodeFinder(csRepos)
+    }
+
     val continueWatching: ContinueWatching by lazy {
-        ContinueWatching(library) { row -> nextEpisodes.next(row.tmdbId, row.season, row.episode) }
+        ContinueWatching(library) { row ->
+            val pluginId = row.pluginId
+            val contentUrl = row.contentUrl
+            when {
+                // Eklenti içeriği: TMDB kimliği yok, sıradaki bölüm eklentinin listesinden.
+                pluginId != null && !contentUrl.isNullOrBlank() ->
+                    csNextEpisodes.next(pluginId, contentUrl, row.dataUrl, row.season, row.episode)
+                        ?.let { it.season to it.episode }
+                row.tmdbId > 0 -> nextEpisodes.next(row.tmdbId, row.season, row.episode)
+                else -> null
+            }
+        }
     }
 
     val addons: AddonRepository by lazy {

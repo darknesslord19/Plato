@@ -301,7 +301,21 @@ fun PlayRoot() {
         when (item) {
             is ContinueItem.Resume ->
                 playEntry(entry, entry.season.takeIf { isSeries }, entry.episode.takeIf { isSeries }, entry.positionMs)
-            is ContinueItem.Next -> playEntry(entry, item.season, item.episode, 0L)
+            is ContinueItem.Next -> {
+                val pluginId = entry.pluginId
+                val contentUrl = entry.contentUrl
+                if (pluginId != null && !contentUrl.isNullOrBlank()) {
+                    // Eklenti dizisi: kayıttaki dataUrl BİTEN bölümündür; sıradaki bölümün verisiyle oynatılır.
+                    scope.launch {
+                        val next = container.csNextEpisodes.next(pluginId, contentUrl, entry.dataUrl, entry.season, entry.episode)
+                        if (next != null) {
+                            playEntry(entry.copy(dataUrl = next.dataUrl), next.season, next.episode, 0L)
+                        }
+                    }
+                } else {
+                    playEntry(entry, item.season, item.episode, 0L)
+                }
+            }
         }
     }
 

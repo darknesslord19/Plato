@@ -121,4 +121,33 @@ class MediaIdentityResolverTest {
         assertNull(identity.tmdbId)
         assertNull(identity.imdbId)
     }
+
+    @Test
+    fun yearMismatchGivesNoMatchInsteadOfWrongMovie() = runTest {
+        fixtures["search/multi"] = """
+            {"page":1,"total_pages":1,"results":[
+              {"id":111,"media_type":"movie","title":"Baska Film","release_date":"2001-01-01"}
+            ]}
+        """.trimIndent()
+        val identity = MediaIdentityResolver.resolveIdentity(
+            rawTitle = "Yeni Film izle (2024)", rawYear = null, syncData = null, type = MediaType.Movie, tmdb = repo(),
+        )
+        assertNull(identity.tmdbId)
+        assertNull(identity.imdbId)
+    }
+
+    @Test
+    fun withoutYearOnlyExactTitleMatches() = runTest {
+        fixtures["search/multi"] = """
+            {"page":1,"total_pages":1,"results":[
+              {"id":222,"media_type":"movie","title":"Yeni Film 2","release_date":"2010-01-01"},
+              {"id":333,"media_type":"movie","title":"Yeni Film","release_date":"2008-01-01"}
+            ]}
+        """.trimIndent()
+        fixtures["movie/333"] = """{"id":333,"title":"Yeni Film","imdb_id":"tt0000333","external_ids":{"imdb_id":"tt0000333"}}"""
+        val identity = MediaIdentityResolver.resolveIdentity(
+            rawTitle = "Yeni Film", rawYear = null, syncData = null, type = MediaType.Movie, tmdb = repo(),
+        )
+        assertEquals(333, identity.tmdbId)
+    }
 }
