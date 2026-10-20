@@ -188,4 +188,40 @@ class SubtitleLoaderTest {
         val junk = SubtitleLoader(OkHttpClient(), cacheDir, openLocal = { _, _ -> "merhaba".toByteArray() })
         assertEquals(SubtitleLoad.Failed(SubtitleLoad.Reason.Invalid), junk.load(SubtitleTrack("content://docs/j", null, "x", SubtitleKind.Local)))
     }
+
+    @Test
+    fun subtitleHeadersRequireRefererAndSucceedWithHeaders() = runTest {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                val referer = request.headers["Referer"]
+                val userAgent = request.headers["User-Agent"]
+                return if (referer == "https://filmmakinesi.to/movie" && userAgent?.contains("Mozilla") == true) {
+                    bytesResponse("1\n00:00:01,000 --> 00:00:02,000\nTürkçe altyazı\n".toByteArray(Charsets.UTF_8))
+                } else {
+                    MockResponse.Builder().code(403).build()
+                }
+            }
+        }
+
+        val trackWithoutHeaders = SubtitleTrack(
+            url = server.url("/sub.srt").toString(),
+            language = "tr",
+            origin = "FilmMakinesi",
+        )
+        val failed = loader().load(trackWithoutHeaders)
+        assertEquals(SubtitleLoad.Failed(SubtitleLoad.Reason.Http), failed)
+
+        val trackWithHeaders = SubtitleTrack(
+            url = server.url("/sub.srt").toString(),
+            language = "tr",
+            origin = "FilmMakinesi",
+            headers = mapOf(
+                "Referer" to "https://filmmakinesi.to/movie",
+                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            ),
+        )
+        val success = loader().load(trackWithHeaders)
+        assertTrue(success is SubtitleLoad.Loaded)
+        assertEquals("Türkçe altyazı", (success as SubtitleLoad.Loaded).cues.single().text)
+    }
 }

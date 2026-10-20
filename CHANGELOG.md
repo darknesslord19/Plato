@@ -3,6 +3,10 @@
 ## Yayınlanmamış / Unreleased
 
 ### Türkçe
+- **Altyazı Başlıkları ve 403 Engellerinin Çözülmesi:** CloudStream ve Nuvio eklentilerinde altyazıların 403 Forbidden hatası almasını önlemek için akışın `Referer`, `User-Agent` ve `proxyHeaders` başlıkları altyazı indirme isteklerine iletildi (başlıklar loglanmaz). FilmMakinesi ("By Any Means" 1275 satır Türkçe altyazı) ve çevrimdışı altyazı indirme istekleri doğrulandı.
+- **Başlık Temizleme (`TitleCleaner`):** Film ve dizi başlıklarındaki site ekleri ("izle", "Türkçe Dublaj izle", "Full HD izle", "(2026)" vb.) temizlendi, yıl bilgisi ayrıştırılarak ekranda ve aramalarda temiz başlık kullanımı sağlandı.
+- **Çevrimiçi Kimlik Çözümleme Pipeline'ı (`MediaIdentityResolver`):** CloudStream içeriklerinde eksik olan IMDb/TMDB kimlikleri `syncData` -> TMDB başlık+yıl araması -> `external_ids` -> SubDL başlık araması sırasıyla çözülerek `PlaySession`'a ve EN->TR otomatik çeviriye bağlandı.
+- **Oynatma ve Altyazı Tanısı Güçlendirmesi:** Tanı aracına altyazı doğrulama (eklenti ve internet altyazı sayıları/cues) ve Nuvio kaynakları teşhis desteği eklendi; 29 CloudStream eklentisi ve 9 Nuvio kaynağıyla tam tanı çalıştırıldı, `docs/oynatma-tanisi.md` güncellendi.
 - **Ağ Güvenliği Daraltması (`PlayNetworkGuard`):** `localhost` ve `127.x` üzerindeki serbest döngü adresleri yalnızca Play'in kendi Torrent HTTP sunucu portu ve eklentilerin çalışma anında dinamik açtığı yerel vekil portlarıyla sınırlandırıldı; yetkisiz loopback, `0.0.0.0`, `::` ve `::1` tamamen engellendi. IPv6 sabit denetimi alan adlarından ayrıştırılarak `fc*` ile başlayan genel alan adlarının (örn. `fcbarcelona.com`) yanlışlıkla engellenmesi giderildi. HintFilmIzle'nin yerel vekil üzerinden akışı doğrulandı.
 - **Çıkarıcı (Extractor) İyileştirmeleri ve Yeni Çözücüler:**
   - **SezonlukDizi:** Byse CDN (`bysejikuar.com`) için `ByseJikuar` çıkarıcısı eklendi; sitenin güncel `dataAlternatif22` ve `dataEmbed22` AJAX uç noktaları HTML köprüsü ile desteklendi ve 1080p M3U8 akış doğrulaması sağlandı.
@@ -127,6 +131,10 @@
 ## [1.0.4] — 2026-10-14
 
 ### Türkçe
+- **Altyazı Başlıkları ve 403 Engellerinin Çözülmesi:** CloudStream ve Nuvio eklentilerinde altyazıların 403 Forbidden hatası almasını önlemek için akışın `Referer`, `User-Agent` ve `proxyHeaders` başlıkları altyazı indirme isteklerine iletildi (başlıklar loglanmaz). FilmMakinesi ("By Any Means" 1275 satır Türkçe altyazı) ve çevrimdışı altyazı indirme istekleri doğrulandı.
+- **Başlık Temizleme (`TitleCleaner`):** Film ve dizi başlıklarındaki site ekleri ("izle", "Türkçe Dublaj izle", "Full HD izle", "(2026)" vb.) temizlendi, yıl bilgisi ayrıştırılarak ekranda ve aramalarda temiz başlık kullanımı sağlandı.
+- **Çevrimiçi Kimlik Çözümleme Pipeline'ı (`MediaIdentityResolver`):** CloudStream içeriklerinde eksik olan IMDb/TMDB kimlikleri `syncData` -> TMDB başlık+yıl araması -> `external_ids` -> SubDL başlık araması sırasıyla çözülerek `PlaySession`'a ve EN->TR otomatik çeviriye bağlandı.
+- **Oynatma ve Altyazı Tanısı Güçlendirmesi:** Tanı aracına altyazı doğrulama (eklenti ve internet altyazı sayıları/cues) ve Nuvio kaynakları teşhis desteği eklendi; 29 CloudStream eklentisi ve 9 Nuvio kaynağıyla tam tanı çalıştırıldı, `docs/oynatma-tanisi.md` güncellendi.
 - **Sonraki bölüm otomatik açılır:** dizide bölüm bitmeye yaklaşınca (son ~20 saniye) köşede "Sonraki bölüm: S1 B4 · 10 sn" kartı çıkar; süre dolunca sonraki bölüm kendiliğinden başlar. Kartta "Şimdi oynat" ve "İptal" var; iptal edersen o bölümde kart bir daha çıkmaz. Filmlerde ve dizinin son bölümünde kart çıkmaz.
 - Sonraki bölümün kaynağı kendiliğinden seçilir: önce izlediğin eklenti ve sunucuyla aynısı denenir, açılmazsa sıradaki kaynağa geçilir. Hiçbiri açılmazsa kart "Başka kaynak seç" der, ekran siyah kalmaz. Bölüm indirilmişse indirilmiş kopya oynar.
 - Biten bölüm izlendi olarak kaydedilir; altyazı dili ve görünümü sonraki bölümde de geçerlidir (Türkçe otomatik aranır). Torrent kaynağında önceki torrent oturumu kapatılır.
@@ -147,6 +155,10 @@
 ## [1.0.3] — 2026-10-14
 
 ### Türkçe
+- **Altyazı Başlıkları ve 403 Engellerinin Çözülmesi:** CloudStream ve Nuvio eklentilerinde altyazıların 403 Forbidden hatası almasını önlemek için akışın `Referer`, `User-Agent` ve `proxyHeaders` başlıkları altyazı indirme isteklerine iletildi (başlıklar loglanmaz). FilmMakinesi ("By Any Means" 1275 satır Türkçe altyazı) ve çevrimdışı altyazı indirme istekleri doğrulandı.
+- **Başlık Temizleme (`TitleCleaner`):** Film ve dizi başlıklarındaki site ekleri ("izle", "Türkçe Dublaj izle", "Full HD izle", "(2026)" vb.) temizlendi, yıl bilgisi ayrıştırılarak ekranda ve aramalarda temiz başlık kullanımı sağlandı.
+- **Çevrimiçi Kimlik Çözümleme Pipeline'ı (`MediaIdentityResolver`):** CloudStream içeriklerinde eksik olan IMDb/TMDB kimlikleri `syncData` -> TMDB başlık+yıl araması -> `external_ids` -> SubDL başlık araması sırasıyla çözülerek `PlaySession`'a ve EN->TR otomatik çeviriye bağlandı.
+- **Oynatma ve Altyazı Tanısı Güçlendirmesi:** Tanı aracına altyazı doğrulama (eklenti ve internet altyazı sayıları/cues) ve Nuvio kaynakları teşhis desteği eklendi; 29 CloudStream eklentisi ve 9 Nuvio kaynağıyla tam tanı çalıştırıldı, `docs/oynatma-tanisi.md` güncellendi.
 - **Uygulama içi güncelleme:** yeni sürüm çıkınca "Güncelle" APK'yı uygulama içinde indirir (ilerleme çubuğuyla), cihazın işlemci türüne uyan dosyayı kendisi seçer (arm64-v8a, armeabi-v7a, x86_64), release'teki SHA-256 dosyasıyla doğrular ve sistem kurulum ekranını açar. Artık hangi APK'yı indireceğini seçmen gerekmez.
 - "Bilinmeyen uygulamaları yükle" izni yoksa ilgili ayar sayfasına yönlendirir; geri dönünce kurulum kaldığı yerden sürer.
 - İndirme hatasında, ağ kesilmesinde ve özet uyuşmazlığında uygulama çökmez; dosya kurulmaz ve "Tarayıcıda aç" ile release sayfasına gidilebilir. Uygun APK bulunamazsa eski yöntem (tarayıcı) sürer.
@@ -159,6 +171,10 @@
 ## [1.0.2] — 2026-10-14
 
 ### Türkçe
+- **Altyazı Başlıkları ve 403 Engellerinin Çözülmesi:** CloudStream ve Nuvio eklentilerinde altyazıların 403 Forbidden hatası almasını önlemek için akışın `Referer`, `User-Agent` ve `proxyHeaders` başlıkları altyazı indirme isteklerine iletildi (başlıklar loglanmaz). FilmMakinesi ("By Any Means" 1275 satır Türkçe altyazı) ve çevrimdışı altyazı indirme istekleri doğrulandı.
+- **Başlık Temizleme (`TitleCleaner`):** Film ve dizi başlıklarındaki site ekleri ("izle", "Türkçe Dublaj izle", "Full HD izle", "(2026)" vb.) temizlendi, yıl bilgisi ayrıştırılarak ekranda ve aramalarda temiz başlık kullanımı sağlandı.
+- **Çevrimiçi Kimlik Çözümleme Pipeline'ı (`MediaIdentityResolver`):** CloudStream içeriklerinde eksik olan IMDb/TMDB kimlikleri `syncData` -> TMDB başlık+yıl araması -> `external_ids` -> SubDL başlık araması sırasıyla çözülerek `PlaySession`'a ve EN->TR otomatik çeviriye bağlandı.
+- **Oynatma ve Altyazı Tanısı Güçlendirmesi:** Tanı aracına altyazı doğrulama (eklenti ve internet altyazı sayıları/cues) ve Nuvio kaynakları teşhis desteği eklendi; 29 CloudStream eklentisi ve 9 Nuvio kaynağıyla tam tanı çalıştırıldı, `docs/oynatma-tanisi.md` güncellendi.
 - **Yerleşik torrent/P2P motoru:** infoHash veya magnet döndüren addon ve Nuvio eklentilerinin kaynakları artık ek kurulum olmadan uygulama içinde oynatılıyor (libtorrent4j; yalnızca izlenen dosya indirilir, oynatıcı kapanınca geçici dosyalar silinir). İsteyen kendi TorrServer uyumlu sunucusunu Eklentiler ekranından girebilir.
 - **Düzeltme:** Patron (PatronMulti) gibi eklentilerin bazı kaynaklarında, eklentinin gönderdiği başlıkları reddeden sunucular yüzünden çıkan "Bu kaynak şu an kullanılamıyor" hatası giderildi; reddedilen istek başlıksız yeniden denenir.
 - **Çevrimiçi altyazı arama:** altyazı menüsünde "Çevrimiçi altyazılar" bölümü; Türkçe öncelikli (Ayarlar > Oynatıcı > Tercih edilen altyazı dili: Türkçe / İngilizce), ardından İngilizce. Altyazı addon'u kurmak gerekmez.
@@ -181,6 +197,10 @@
 İlk sürüm / First release.
 
 ### Türkçe
+- **Altyazı Başlıkları ve 403 Engellerinin Çözülmesi:** CloudStream ve Nuvio eklentilerinde altyazıların 403 Forbidden hatası almasını önlemek için akışın `Referer`, `User-Agent` ve `proxyHeaders` başlıkları altyazı indirme isteklerine iletildi (başlıklar loglanmaz). FilmMakinesi ("By Any Means" 1275 satır Türkçe altyazı) ve çevrimdışı altyazı indirme istekleri doğrulandı.
+- **Başlık Temizleme (`TitleCleaner`):** Film ve dizi başlıklarındaki site ekleri ("izle", "Türkçe Dublaj izle", "Full HD izle", "(2026)" vb.) temizlendi, yıl bilgisi ayrıştırılarak ekranda ve aramalarda temiz başlık kullanımı sağlandı.
+- **Çevrimiçi Kimlik Çözümleme Pipeline'ı (`MediaIdentityResolver`):** CloudStream içeriklerinde eksik olan IMDb/TMDB kimlikleri `syncData` -> TMDB başlık+yıl araması -> `external_ids` -> SubDL başlık araması sırasıyla çözülerek `PlaySession`'a ve EN->TR otomatik çeviriye bağlandı.
+- **Oynatma ve Altyazı Tanısı Güçlendirmesi:** Tanı aracına altyazı doğrulama (eklenti ve internet altyazı sayıları/cues) ve Nuvio kaynakları teşhis desteği eklendi; 29 CloudStream eklentisi ve 9 Nuvio kaynağıyla tam tanı çalıştırıldı, `docs/oynatma-tanisi.md` güncellendi.
 - **Ana sayfa ve arama:** TMDB'den beslenen kapak karuseli, "devam et" sırası, trend/popüler sıraları ve "tümü" ekranları; film ve dizi arama.
 - **Detay:** arka plan görseli, başlık logosu, puan ve yaş sınırı, oyuncular, sezon/bölüm seçici; Türkçe özet boşsa İngilizce yedek.
 - **Kaynak seçimi:** eklentilerden paralel kaynak toplama, eklenti süzgeci, en uygun kaynak seçili; satırda eklenti adı, kalite, boyut, ses dili ve altyazı bilgisi.

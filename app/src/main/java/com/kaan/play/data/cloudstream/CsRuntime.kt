@@ -145,7 +145,7 @@ class CsRuntime {
                 Log.d(TAG, "${api.name}: loadLinks hata ${t.javaClass.simpleName}: ${t.message}", t)
             }
         }
-        Log.d(TAG, "${api.name}: loadLinks ${links.size} ExtractorLink " +
+        Log.d(TAG, "${api.name}: loadLinks ${links.size} ExtractorLink, ${subs.size} SubtitleFile " +
             links.map { "${it.name}/${it.type}/${it.quality}@${runCatching { java.net.URI(it.url).host }.getOrNull()}" })
 
         return links.map { link ->
@@ -159,7 +159,14 @@ class CsRuntime {
                     if (link.referer.isNotEmpty()) put("Referer", link.referer)
                     putAll(link.headers)
                 },
-                subtitles = subs.map { StreamSubtitle(url = it.url, language = it.lang) },
+                subtitles = subs.map { sub ->
+                    val subHeaders = buildMap {
+                        put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                        if (link.referer.isNotEmpty()) put("Referer", link.referer)
+                        sub.headers?.let { putAll(it) }
+                    }
+                    StreamSubtitle(url = sub.url, language = sub.lang, headers = subHeaders)
+                },
                 language = null,
                 dubbed = com.kaan.play.data.stream.DubDetector.isDubbed(link.name),
                 mimeType = when (link.type) {

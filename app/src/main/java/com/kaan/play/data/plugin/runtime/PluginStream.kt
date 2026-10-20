@@ -125,7 +125,16 @@ fun PluginStream.toPlayable(source: StreamSource): PlayableStream {
         resolution = StreamLabels.resolution(text),
         sizeBytes = size?.let(StreamLabels::sizeBytes) ?: StreamLabels.sizeBytes(text),
         headers = headers,
-        subtitles = subtitles.map { StreamSubtitle(it.url, subtitleLanguage(it.language ?: it.name)) },
+        subtitles = subtitles.map { sub ->
+            val subHeaders = buildMap {
+                put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                if (headers.containsKey("Referer")) put("Referer", headers["Referer"]!!)
+                if (headers.containsKey("User-Agent")) put("User-Agent", headers["User-Agent"]!!)
+                putAll(headers)
+                putAll(sub.headers)
+            }
+            StreamSubtitle(sub.url, subtitleLanguage(sub.language ?: sub.name), subHeaders)
+        },
         language = language?.let { StreamLabels.language(it) } ?: StreamLabels.language(text),
         torrentFileIdx = fileIdx,
         dubbed = com.kaan.play.data.stream.DubDetector.isDubbed(listOfNotNull(text, language).joinToString(" ")),
