@@ -41,6 +41,7 @@ class TorrentHttpServer(private val engine: TorrentEngine) {
         server?.let { return it.localPort }
         val socket = ServerSocket(0, BACKLOG, InetAddress.getByName("127.0.0.1"))
         server = socket
+        com.kaan.play.data.cloudstream.PlayNetworkGuard.allowLoopbackPort(socket.localPort)
         Thread({
             while (!socket.isClosed) {
                 val client = try { socket.accept() } catch (_: IOException) { break }

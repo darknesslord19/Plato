@@ -1,31 +1,100 @@
 package com.kaan.play.data.cloudstream
 
+import java.net.URL
+import java.util.concurrent.ConcurrentHashMap
+
 /**
- * CS plugin'lerine karşı basit ağ güvenliği: yerel/özel IP'ler reddedilir.
- * Faz 2 NetworkPolicy ile aynı prensipler uygulanır,
- * DEX yüklü kod ve ağ katmanı bu nesneyi denetler.
+ * CS plugin'lerine karşı ağ güvenliği: yerel/özel IP'ler reddedilir.
+ * Loopback (127.0.0.0/8, localhost) yalnızca bu oturumda izin verilen
+ * portlara (TorrentHttpServer, eklenti yerel m3u8 proxy'si) açıktır.
+ * 0.0.0.0 ve ::1 koşulsuz engellenir.
+ * "fc"/"fd" ULA IPv6 kontrolleri yalnızca IPv6 sabitlerine uygulanır;
+ * fcbarcelona.com gibi alan adları engellenmez.
  */
 object PlayNetworkGuard {
-    private val PRIVATE_RANGES = listOf(
-        "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.",
+    private val allowedLoopbackPorts = ConcurrentHashMap.newKeySet<Int>()
+
+    private val IPV4_PRIVATE_PREFIXES = listOf(
+        "10.", "192.168.", "169.254.", "100.64.",
+        "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.",
         "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.",
-        "172.31.", "192.168.", "169.254.", "100.64.", "fc", "fd",
+        "172.31."
     )
+
+    fun allowLoopbackPort(port: Int) {
+        if (port in 1..65535) {
+            allowedLoopbackPorts.add(port)
+        }
+    }
+
+    fun disallowLoopbackPort(port: Int) {
+        allowedLoopbackPorts.remove(port)
+    }
+
+    fun clearAllowedLoopbackPorts() {
+        allowedLoopbackPorts.clear()
+    }
+
+    fun isLoopbackPortAllowed(port: Int): Boolean = allowedLoopbackPorts.contains(port)
 
     fun checkUrl(url: String) {
         val lower = url.lowercase()
         if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
             throw SecurityException("CS plugin: only http(s) allowed: $url")
         }
-        val host = try { java.net.URL(url).host } catch (_: Exception) { return }
-        if (isPrivateHost(host)) throw SecurityException("CS plugin: private address blocked: $host")
+        val parsed = try { URL(url) } catch (_: Exception) { return }
+        val host = parsed.host ?: return
+        val port = if (parsed.port != -1) parsed.port else parsed.defaultPort
+
+        if (isBlockedHost(host, port)) {
+            throw SecurityException("CS plugin: private address blocked: $host")
+        }
     }
 
-    private fun isPrivateHost(host: String): Boolean {
-        // Yerel loopback proxy akışlarına (torrent yerel sunucusu, eklenti m3u8 proxy'si) izin verilir.
-        // Yönlendirici, modem, NAS ve LAN (192.168, 10.x, 172.16-31) engellenir.
-        if (host == "localhost" || host.startsWith("127.")) return false
-        PRIVATE_RANGES.forEach { prefix -> if (host.startsWith(prefix)) return true }
+    fun isBlockedHost(host: String, port: Int = -1): Boolean {
+        val clean = host.removePrefix("[").removeSuffix("]").trim().lowercase()
+        if (clean.isEmpty()) return true
+
+        // 1. Koşulsuz engelli özel adresler (0.0.0.0 ve IPv6 loopback / unspecified)
+        if (clean == "0.0.0.0" || clean == "::" || clean == "::1" || clean == "0:0:0:0:0:0:0:1") {
+            return true
+        }
+
+        // 2. IPv6 sabitleri denetimi (yalnızca iki nokta ':' içeren adresler)
+        if (clean.contains(':')) {
+            // ::1 zaten yukarıda kontrol edildi
+            // ULA (Unique Local Address fc00::/7 -> fc.. veya fd..)
+            if (clean.startsWith("fc") || clean.startsWith("fd")) return true
+            // Link-local fe80::/10
+            if (clean.startsWith("fe8") || clean.startsWith("fe9") || clean.startsWith("fea") || clean.startsWith("feb")) return true
+            return false
+        }
+
+        // 3. Loopback denetimi (localhost ve 127.0.0.0/8)
+        val isLoopback = clean == "localhost" || isIpv4Loopback(clean)
+        if (isLoopback) {
+            // YALNIZCA bu oturumda izin listesine kaydedilmiş portlar geçer
+            return port !in allowedLoopbackPorts
+        }
+
+        // 4. IPv4 özel adres blokları
+        if (isIpv4Literal(clean)) {
+            if (IPV4_PRIVATE_PREFIXES.any { clean.startsWith(it) }) return true
+        }
+
         return false
+    }
+
+    private fun isIpv4Loopback(host: String): Boolean {
+        if (!host.startsWith("127.")) return false
+        val parts = host.split('.')
+        if (parts.size != 4) return false
+        return parts.all { it.toIntOrNull() in 0..255 }
+    }
+
+    private fun isIpv4Literal(host: String): Boolean {
+        val parts = host.split('.')
+        if (parts.size != 4) return false
+        return parts.all { it.toIntOrNull() in 0..255 }
     }
 }
