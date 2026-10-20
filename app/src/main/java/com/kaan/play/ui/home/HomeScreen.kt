@@ -1011,34 +1011,7 @@ private fun ProviderCatalogSkeleton(
  * "Dizi Adı - 12. Bölüm" -> "Dizi Adı"
  * "Film (Türkçe Dublaj)" -> "Film"
  */
-internal fun cleanCatalogTitle(raw: String): String {
-    var cleaned = raw.trim()
-    // 1) Başlangıçtaki bölüm/sezon kalıpları: "S4B11 - ", "S01E05 : ", "1. Sezon 2. Bölüm - ", "12. Bölüm - "
-    cleaned = cleaned.replace(
-        Regex("""^(?:S\d+\s*[BEbe]\d+|S\d+|(?:(?:\d+\s*\.)?\s*[Ss]ezon\s*)?(?:\d+\s*\.)?\s*[Bb]ölüm|(?:Episode|Ep\.?)\s*\d+)\s*[-:]\s*""", RegexOption.IGNORE_CASE),
-        ""
-    )
-    // 2) Sondaki bölüm/sezon kalıpları: " - S4B11", " - 12. Bölüm", " - 1. Sezon 2. Bölüm", " 12. Bölüm"
-    cleaned = cleaned.replace(
-        Regex("""\s*[-:]\s*(?:S\d+\s*[BEbe]\d+|S\d+|(?:(?:\d+\s*\.)?\s*[Ss]ezon\s*)?(?:\d+\s*\.)?\s*[Bb]ölüm|(?:Episode|Ep\.?)\s*\d+).*$""", RegexOption.IGNORE_CASE),
-        ""
-    )
-    cleaned = cleaned.replace(
-        Regex("""\s+(?:(?:\d+\s*\.)?\s*[Ss]ezon\s*)?\d+\.\s*[Bb]ölüm$""", RegexOption.IGNORE_CASE),
-        ""
-    )
-    cleaned = cleaned.replace(
-        Regex("""\s*[-:]\s*(?:(?:\d+\s*\.)?\s*[Ss]ezon|(?:Sezon\s+)?Finali?)$""", RegexOption.IGNORE_CASE),
-        ""
-    )
-    // 3) Parantez/köşeli parantez içindeki etiketler: (Türkçe Dublaj), [Altyazılı], (1080p), [Dual], vb.
-    cleaned = cleaned.replace(
-        Regex("""\s*[\(\[](?:Türkçe\s+)?(?:Dublaj|Altyazı(?:lı)?|Dual|TR|ENG|1080p|720p|4K|HD)[^\)\]]*[\)\]]""", RegexOption.IGNORE_CASE),
-        ""
-    )
-    cleaned = cleaned.trim()
-    return if (cleaned.isNotBlank()) cleaned else raw.trim()
-}
+internal fun cleanCatalogTitle(raw: String): String = com.kaan.play.data.stream.TitleCleaner.clean(raw)
 
 /**
  * Afişe dokunulduğunda:

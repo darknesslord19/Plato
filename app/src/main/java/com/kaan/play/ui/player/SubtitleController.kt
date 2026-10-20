@@ -254,7 +254,7 @@ class SubtitleController(
     /** Akış (yeniden) yüklendi: akışın kendi altyazıları listeye girer. */
     fun setStream(stream: PlayableStream) {
         streamTracks = stream.subtitles.map {
-            SubtitleTrack(it.url, SubtitleLanguages.normalize(it.language), stream.source.addonName)
+            SubtitleTrack(it.url, SubtitleLanguages.normalize(it.language), stream.source.addonName, headers = it.headers)
         }
         rebuild()
     }

@@ -35,7 +35,7 @@ class DownloadSubtitleFetcher(
         val languages = languages(memory.language(request), appLanguage())
         val candidates = ArrayList<SubtitleTrack>()
         stream.subtitles.mapTo(candidates) {
-            SubtitleTrack(it.url, SubtitleLanguages.normalize(it.language), stream.source.addonName)
+            SubtitleTrack(it.url, SubtitleLanguages.normalize(it.language), stream.source.addonName, headers = it.headers)
         }
         // Akışın kendi altyazıları istenen dilleri karşılıyorsa addon'lara sormaya gerek yok (zaman aşımı beklenmez).
         if (!covers(candidates, languages)) {

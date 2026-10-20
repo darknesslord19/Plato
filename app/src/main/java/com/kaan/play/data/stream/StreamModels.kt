@@ -20,6 +20,8 @@ data class StreamRequest(
     val pluginId: String? = null,
     val dataUrl: String? = null,
     val contentUrl: String? = null,
+    val title: String? = null,
+    val year: Int? = null,
 ) {
     /**
      * Addon'a giden kimlik: film `tt123`, dizi `tt123:sezon:bölüm`.
@@ -71,7 +73,7 @@ data class PlayableStream(
 
 /** Akışla gelen altyazı; [language] addon'un verdiği ham etiket (`eng`, `tur` ...). */
 @Serializable
-data class StreamSubtitle(val url: String, val language: String?)
+data class StreamSubtitle(val url: String, val language: String?, val headers: Map<String, String> = emptyMap())
 
 enum class FailureReason { Timeout, Network, Http, InvalidResponse }
 

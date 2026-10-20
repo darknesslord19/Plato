@@ -72,7 +72,10 @@ class SubdlSubtitleProvider(
             throw e
         } catch (_: Exception) {
             null
-        }?.takeIf { it.startsWith("tt") } ?: return emptyList()
+        }?.takeIf { it.startsWith("tt") }
+        val title = request.title?.takeIf { it.isNotBlank() }
+        if (imdb == null && title == null) return emptyList()
+
         val wanted = languages().distinct()
         if (wanted.isEmpty()) return emptyList()
         val tv = request.type == MediaType.Tv && request.season != null && request.episode != null
@@ -81,13 +84,19 @@ class SubdlSubtitleProvider(
         // dolup Türkçe neredeyse hiç gelmiyordu. İlk sonuç veren dilde durulur; sonraki dil için ikinci istek yalnızca öncekinde sonuç yoksa atılır.
         // Her (film/bölüm, dil) çifti ayrı önbelleklenir; hata (null) önbelleğe yazılmaz ve aramayı "yanıt vermedi" yapar.
         for (language in wanted) {
-            val key = searchKey("subdl", if (tv) "tv" else "movie", imdb, request.season.takeIf { tv }, request.episode.takeIf { tv }, listOf(language))
+            val searchId = imdb ?: "title:$title"
+            val key = searchKey("subdl", if (tv) "tv" else "movie", searchId, request.season.takeIf { tv }, request.episode.takeIf { tv }, listOf(language))
             val fetch: suspend () -> List<SubtitleTrack>? = {
                 val url = "${ep.api.trimEnd('/')}/api/v1/subtitles".toHttpUrlOrNull()?.newBuilder()
                     ?.addQueryParameter("api_key", apiKey)
-                    ?.addQueryParameter("imdb_id", imdb)
                     ?.addQueryParameter("type", if (tv) "tv" else "movie")
                     ?.apply {
+                        if (imdb != null) {
+                            addQueryParameter("imdb_id", imdb)
+                        } else {
+                            addQueryParameter("film_name", title)
+                            request.year?.let { addQueryParameter("year", it.toString()) }
+                        }
                         if (tv) {
                             addQueryParameter("season_number", request.season.toString())
                             addQueryParameter("episode_number", request.episode.toString())

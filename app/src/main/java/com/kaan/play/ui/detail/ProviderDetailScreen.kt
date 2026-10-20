@@ -287,20 +287,28 @@ fun ProviderDetailScreen(
                     }
 
                     val mediaType = if (isSeries) MediaType.Tv else MediaType.Movie
-                    val summary = MediaSummary(
-                        id = syntheticId,
+                    val identity = com.kaan.play.data.stream.MediaIdentityResolver.resolveIdentity(
+                        rawTitle = loadResp.name,
+                        rawYear = loadResp.year,
+                        syncData = runCatching { loadResp.syncData }.getOrNull(),
                         type = mediaType,
-                        title = loadResp.name,
+                        tmdb = container.tmdb,
+                    )
+                    val resolvedTmdbId = identity.tmdbId ?: syntheticId
+                    val summary = MediaSummary(
+                        id = resolvedTmdbId,
+                        type = mediaType,
+                        title = identity.cleanTitle,
                         overview = loadResp.plot.orEmpty(),
                         posterPath = loadResp.posterUrl,
                         backdropPath = loadResp.posterUrl,
-                        year = loadResp.year,
+                        year = identity.year ?: loadResp.year,
                         rating = null,
                     )
 
                     val detail = MediaDetail(
                         summary = summary,
-                        imdbId = null,
+                        imdbId = identity.imdbId,
                         tagline = "",
                         genres = loadResp.tags ?: emptyList(),
                         runtimeMinutes = null,
@@ -392,7 +400,7 @@ fun ProviderDetailScreen(
 
                         val target = PlayTarget(
                             request = StreamRequest(
-                                tmdbId = s.syntheticId,
+                                tmdbId = s.detail.summary.id,
                                 imdbId = s.detail.imdbId,
                                 type = if (s.isSeries) MediaType.Tv else MediaType.Movie,
                                 season = season ?: selectedSeason,
@@ -400,6 +408,8 @@ fun ProviderDetailScreen(
                                 pluginId = providerId,
                                 dataUrl = dataUrl,
                                 contentUrl = url,
+                                title = s.detail.summary.title,
+                                year = s.detail.summary.year,
                             ),
                             title = s.detail.summary.title,
                             posterPath = s.detail.summary.posterPath,

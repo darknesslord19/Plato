@@ -88,7 +88,7 @@ class SubtitleLoader(
         val url = track.url.toHttpUrlOrNull()
             ?: return@withContext Fetched.Err(SubtitleLoad.Reason.Network)
         val downloaded = try {
-            download(url)
+            download(url, track.headers)
         } catch (e: LoadFailure) {
             return@withContext Fetched.Err(e.reason)
         }
@@ -155,10 +155,17 @@ class SubtitleLoader(
         }
     }
 
-    private suspend fun download(url: okhttp3.HttpUrl): ByteArray {
+    private suspend fun download(url: okhttp3.HttpUrl, headers: Map<String, String> = emptyMap()): ByteArray {
         if (url.scheme != "http" && url.scheme != "https") throw LoadFailure(SubtitleLoad.Reason.Network)
         val http = client.newBuilder().callTimeout(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS).build()
-        val request = Request.Builder().url(url).get().build()
+        val requestBuilder = Request.Builder().url(url)
+        if (!headers.keys.any { it.equals("User-Agent", ignoreCase = true) }) {
+            requestBuilder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        }
+        headers.forEach { (k, v) ->
+            requestBuilder.header(k, v)
+        }
+        val request = requestBuilder.get().build()
         return try {
             http.newCall(request).await().use { response ->
                 if (!response.isSuccessful) throw LoadFailure(SubtitleLoad.Reason.Http)

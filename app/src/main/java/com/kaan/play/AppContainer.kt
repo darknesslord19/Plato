@@ -353,7 +353,25 @@ class AppContainer(context: Context) {
 
     val subtitleProvider: SubtitleProvider by lazy {
         val languages: suspend () -> List<String> = { listOf(settings.subtitleLanguage.first(), "en") }
-        val imdbFor: suspend (com.kaan.play.data.stream.StreamRequest) -> String? = { req -> tmdb.detail(req.type, req.tmdbId).imdbId }
+        val imdbFor: suspend (com.kaan.play.data.stream.StreamRequest) -> String? = { req ->
+            req.imdbId?.takeIf { it.startsWith("tt") } ?: run {
+                val direct = if (req.tmdbId in 1..999_999_999) {
+                    runCatching { tmdb.detail(req.type, req.tmdbId).imdbId }.getOrNull()
+                } else null
+                direct?.takeIf { it.startsWith("tt") } ?: run {
+                    val title = req.title
+                    if (!title.isNullOrBlank()) {
+                        com.kaan.play.data.stream.MediaIdentityResolver.resolveIdentity(
+                            rawTitle = title,
+                            rawYear = req.year,
+                            syncData = null,
+                            type = req.type,
+                            tmdb = tmdb,
+                        ).imdbId
+                    } else null
+                }
+            }
+        }
         CompositeSubtitleProvider(
             listOf(
                 AddonSubtitleProvider(addons = addons::enabledAddons, client = httpClient, timeout = sourceTimeout),

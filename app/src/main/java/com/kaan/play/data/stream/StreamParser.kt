@@ -45,16 +45,21 @@ object StreamParser {
                 return null
             }
         val text = listOfNotNull(name, title, description, behaviorHints?.filename).joinToString(" ")
+        val proxyHeaders = behaviorHints?.proxyHeaders?.request.orEmpty().filter { (k, v) -> isSafeHeader(k, v) }
         return PlayableStream(
             source = source,
             url = link,
             resolution = StreamLabels.resolution(text),
             sizeBytes = behaviorHints?.videoSize?.takeIf { it > 0 }?.toLong() ?: StreamLabels.sizeBytes(text),
-            headers = behaviorHints?.proxyHeaders?.request.orEmpty().filter { (k, v) -> isSafeHeader(k, v) },
+            headers = proxyHeaders,
             subtitles = subtitles.orEmpty().mapNotNull { s ->
                 val subUrl = s.url?.trim()?.takeIf { it.startsWith("http://", true) || it.startsWith("https://", true) }
                     ?: return@mapNotNull null
-                StreamSubtitle(subUrl, s.lang?.takeIf { it.isNotBlank() })
+                val subHeaders = buildMap {
+                    put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    putAll(proxyHeaders)
+                }
+                StreamSubtitle(subUrl, s.lang?.takeIf { it.isNotBlank() }, subHeaders)
             },
             language = StreamLabels.language(text),
             torrentFileIdx = fileIdx?.takeIf { TorrentLinks.isMagnet(link) && it >= 0 },

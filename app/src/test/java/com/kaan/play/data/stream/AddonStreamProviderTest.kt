@@ -111,7 +111,7 @@ class AddonStreamProviderTest {
         assertEquals(1080, first.resolution)
         assertEquals(2_500_000_000L, first.sizeBytes)
         assertEquals(mapOf("Referer" to "https://ref.example.com", "User-Agent" to "X"), first.headers)
-        assertEquals(listOf(StreamSubtitle("https://subs.example.com/tr.vtt", "tur")), first.subtitles) // ftp atıldı
+        assertEquals(listOf(StreamSubtitle("https://subs.example.com/tr.vtt", "tur", mapOf("User-Agent" to "X", "Referer" to "https://ref.example.com"))), first.subtitles) // ftp atıldı
 
         assertEquals("magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01", found.streams[1].url)
 
