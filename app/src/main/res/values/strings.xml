@@ -460,6 +460,7 @@
     <string name="provider_pin">Pin</string>
     <string name="provider_unpin">Unpin</string>
     <string name="provider_apply">Apply</string>
+    <string name="provider_multi_select">Select multiple</string>
     <string name="provider_selected_count">%1$d selected</string>
     <string name="provider_empty_message">No provider extensions found.</string>
     <string name="provider_empty_action">Add extension</string>
