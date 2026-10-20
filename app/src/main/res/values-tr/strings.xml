@@ -442,6 +442,7 @@
     <string name="provider_pin">Sabitle</string>
     <string name="provider_unpin">Sabitlemeyi kaldır</string>
     <string name="provider_apply">Uygula</string>
+    <string name="provider_multi_select">Çoklu seç</string>
     <string name="provider_selected_count">%1$d seçildi</string>
     <string name="provider_empty_message">Hiç sağlayıcı eklentisi bulunamadı.</string>
     <string name="provider_empty_action">Eklenti ekle</string>

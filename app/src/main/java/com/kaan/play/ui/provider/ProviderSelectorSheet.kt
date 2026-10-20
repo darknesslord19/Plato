@@ -56,6 +56,7 @@ import com.kaan.play.data.provider.ProviderTab
 import com.kaan.play.ui.components.Button
 import com.kaan.play.ui.components.FilterPill
 import com.kaan.play.ui.components.IconButton
+import com.kaan.play.ui.components.TextButton
 import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.tv.dpadLeavesTextField
 import com.kaan.play.ui.tv.focusRing
@@ -142,6 +143,14 @@ fun ProviderSelectorSheet(
                         modifier = Modifier.padding(start = 12.dp),
                     ) {
                         Text(stringResource(R.string.provider_apply))
+                    }
+                } else if (providers.isNotEmpty()) {
+                    // Kumanda/TV: çoklu seçim yalnızca basılı tutmaya bağlı kalmasın (CLAUDE.md TV kuralı).
+                    TextButton(
+                        onClick = { isMultiSelect = true },
+                        modifier = Modifier.padding(start = 12.dp),
+                    ) {
+                        Text(stringResource(R.string.provider_multi_select))
                     }
                 }
             }
