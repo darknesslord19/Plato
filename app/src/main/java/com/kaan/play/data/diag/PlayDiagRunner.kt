@@ -54,6 +54,8 @@ import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "PlayDiag"
+/** Katalog adımı: uygulama (CsCatalog) 27 sn tanıyor; DEX yükleme + Cloudflare çözücü 6 sn içinde bitmiyor. */
+private const val CATALOG_TIMEOUT_MS = 30_000L
 
 /**
  * Play Otomatik Duman Testi ve Oynatma Tanısı Çalıştırıcısı.
@@ -349,10 +351,10 @@ object PlayDiagRunner {
 
         val api = apis.first()
 
-        // 1. Katalog (mainPage, zaman aşımı: 6 sn)
+        // 1. Katalog (mainPage; uygulamayla aynı süre, 6 sn yanlış "boş katalog" veriyordu)
         val sections = runCatching {
-            withTimeoutOrNull(6_000L) {
-                container.csRuntime.mainPage(api, 1, timeoutMs = 6_000L)
+            withTimeoutOrNull(CATALOG_TIMEOUT_MS) {
+                container.csRuntime.mainPage(api, 1, timeoutMs = CATALOG_TIMEOUT_MS)
             }
         }.getOrNull() ?: emptyList()
 
@@ -855,14 +857,16 @@ object PlayDiagRunner {
             } ?: emptyList()
 
             val trTracks = tracks.filter { it.language?.equals("tr", ignoreCase = true) == true || it.language?.equals("tur", ignoreCase = true) == true }
-            if (trTracks.isNotEmpty()) {
-                val candidate = trTracks.first()
+            // OpenSubtitles'ta bazı filmlerin Türkçesi yok (ör. tt0137523): arama çalışıyorsa başarı sayılır.
+            val usable = trTracks.ifEmpty { tracks }
+            if (usable.isNotEmpty()) {
+                val candidate = usable.first()
                 val loadRes = withTimeoutOrNull(8_000L) { container.subtitleLoader.load(candidate) }
                 if (loadRes is SubtitleLoad.Loaded && loadRes.cues.isNotEmpty()) {
                     results += SubtitleDiagResult(
                         name = "AltyazıDB",
                         target = "tt0137523",
-                        searchStatus = "OK (TR ${trTracks.size})",
+                        searchStatus = "OK (TR ${trTracks.size}, toplam ${tracks.size})",
                         parseStatus = "OK (${loadRes.cues.size} satır)",
                         status = "OK",
                         errorReason = "-",
@@ -872,7 +876,7 @@ object PlayDiagRunner {
                     results += SubtitleDiagResult(
                         name = "AltyazıDB",
                         target = "tt0137523",
-                        searchStatus = "OK (TR ${trTracks.size})",
+                        searchStatus = "OK (TR ${trTracks.size}, toplam ${tracks.size})",
                         parseStatus = "X ($err)",
                         status = "X",
                         errorReason = "Altyazı ayrıştırılamadı: $err",
@@ -915,14 +919,16 @@ object PlayDiagRunner {
             } ?: emptyList()
 
             val trTracks = tracks.filter { it.language?.equals("tr", ignoreCase = true) == true || it.language?.equals("tur", ignoreCase = true) == true }
-            if (trTracks.isNotEmpty()) {
-                val candidate = trTracks.first()
+            // OpenSubtitles'ta bazı filmlerin Türkçesi yok (ör. tt0137523): arama çalışıyorsa başarı sayılır.
+            val usable = trTracks.ifEmpty { tracks }
+            if (usable.isNotEmpty()) {
+                val candidate = usable.first()
                 val loadRes = withTimeoutOrNull(8_000L) { container.subtitleLoader.load(candidate) }
                 if (loadRes is SubtitleLoad.Loaded && loadRes.cues.isNotEmpty()) {
                     results += SubtitleDiagResult(
                         name = "AltyazıTR",
                         target = "tt0137523",
-                        searchStatus = "OK (TR ${trTracks.size})",
+                        searchStatus = "OK (TR ${trTracks.size}, toplam ${tracks.size})",
                         parseStatus = "OK (${loadRes.cues.size} satır)",
                         status = "OK",
                         errorReason = "-",
@@ -932,7 +938,7 @@ object PlayDiagRunner {
                     results += SubtitleDiagResult(
                         name = "AltyazıTR",
                         target = "tt0137523",
-                        searchStatus = "OK (TR ${trTracks.size})",
+                        searchStatus = "OK (TR ${trTracks.size}, toplam ${tracks.size})",
                         parseStatus = "X ($err)",
                         status = "X",
                         errorReason = "Altyazı ayrıştırılamadı: $err",
@@ -969,14 +975,16 @@ object PlayDiagRunner {
             val tracks = withTimeoutOrNull(8_000L) { onlineProvider.search(movieReq) } ?: emptyList()
             val trTracks = tracks.filter { it.language?.equals("tr", ignoreCase = true) == true || it.language?.equals("tur", ignoreCase = true) == true }
 
-            if (trTracks.isNotEmpty()) {
-                val candidate = trTracks.first()
+            // OpenSubtitles'ta bazı filmlerin Türkçesi yok (ör. tt0137523): arama çalışıyorsa başarı sayılır.
+            val usable = trTracks.ifEmpty { tracks }
+            if (usable.isNotEmpty()) {
+                val candidate = usable.first()
                 val loadRes = withTimeoutOrNull(8_000L) { container.subtitleLoader.load(candidate) }
                 if (loadRes is SubtitleLoad.Loaded && loadRes.cues.isNotEmpty()) {
                     results += SubtitleDiagResult(
                         name = "Yerleşik Çevrimiçi Arama",
                         target = "tt0137523",
-                        searchStatus = "OK (TR ${trTracks.size})",
+                        searchStatus = "OK (TR ${trTracks.size}, toplam ${tracks.size})",
                         parseStatus = "OK (${loadRes.cues.size} satır)",
                         status = "OK",
                         errorReason = "-",
@@ -986,7 +994,7 @@ object PlayDiagRunner {
                     results += SubtitleDiagResult(
                         name = "Yerleşik Çevrimiçi Arama",
                         target = "tt0137523",
-                        searchStatus = "OK (TR ${trTracks.size})",
+                        searchStatus = "OK (TR ${trTracks.size}, toplam ${tracks.size})",
                         parseStatus = "X ($err)",
                         status = "X",
                         errorReason = "Altyazı ayrıştırılamadı: $err",
@@ -1026,8 +1034,8 @@ object PlayDiagRunner {
             val apis = runCatching { container.csRepos.loadApis(plugin.id) }.getOrNull() ?: continue
             val api = apis.firstOrNull() ?: continue
             val sections = runCatching {
-                withTimeoutOrNull(6_000L) {
-                    container.csRuntime.mainPage(api, 1, timeoutMs = 6_000L)
+                withTimeoutOrNull(CATALOG_TIMEOUT_MS) {
+                    container.csRuntime.mainPage(api, 1, timeoutMs = CATALOG_TIMEOUT_MS)
                 }
             }.getOrNull() ?: continue
 
