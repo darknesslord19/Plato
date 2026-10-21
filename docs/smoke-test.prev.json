@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-21 03:17:31",
+  "timestamp": "2026-10-21 03:28:47",
   "appVersion": "1.1.0",
   "cloudstream": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "name": "Anizm",
-      "catalog": "OK (10 satır, 245 içerik)",
+      "catalog": "OK (10 satır, 246 içerik)",
       "load": "OK (Anime ara)",
       "episode": "X (Bölüm yok)",
       "link": "-",
@@ -37,14 +37,14 @@
     },
     {
       "name": "DDizi",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "catalog": "OK (4 satır, 88 içerik)",
+      "load": "OK (Yeraltı izle)",
+      "episode": "OK (S1E19)",
+      "link": "OK (1 link, 360p)",
+      "media": "OK (MP4 512KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "DiziBox",
@@ -136,7 +136,7 @@
     },
     {
       "name": "FilmModu",
-      "catalog": "OK (25 satır, 456 içerik)",
+      "catalog": "OK (13 satır, 249 içerik)",
       "load": "OK (Beetlejuice Beetleju)",
       "episode": "OK (Film)",
       "link": "OK (8 link, 1080p)",
@@ -147,21 +147,21 @@
     },
     {
       "name": "FullHDFilm",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
+      "catalog": "OK (3 satır, 75 içerik)",
+      "load": "OK (Uykucu (2025))",
+      "episode": "OK (Film)",
+      "link": "OK (1 link, 360p)",
+      "media": "X (Connection closed by peer)",
+      "subtitle": "X (zaman aşımı)",
       "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "reason": "Medya doğrulanamadı: Connection closed by peer"
     },
     {
       "name": "HDFilmCehennemi",
       "catalog": "OK (6 satır, 130 içerik)",
       "load": "OK (By Any Means)",
       "episode": "OK (Film)",
-      "link": "OK (4 link, 360p)",
+      "link": "OK (2 link, 360p)",
       "media": "OK (M3U8 2KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
@@ -169,14 +169,14 @@
     },
     {
       "name": "HDFilmIzle",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
+      "catalog": "OK (16 satır, 205 içerik)",
+      "load": "OK (Of-Pof Balık (2026) )",
+      "episode": "OK (Film)",
+      "link": "OK (1 link, 360p)",
+      "media": "X (Connection closed by peer)",
+      "subtitle": "Yok (0)",
       "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "reason": "Medya doğrulanamadı: Connection closed by peer"
     },
     {
       "name": "HintFilmIzle",
@@ -187,18 +187,18 @@
       "media": "OK (M3U8 117KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
-      "reason": "-"
+      "reason": "2. denemede"
     },
     {
       "name": "JetFilmizle",
       "catalog": "OK (22 satır, 217 içerik)",
-      "load": "OK (Siccin 9)",
+      "load": "OK (Düşler)",
       "episode": "OK (Film)",
-      "link": "X (0 link / zaman aşımı)",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Extractor link çıkaramadı"
+      "link": "OK (6 link, 360p)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "KultFilmler",
@@ -235,14 +235,14 @@
     },
     {
       "name": "SezonlukDizi",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "catalog": "OK (9 satır, 179 içerik)",
+      "load": "OK (Cyberpunk: Edgerunne)",
+      "episode": "OK (S1E1)",
+      "link": "OK (1 link, 1080p)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "2. denemede"
     },
     {
       "name": "SinemaCX",
@@ -301,7 +301,7 @@
     },
     {
       "name": "WebteIzle",
-      "catalog": "OK (8 satır, 117 içerik)",
+      "catalog": "OK (10 satır, 157 içerik)",
       "load": "OK (Nutcrackers)",
       "episode": "OK (Film)",
       "link": "OK (2 link, 360p)",
@@ -313,9 +313,9 @@
     {
       "name": "YabanciDizi",
       "catalog": "OK (16 satır, 235 içerik)",
-      "load": "OK (3Below: Tales of Arc)",
+      "load": "OK (007: Road to a Milli)",
       "episode": "OK (S1E1)",
-      "link": "OK (12 link, 360p)",
+      "link": "OK (3 link, 360p)",
       "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
@@ -400,11 +400,11 @@
     {
       "name": "Dizilla",
       "target": "Dizi (tt0903747 S1B1)",
-      "stream": "X (0 akış)",
+      "stream": "X (Hata)",
       "media": "-",
-      "subtitle": "Yok (0)",
+      "subtitle": "-",
       "status": "X",
-      "reason": "Akış bulunamadı"
+      "reason": "Zaman aşımı / hata"
     },
     {
       "name": "FullHDFilmizlesene",
@@ -427,20 +427,20 @@
     {
       "name": "HDFilmCehennemi",
       "target": "Film (tt0137523)",
-      "stream": "X (Hata)",
+      "stream": "X (0 akış)",
       "media": "-",
-      "subtitle": "-",
+      "subtitle": "Yok (0)",
       "status": "X",
-      "reason": "Zaman aşımı / hata"
+      "reason": "Akış bulunamadı"
     },
     {
       "name": "HDFilmCehennemi",
       "target": "Dizi (tt0903747 S1B1)",
-      "stream": "OK (1 akış)",
-      "media": "OK (M3U8 1KB)",
-      "subtitle": "OK (5 sub, TR 593 satır)",
-      "status": "OK",
-      "reason": "-"
+      "stream": "X (0 akış)",
+      "media": "-",
+      "subtitle": "Yok (0)",
+      "status": "X",
+      "reason": "Akış bulunamadı"
     },
     {
       "name": "SelcukFlix",
