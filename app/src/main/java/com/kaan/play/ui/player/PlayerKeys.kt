@@ -42,6 +42,26 @@ object PlayerKeys {
             else -> PlayerKeyAction.Reveal
         }
     }
+
+    /**
+     * İlerleme çubuğu odaktayken Sol/Sağ/Tamam'ın **KeyUp**'ı kök yakalayıcıda tüketilir mi? KeyDown'ı [actionFor]
+     * işler (10 sn sarma, oynat/duraklat); KeyUp Slider'a ulaşırsa onun "sürükleme bitti" mantığını çalıştırıp
+     * konumu bozuyordu (video başa dönüyordu).
+     */
+    fun consumesBarKeyUp(key: Key, controlsVisible: Boolean, progressFocused: Boolean): Boolean =
+        controlsVisible && progressFocused && key in BAR_KEYS
+
+    private val BAR_KEYS = setOf(Key.DirectionLeft, Key.DirectionRight, Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
+}
+
+/**
+ * İlerleme çubuğunda sürükleme bitince sarılacak konum (ms). Yalnızca gerçekten sürüklendiyse sarılır: kumandanın
+ * KeyUp'ı ya da sürüklemesiz bir dokunma "bitti" geri çağrısını tetikleyebilir; o zaman sürükleme kesri 0'dır ve
+ * sarmak videoyu başa döndürürdü. null: sarma.
+ */
+object ProgressSeek {
+    fun finishTargetMs(dragging: Boolean, dragFraction: Float, durationMs: Long): Long? =
+        if (dragging && durationMs > 0) (dragFraction.coerceIn(0f, 1f) * durationMs).toLong() else null
 }
 
 /**

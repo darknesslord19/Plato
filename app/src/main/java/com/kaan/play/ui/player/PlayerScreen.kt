@@ -317,8 +317,8 @@ fun PlayerScreen(
                 }
                 // İlerleme çubuğu odaktayken Sol/Sağ/Tamam'ın KeyUp'ı da burada tüketilir: KeyDown'ı biz işliyoruz,
                 // KeyUp Slider'a giderse kendi "sürükleme bitti" mantığını çalıştırıp konumu bozar.
-                if (event.type == KeyEventType.KeyUp && barFocused && showControls &&
-                    event.key in setOf(Key.DirectionLeft, Key.DirectionRight, Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
+                if (event.type == KeyEventType.KeyUp &&
+                    PlayerKeys.consumesBarKeyUp(event.key, controlsVisible = showControls, progressFocused = barFocused)
                 ) return@onPreviewKeyEvent true
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 if (locked) {
@@ -1003,7 +1003,7 @@ private fun ProgressBar(
                 // Yalnızca gerçekten sürüklendiyse sar. Kumandada Sol/Sağ'ın KeyDown'ını kök yakalayıcı işler (10 sn);
                 // KeyUp ise Slider'a ulaşıp bu geri çağrıyı tetikliyordu ve hiç sürüklenmediği için dragFraction = 0 →
                 // video başa dönüyordu.
-                if (dragging && duration > 0) onSeekTo((dragFraction * duration).toLong())
+                ProgressSeek.finishTargetMs(dragging, dragFraction, duration)?.let(onSeekTo)
                 dragging = false
             },
             colors = SliderDefaults.colors(

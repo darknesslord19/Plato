@@ -8,6 +8,9 @@ import com.kaan.play.ui.player.PlayerKeyAction.SeekBack
 import com.kaan.play.ui.player.PlayerKeyAction.SeekForward
 import com.kaan.play.ui.player.PlayerKeyAction.TogglePlay
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlayerKeysTest {
@@ -104,5 +107,28 @@ class PlayerKeysTest {
                 previous = step
             }
         }
+    }
+
+    // Kullanıcının bulduğu hata (2026-10-21): kumandayla çubukta sarınca KeyUp Slider'a gidip videoyu başa döndürüyordu.
+    @Test
+    fun barKeyUpIsConsumedSoSliderCannotSeekToStart() {
+        for (key in listOf(Key.DirectionLeft, Key.DirectionRight, Key.DirectionCenter, Key.Enter, Key.NumPadEnter)) {
+            assertTrue(key.toString(), PlayerKeys.consumesBarKeyUp(key, controlsVisible = true, progressFocused = true))
+        }
+        // Çubuk odakta değilse ya da kontroller gizliyse düğmeler/gezinti normal çalışır.
+        assertFalse(PlayerKeys.consumesBarKeyUp(Key.DirectionRight, controlsVisible = true, progressFocused = false))
+        assertFalse(PlayerKeys.consumesBarKeyUp(Key.DirectionRight, controlsVisible = false, progressFocused = true))
+        // Yukarı/Aşağı odak gezintisi için KeyDown'da ele alınır; KeyUp'ları yutulmaz.
+        assertFalse(PlayerKeys.consumesBarKeyUp(Key.DirectionDown, controlsVisible = true, progressFocused = true))
+    }
+
+    @Test
+    fun progressSeekOnlyAfterRealDrag() {
+        // Sürüklenmeden gelen "bitti" (kumanda KeyUp'ı): kesir 0 olsa bile başa SARILMAZ.
+        assertNull(ProgressSeek.finishTargetMs(dragging = false, dragFraction = 0f, durationMs = 3_600_000L))
+        // Gerçek sürükleme: kesre göre sarılır.
+        assertEquals(900_000L, ProgressSeek.finishTargetMs(dragging = true, dragFraction = 0.25f, durationMs = 3_600_000L))
+        // Süre bilinmiyorsa sarılmaz.
+        assertNull(ProgressSeek.finishTargetMs(dragging = true, dragFraction = 0.5f, durationMs = 0L))
     }
 }
