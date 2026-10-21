@@ -40,7 +40,7 @@ permissions:
 jobs:
   tests:
     name: Testler
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -49,13 +49,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
-      - uses: android-actions/setup-android@v3
-
-      - uses: gradle/actions/setup-gradle@v4
+      - name: Android SDK
+        run: bash .github/scripts/android-sdk.sh
 
       - name: Birim testleri
-        run: ./gradlew --no-daemon testDebugUnitTest
+        run: bash .github/scripts/gradle.sh testDebugUnitTest
 
       - name: Test raporu
         if: failure()
@@ -67,7 +67,7 @@ jobs:
 
   apk:
     name: APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: write
@@ -78,10 +78,10 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
-      - uses: android-actions/setup-android@v3
-
-      - uses: gradle/actions/setup-gradle@v4
+      - name: Android SDK
+        run: bash .github/scripts/android-sdk.sh
 
       - name: Sürüm numarası
         id: version
@@ -143,7 +143,7 @@ jobs:
           elif [ -z "$KEY_PASSWORD" ]; then
             export KEY_PASSWORD="$KEYSTORE_PASSWORD"
           fi
-          ./gradlew --no-daemon assembleRelease
+          bash .github/scripts/gradle.sh assembleRelease
           ls -l app/build/outputs/apk/release/
 
       - name: APK imzasını doğrula
