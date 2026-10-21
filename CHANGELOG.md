@@ -2,6 +2,16 @@
 
 ## Yayınlanmamış / Unreleased
 
+## [1.1.3] — 2026-10-21
+
+### Türkçe
+- **Kumandayla sarma düzeltmesi:** Kumandayla ilerleme çubuğunda sarınca videonun başa dönmesi düzeltildi. Parmakla sürükleyerek sarma eskisi gibi çalışır.
+- **Telegram kanalı duyurusu:** "Play Telegram kanalı açıldı" duyurusu eklendi (1.1.3 ve sonrası, 31 Aralık 2026'ya kadar).
+
+### English
+- **Remote seek fix:** Seeking on the progress bar with a remote no longer jumps the video back to the start. Dragging with a finger works as before.
+- **Telegram channel announcement:** Added the "Play Telegram channel is open" announcement (1.1.3 and later, until 31 December 2026).
+
 ## [1.1.2] — 2026-10-21
 
 ### Türkçe
