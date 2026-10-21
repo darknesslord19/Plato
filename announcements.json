@@ -1,10 +1,12 @@
 {
   "announcements": [
     {
-      "id": "2026-10-21-play-yayinda",
+      "id": "2026-10-21-play-112-telegram",
       "title": "🎉 Play yayında! 🚀",
-      "message": "Beklenen an geldi! 🔥 Play artık sizlerle! 🎬🍿\n\n✨ Öne çıkan özellikler:\n✅ CloudStream entegrasyonu\n✅ Nuvio entegrasyonu\n✅ Repo Manager desteği\n✅ Kolay ve kullanıcı dostu arayüz\n\n📲 Play'i keşfetmeye hazır mısınız?\n❤️ Desteğiniz için teşekkürler. Herkese iyi seyirler! 🍿🎬",
-      "until": "2026-11-30"
+      "message": "Beklenen an geldi! 🔥 Play artık sizlerle! 🎬🍿\n\n✨ Öne çıkan özellikler:\n✅ CloudStream entegrasyonu\n✅ Nuvio entegrasyonu\n✅ Repo Manager desteği\n✅ Kolay ve kullanıcı dostu arayüz\n\n📢 Duyurular ve destek için Telegram kanalımıza katılın!\n\n📲 Play'i keşfetmeye hazır mısınız?\n❤️ Desteğiniz için teşekkürler. Herkese iyi seyirler! 🍿🎬",
+      "link": "https://t.me/+o-RFlV4U3UY5NGU8",
+      "minVersion": "1.1.2",
+      "until": "2026-12-31"
     }
   ]
 }
