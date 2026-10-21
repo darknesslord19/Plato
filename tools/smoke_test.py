@@ -17,11 +17,16 @@ Gereksinimler (2026-10-21 Kullanıcı Kararı):
 5. docs/smoke-test.prev.json ile karşılaştırır; ÖNCE OK olup ŞİMDİ X olanlar en üstte
    "GERİLEMELER" başlığıyla listelenir. Gerileme varsa çıkış kodu 1, yoksa 0.
 6. Hiçbir URL, çerez, anahtar, token dosyaya veya loga yazılmaz.
+7. Oynatıcıda kumandayla ve sürükleyerek sarma (kullanıcının bulduğu hata, 2026-10-21: kumandayla
+   ilerleme çubuğunda sarınca video başa dönüyordu). Debug derlemedeki `play_test_video` ekstrasıyla
+   herkese açık bir test videosu açılır (izleme geçmişine yazılmaz); konumlar ekrandan okunur.
+   --no-player ile atlanır.
 """
 
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -31,6 +36,13 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DOCS_DIR = os.path.join(REPO_ROOT, "docs")
 DEFAULT_MD_OUT = os.path.join(DOCS_DIR, "smoke-test.md")
 DEFAULT_PREV_JSON = os.path.join(DOCS_DIR, "smoke-test.prev.json")
+# Oynatıcı sarma kontrolü için herkese açık, ~10 dk'lık örnek videolar (ilki açılmazsa sıradaki denenir).
+TEST_VIDEO_URLS = [
+    "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+    "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8",
+]
+SEEK_STEP_S = 10       # kumandada Sol/Sağ bir basış
+SEEK_TOLERANCE_S = 3
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -125,6 +137,132 @@ def pull_device_json(adb, dev):
     return None
 
 
+def _adb_shell(adb, dev, *args, timeout=60):
+    try:
+        res = subprocess.run(
+            [adb, "-s", dev, "shell", *args],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
+        )
+        return res.stdout
+    except subprocess.TimeoutExpired:
+        return ""
+
+
+def _clock_to_s(text):
+    total = 0
+    for p in text.split(":"):
+        total = total * 60 + int(p)
+    return total
+
+
+def _fmt_s(s):
+    return f"{s // 60}:{s % 60:02d}" if s >= 0 else "?"
+
+
+def read_player_bar(adb, dev):
+    """
+    Oynatıcı kontrolleri açıksa konum, süre ve ilerleme çubuğunun geometrisini döner; değilse None.
+    Konum ve süre çubuğun solundaki ve sağındaki saat metinleridir.
+    """
+    _adb_shell(adb, dev, "uiautomator", "dump", "/sdcard/play_ui.xml")
+    xml = _adb_shell(adb, dev, "cat", "/sdcard/play_ui.xml")
+    nodes = re.findall(
+        r'text="(\d{1,2}:\d{2}(?::\d{2})?)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml
+    )
+    if len(nodes) < 2:
+        return None
+    nodes = sorted(nodes, key=lambda n: int(n[1]))
+    left, right = nodes[0], nodes[-1]
+    return {
+        "position": _clock_to_s(left[0]),
+        "duration": _clock_to_s(right[0]),
+        "bar_x0": int(left[3]),
+        "bar_x1": int(right[1]),
+        "bar_y": (int(left[2]) + int(left[4])) // 2,
+    }
+
+
+def player_seek_check(adb, dev):
+    """
+    Kumandayla (3 x Sağ, 1 x Sol) ve sürükleyerek sarmayı dener. Kullanıcının bulduğu hata: kumandayla ilerleme
+    çubuğunda sarınca video başa dönüyordu. Sonuç satırları smoke JSON'undaki "player" listesine girer.
+    """
+    print("\nOynatıcı sarma kontrolü: test videosu açılıyor...")
+    keys = {"name": "Kumandayla sarma", "target": "3 x Sağ, 1 x Sol (çubuk odakta)", "details": "-", "status": "X", "reason": "-"}
+    drag = {"name": "Sürükleyerek sarma", "target": "çubukta %10 → %50", "details": "-", "status": "X", "reason": "-"}
+
+    def key(code):
+        _adb_shell(adb, dev, "input", "keyevent", code)
+        time.sleep(2.5)
+
+    def open_and_pause(url):
+        _adb_shell(adb, dev, "am", "force-stop", "com.kaan.play")
+        _adb_shell(adb, dev, "am", "start", "-n", "com.kaan.play/.MainActivity", "--es", "play_test_video", url)
+        # Video başlasın ve açılıştaki kontroller kendiliğinden kapansın: kontroller açıkken Yukarı çubuktan çıkardı.
+        deadline = time.time() + 75
+        time.sleep(12)
+        while time.time() < deadline:
+            if "PlayerActivity" not in _adb_shell(adb, dev, "dumpsys", "activity", "activities"):
+                time.sleep(3)
+                continue
+            if read_player_bar(adb, dev) is not None:
+                time.sleep(3)  # kontroller hâlâ açık (ya da video açılamadı ve hata ekranı var)
+                continue
+            key("KEYCODE_DPAD_UP")      # kontrolleri göster (odak ilerleme çubuğunda)
+            key("KEYCODE_DPAD_CENTER")  # duraklat: konumlar kesin okunsun
+            found = read_player_bar(adb, dev)
+            if found and found["duration"] > 0:
+                return found
+        return None
+
+    try:
+        bar = None
+        for url in TEST_VIDEO_URLS:
+            bar = open_and_pause(url)
+            if bar is not None:
+                break
+        if bar is None:
+            keys["reason"] = drag["reason"] = "Oynatıcı açılamadı ya da kontroller okunamadı"
+            return [keys, drag]
+
+        start = bar["position"]
+        seen = [start]
+        for code in ["KEYCODE_DPAD_RIGHT"] * 3 + ["KEYCODE_DPAD_LEFT"]:
+            key(code)
+            now = read_player_bar(adb, dev)
+            seen.append(now["position"] if now else -1)
+        expected = [start + SEEK_STEP_S * d for d in (0, 1, 2, 3, 2)]
+        keys["details"] = " → ".join(_fmt_s(s) for s in seen)
+        bad = [i for i, (s, e) in enumerate(zip(seen, expected)) if abs(s - e) > SEEK_TOLERANCE_S]
+        if not bad:
+            keys["status"] = "OK"
+        elif any(0 <= s < SEEK_STEP_S for s in seen[1:]):
+            keys["reason"] = "Video başa döndü"
+        else:
+            keys["reason"] = f"Beklenen konum tutmadı ({bad[0]}. adım)"
+
+        # Sürükleyerek sarma: çubuğun %10'undan %50'sine.
+        width = bar["bar_x1"] - bar["bar_x0"]
+        x_from = bar["bar_x0"] + int(width * 0.10)
+        x_to = bar["bar_x0"] + int(width * 0.50)
+        y = str(bar["bar_y"])
+        _adb_shell(adb, dev, "input", "swipe", str(x_from), y, str(x_to), y, "900")
+        time.sleep(3)
+        after = read_player_bar(adb, dev)
+        if after is None:
+            drag["reason"] = "Kontroller okunamadı"
+        else:
+            frac = after["position"] / bar["duration"]
+            drag["details"] = f"{_fmt_s(after['position'])} / %{round(frac * 100)}"
+            if 0.40 <= frac <= 0.60:
+                drag["status"] = "OK"
+            else:
+                drag["reason"] = "Sürükleme beklenen konuma sarmadı"
+        return [keys, drag]
+    finally:
+        _adb_shell(adb, dev, "am", "force-stop", "com.kaan.play")
+
+
 def detect_regressions(curr_data, prev_data):
     """
     Önceki çalıştırmada 'OK' olup bu çalıştırmada 'X' olanları listeler.
@@ -148,6 +286,8 @@ def detect_regressions(curr_data, prev_data):
             m[("Devam Et", item.get("name", ""))] = item
         for item in data.get("updates_and_announcements", []):
             m[("Güncelleme/Duyuru", item.get("name", ""))] = item
+        for item in data.get("player", []):
+            m[("Oynatıcı", item.get("name", ""))] = item
         return m
 
     prev_map = make_map(prev_data)
@@ -182,6 +322,7 @@ def generate_markdown(curr_data, duration_str, regressions):
     sub_list = curr_data.get("subtitles", [])
     cont_list = curr_data.get("continue_watching", [])
     upd_list = curr_data.get("updates_and_announcements", [])
+    player_list = curr_data.get("player", [])
 
     cs_ok = sum(1 for x in cs_list if x.get("status") == "OK")
     cs_total = len(cs_list)
@@ -273,6 +414,15 @@ def generate_markdown(curr_data, duration_str, regressions):
         lines.append(f"| {r.get('name','-')} | {r.get('details','-')} | {r.get('status','-')} | {r.get('reason','-')} |")
     lines.append("")
 
+    # 7. Oynatıcı: kumandayla ve sürükleyerek sarma
+    if player_list:
+        lines.append("## 7. Oynatıcı (sarma)")
+        lines.append("| Kontrol | Hedef | Sonuç | Durum | Hata/Neden |")
+        lines.append("| --- | --- | --- | --- | --- |")
+        for r in player_list:
+            lines.append(f"| {r.get('name','-')} | {r.get('target','-')} | {r.get('details','-')} | {r.get('status','-')} | {r.get('reason','-')} |")
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -284,6 +434,7 @@ def main():
     parser.add_argument("--adb", type=str, default="", help="Özel ADB yolu")
     parser.add_argument("--prev", type=str, default=DEFAULT_PREV_JSON, help="Önceki test JSON dosyası")
     parser.add_argument("--out-md", type=str, default=DEFAULT_MD_OUT, help="Çıktı Markdown dosyası yolu")
+    parser.add_argument("--no-player", action="store_true", help="Oynatıcı sarma kontrolünü atlar")
     args = parser.parse_args()
 
     adb = find_adb(args.adb)
@@ -349,6 +500,11 @@ def main():
     if not curr_data:
         print("HATA: Cihazdan smoke_test.json çekilemedi!")
         sys.exit(2)
+
+    if not args.no_player:
+        curr_data["player"] = player_seek_check(adb, dev)
+        for r in curr_data["player"]:
+            print(f"[Oynatıcı] {r['name']}: {r['status']} ({r['details']}) {r['reason'] if r['status'] != 'OK' else ''}")
 
     # Önceki çalıştırmayı oku
     prev_data = None

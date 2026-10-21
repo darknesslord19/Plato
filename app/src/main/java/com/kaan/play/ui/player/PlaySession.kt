@@ -5,9 +5,11 @@ import android.content.Intent
 import com.kaan.play.data.db.DownloadEntity
 import com.kaan.play.data.download.DownloadCodec
 import com.kaan.play.data.download.toTarget
+import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.net.PlayJson
 import com.kaan.play.data.stream.PlayTarget
 import com.kaan.play.data.stream.PlayableStream
+import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.stream.StreamSource
 import com.kaan.play.data.stream.StreamSubtitle
 import kotlinx.serialization.Serializable
@@ -39,6 +41,8 @@ data class PlaySession(
     val fromAutoNext: Boolean = false,
     /** Kaynak listesi beklenmeden açıldı: [stream] yok, oynatıcı uygun ilk kaynağı arka planda bulur. */
     val autoSource: Boolean = false,
+    /** Yalnızca debug/duman testi oynatması ([testVideo]): izleme geçmişine ("İzlemeye devam et") yazılmaz. */
+    val noHistory: Boolean = false,
 ) {
     fun toIntent(context: Context): Intent =
         Intent(context, PlayerActivity::class.java).putExtra(EXTRA, PlayJson.encodeToString(serializer(), this))
@@ -73,6 +77,30 @@ data class PlaySession(
                 fromAutoNext = fromAutoNext,
             )
         }
+
+        /**
+         * Debug derlemede duman testinin oynatıcıyı doğrudan açması için (`--es play_test_video <adres>`): tek kaynaklı,
+         * geçmişe yazılmayan bir film oturumu, [startPositionMs]'ten başlar.
+         */
+        fun testVideo(url: String, startPositionMs: Long = 60_000L): PlaySession = PlaySession(
+            target = PlayTarget(
+                request = StreamRequest(tmdbId = 0, imdbId = null, type = MediaType.Movie, title = TEST_TITLE),
+                title = TEST_TITLE,
+                posterPath = null,
+            ),
+            stream = PlayableStream(
+                source = StreamSource(addonId = 0, addonName = TEST_TITLE),
+                url = url,
+                resolution = null,
+                sizeBytes = null,
+                headers = emptyMap(),
+                subtitles = emptyList(),
+            ),
+            startPositionMs = startPositionMs,
+            noHistory = true,
+        )
+
+        private const val TEST_TITLE = "Play test"
 
         /** Bozuk/eksik veri null döner (etkinlik kendini kapatır). */
         fun from(intent: Intent): PlaySession? {

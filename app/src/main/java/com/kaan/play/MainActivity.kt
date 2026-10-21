@@ -42,6 +42,10 @@ class MainActivity : AppCompatActivity() {
         // Yalnızca debug derlemede, sahte altyazı servisiyle denemek için: --es play_subs_endpoint http://host:port (SubDL + OpenSubtitles).
         if (BuildConfig.DEBUG) intent.getStringExtra("play_subs_endpoint")?.let { DebugEndpoints.subsBase = it.trimEnd('/') }
         if (BuildConfig.DEBUG) {
+            // Duman testi: oynatıcıyı test videosuyla doğrudan aç (geçmişe yazılmaz). --es play_test_video <adres>
+            intent.getStringExtra("play_test_video")?.let { url ->
+                startActivity(com.kaan.play.ui.player.PlaySession.testVideo(url).toIntent(this))
+            }
             intent.getStringExtra("select_provider")?.let { raw ->
                 val ids = raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
                 container.appScope.launch { container.providers.setSelectedProviders(ids) }

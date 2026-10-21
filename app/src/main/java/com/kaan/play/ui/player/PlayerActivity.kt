@@ -481,6 +481,7 @@ class PlayerActivity : AppCompatActivity() {
 
     /** Duraklatma/bitiş anlarında da çağrılır: bitişte (ya da sonraki bölüme geçerken) konum süreye eşitlenir ("izlendi"). */
     private fun saveProgress() {
+        if (session.noHistory) return
         val duration = controller.durationMs()
         if (duration <= 0 || controller.ui.error != null) return
         val position = if (controller.ui.ended || finishedForAdvance) duration else controller.positionMs()
