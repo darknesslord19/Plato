@@ -254,7 +254,7 @@ object PlayDiagRunner {
         // (a) CloudStream: Açık eklentiler (en çok 4 paralel)
         // -------------------------------------------------------------------------
         val semaphore = Semaphore(4)
-        val csResults = coroutineScope {
+        val firstPass = coroutineScope {
             targetPlugins.map { plugin ->
                 async {
                     semaphore.withPermit {
@@ -262,6 +262,13 @@ object PlayDiagRunner {
                     }
                 }
             }.awaitAll()
+        }
+        // Paralel turda başarısız olanlar bir kez SIRAYLA yeniden denenir: aynı anda 4 site + ortak Cloudflare
+        // çözücü/DEX yükleyici yüzünden çıkan yanlış "zaman aşımı"lar tabloya gerileme gibi düşmesin.
+        val csResults = firstPass.mapIndexed { i, result ->
+            if (result.status == "OK") return@mapIndexed result
+            val retry = testPlugin(container, targetPlugins[i])
+            if (retry.status == "OK") retry.copy(status = "OK", errorReason = "2. denemede") else retry
         }
 
         savePartialJson(jsonFile, csResults = csResults)
@@ -433,10 +440,10 @@ object PlayDiagRunner {
 
             val episodeStatus = "OK ($episodeLabel)"
 
-            // 4. Link çıkarımı (loadLinks, zaman aşımı: 15 sn)
+            // 4. Link çıkarımı (loadLinks; uygulamadaki CsStreamProvider ile aynı: 30 sn)
             val source = StreamSource(addonId = plugin.id, addonName = plugin.name)
-            val streams = withTimeoutOrNull(15_000L) {
-                runCatching { container.csRuntime.loadLinksDirect(api, dataUrl, source, 14_000L) }.getOrNull()
+            val streams = withTimeoutOrNull(31_000L) {
+                runCatching { container.csRuntime.loadLinksDirect(api, dataUrl, source, 30_000L) }.getOrNull()
             } ?: emptyList()
 
             if (streams.isEmpty()) {
