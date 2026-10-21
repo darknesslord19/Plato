@@ -1,17 +1,17 @@
 {
-  "timestamp": "2026-10-21 20:46:22",
+  "timestamp": "2026-10-21 21:00:30",
   "appVersion": "1.1.3",
   "cloudstream": [
     {
       "name": "AnimeciX",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "catalog": "OK (3 satır, 42 içerik)",
+      "load": "OK (Tantei wa Mou, Shind)",
+      "episode": "OK (S1E1)",
+      "link": "OK (3 link, 480p)",
+      "media": "OK (MP4 512KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "Anizm",
@@ -82,11 +82,11 @@
     {
       "name": "Dizilla",
       "catalog": "OK (12 satır, 206 içerik)",
-      "load": "OK (Hell Barrister)",
+      "load": "OK (VisionQuest)",
       "episode": "OK (S1E1)",
-      "link": "OK (2 link, 1080p)",
-      "media": "OK (M3U8 7KB)",
-      "subtitle": "OK (2 sub, TÜRKÇE 507 satır)",
+      "link": "OK (4 link, 1080p)",
+      "media": "OK (M3U8 10KB)",
+      "subtitle": "OK (3 sub, TÜRKÇE FORCED 34 satır)",
       "status": "OK",
       "reason": "-"
     },
@@ -136,7 +136,7 @@
     },
     {
       "name": "FilmModu",
-      "catalog": "OK (19 satır, 342 içerik)",
+      "catalog": "OK (15 satır, 278 içerik)",
       "load": "OK (Beetlejuice Beetleju)",
       "episode": "OK (Film)",
       "link": "OK (8 link, 1080p)",
@@ -236,13 +236,13 @@
     {
       "name": "SezonlukDizi",
       "catalog": "OK (9 satır, 176 içerik)",
-      "load": "OK (Brothers)",
+      "load": "OK (Small Prophets)",
       "episode": "OK (S1E1)",
-      "link": "X (0 link / zaman aşımı)",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Extractor link çıkaramadı"
+      "link": "OK (1 link, 1080p)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "2. denemede"
     },
     {
       "name": "SinemaCX",
@@ -258,11 +258,11 @@
     {
       "name": "SinemaTV",
       "catalog": "OK (8 satır, 254 içerik)",
-      "load": "OK (Space TV. 29 лет. Пр)",
+      "load": "OK (Дракон-горничная гос)",
       "episode": "OK (Film)",
-      "link": "OK (4 link, 1080p)",
-      "media": "OK (M3U8 103KB)",
-      "subtitle": "Yok (0)",
+      "link": "OK (4 link, 720p)",
+      "media": "OK (M3U8 86KB)",
+      "subtitle": "OK (6 sub, ENGLISH 1479 satır)",
       "status": "OK",
       "reason": "-"
     },
@@ -312,10 +312,10 @@
     },
     {
       "name": "YabanciDizi",
-      "catalog": "OK (16 satır, 235 içerik)",
-      "load": "OK (3Below: Tales of Arc)",
+      "catalog": "OK (14 satır, 227 içerik)",
+      "load": "OK (007: Road to a Milli)",
       "episode": "OK (S1E1)",
-      "link": "OK (2 link, 360p)",
+      "link": "OK (3 link, 360p)",
       "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
@@ -355,12 +355,12 @@
     {
       "name": "AnimeCix",
       "target": "Anime (tt0388629 S1B1)",
-      "stream": "X (0 akış)",
-      "media": "-",
+      "stream": "OK (3 akış)",
+      "media": "OK (MP4 512KB)",
       "subtitle": "Yok (0)",
-      "status": "X",
-      "category": "site",
-      "reason": "Akış bulunamadı"
+      "status": "OK",
+      "category": "-",
+      "reason": "-"
     },
     {
       "name": "Anizium",
@@ -375,12 +375,12 @@
     {
       "name": "Dizilla",
       "target": "Dizi (tt0903747 S1B1)",
-      "stream": "X (Hata)",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "category": "uygulama",
-      "reason": "Hata"
+      "stream": "OK (1 akış)",
+      "media": "OK (M3U8 10KB)",
+      "subtitle": "OK (2 sub, TR 593 satır)",
+      "status": "OK",
+      "category": "-",
+      "reason": "-"
     },
     {
       "name": "FullHDFilmizlesene",
@@ -405,22 +405,22 @@
     {
       "name": "HDFilmCehennemi",
       "target": "Dizi (tt0903747 S1B1)",
-      "stream": "OK (1 akış)",
-      "media": "OK (M3U8 1KB)",
-      "subtitle": "OK (5 sub, TR 593 satır)",
-      "status": "OK",
-      "category": "-",
-      "reason": "-"
+      "stream": "X (0 akış)",
+      "media": "-",
+      "subtitle": "Yok (0)",
+      "status": "X",
+      "category": "içerik yok",
+      "reason": "Akış bulunamadı"
     },
     {
       "name": "SelcukFlix",
       "target": "Film (tt0137523)",
-      "stream": "X (Hata)",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "category": "uygulama",
-      "reason": "Hata"
+      "stream": "OK (1 akış)",
+      "media": "OK (M3U8 10KB)",
+      "subtitle": "OK (3 sub, TR 1797 satır)",
+      "status": "OK",
+      "category": "-",
+      "reason": "-"
     },
     {
       "name": "SelcukFlix",
@@ -462,7 +462,7 @@
   "continue_watching": [
     {
       "name": "CsNextEpisodeFinder",
-      "target": "Anizm (Cyberpunk: Edgerunne) S1B1",
+      "target": "AnimeciX (Tantei wa Mou, Shind) S1B1",
       "details": "OK (S1E2, dataUrl farklı)",
       "status": "OK",
       "reason": "-"
@@ -486,14 +486,14 @@
     {
       "name": "Kumandayla sarma",
       "target": "3 x Sağ, 1 x Sol (çubuk odakta)",
-      "details": "1:14 → 1:24 → 1:34 → 1:44 → 1:34",
+      "details": "1:12 → 1:22 → 1:32 → 1:42 → 1:32",
       "status": "OK",
       "reason": "-"
     },
     {
       "name": "Sürükleyerek sarma",
       "target": "çubukta %10 → %50",
-      "details": "5:08 / %49",
+      "details": "5:07 / %48",
       "status": "OK",
       "reason": "-"
     }
