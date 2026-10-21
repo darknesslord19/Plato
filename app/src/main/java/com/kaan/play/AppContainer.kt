@@ -542,7 +542,13 @@ class AppContainer(context: Context) {
 
     /** Uygulama içi güncelleme kontrolü (GitHub releases/latest); oturumda bir kez, etkinlik yeniden oluşsa da tekrarlanmaz. */
     val updateChecker: UpdateChecker by lazy {
-        UpdateChecker(httpClient, json, BuildConfig.VERSION_NAME, abis = Build.SUPPORTED_ABIS.toList())
+        UpdateChecker(
+            httpClient,
+            json,
+            BuildConfig.VERSION_NAME,
+            endpoint = UpdateChecker.endpointFor(BuildConfig.UPDATE_REPO),
+            abis = Build.SUPPORTED_ABIS.toList(),
+        )
     }
 
     /** Uygulama içi güncelleme akışı: indir, SHA-256 doğrula, sistem kurulum ekranını aç (bkz. UpdateFlow). */

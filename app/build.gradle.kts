@@ -23,6 +23,15 @@ val subdlApiKey: String = localProps.getProperty("SUBDL_API_KEY")
     ?: System.getenv("SUBDL_API_KEY")
     ?: ""
 
+// CI (GitHub Actions) sürüm numarasını ve güncelleme deposunu ortam değişkeniyle verir; yerelde varsayılanlar geçerli.
+// PLAY_VERSION_NAME / PLAY_VERSION_CODE: fork derlemeleri "1.1.4.<çalıştırma>" gibi artan sürümler üretir.
+// PLAY_UPDATE_REPO: uygulama içi güncelleme denetiminin baktığı "sahip/depo" (fork kendi release'lerine bakar).
+val playVersionName: String = System.getenv("PLAY_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "1.1.4"
+val playVersionCode: Int = System.getenv("PLAY_VERSION_CODE")?.toIntOrNull() ?: 10
+val playUpdateRepo: String = (localProps.getProperty("PLAY_UPDATE_REPO") ?: System.getenv("PLAY_UPDATE_REPO"))
+    ?.takeIf { Regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$").matches(it) }
+    ?: "liberta09/Play"
+
 android {
     namespace = "com.kaan.play"
     compileSdk = 37
@@ -31,8 +40,8 @@ android {
         applicationId = "com.kaan.play"
         minSdk = 24
         targetSdk = 37
-        versionCode = 10
-        versionName = "1.1.4"
+        versionCode = playVersionCode
+        versionName = playVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
@@ -41,6 +50,7 @@ android {
 
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         buildConfigField("String", "SUBDL_API_KEY", "\"$subdlApiKey\"")
+        buildConfigField("String", "UPDATE_REPO", "\"$playUpdateRepo\"")
     }
 
     // Yayın imzası: keystore yolu repoda, şifreler yalnızca local.properties'te (ya da ortam değişkeninde).

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.kaan.play.AppContainer
 import com.kaan.play.BuildConfig
+import com.kaan.play.data.update.UpdateChecker
 import com.kaan.play.data.addon.DefaultSubtitleAddons
 import com.kaan.play.data.cloudstream.CsNextEpisodeFinder
 import com.kaan.play.data.cloudstream.InstalledCsPlugin
@@ -1090,7 +1091,7 @@ object PlayDiagRunner {
         // 1. GitHub releases/latest (yalnızca okuma)
         try {
             val req = Request.Builder()
-                .url("https://api.github.com/repos/liberta09/Play/releases/latest")
+                .url(UpdateChecker.endpointFor(BuildConfig.UPDATE_REPO))
                 .header("Accept", "application/vnd.github+json")
                 .header("User-Agent", "Play-Android-UpdateCheck")
                 .build()

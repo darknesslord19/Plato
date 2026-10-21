@@ -94,6 +94,12 @@ Ayrıntılı kapsam ve kurallar: [CLAUDE.md](CLAUDE.md). Sürüm notları: [CHAN
 
 Yayın derlemesi / Release build: `local.properties` içine `KEYSTORE_PASSWORD` ve `KEY_PASSWORD` ekle, anahtar dosyası `keystore/play-release.keystore` (alias `play`; git'e girmez), sonra `.\gradlew assembleRelease`. Şifreler yoksa imzasız derlenir. Sürüm notları: [CHANGELOG.md](CHANGELOG.md).
 
+## Otomatik derleme (GitHub Actions)
+
+`.github/workflows/build.yml`: main'e her gönderimde (ya da Actions > Derleme > "Run workflow") birim testleri çalışır, imzalı release APK'sı derlenir ve `v<sürüm>` etiketli bir GitHub Release yayımlanır (`Play-<sürüm>.apk` + `Play-<sürüm>-SHA256.txt`). Sürüm, taban sürüme çalıştırma numarası eklenerek üretilir (ör. `1.1.4.7`); `versionCode` = taban × 1000 + çalıştırma. Uygulama içi güncelleme denetimi derlendiği deponun release'lerine bakar (`PLAY_UPDATE_REPO`, `BuildConfig.UPDATE_REPO`; yerel derlemede `liberta09/Play`).
+
+Depo ayarları > Secrets and variables > Actions altına eklenecek gizli değerler: `TMDB_API_KEY` (gerekli), `KEYSTORE_BASE64` + `KEYSTORE_PASSWORD` (kalıcı imza; takma ad `play`; `KEY_PASSWORD` yoksa aynı şifre kullanılır), `SUBDL_API_KEY` (isteğe bağlı). İmza anahtarı tanımlı değilse APK geçici anahtarla imzalanır ve bir sonraki derleme eskisinin üzerine kurulamaz. Fork'larda Actions ilk seferde Actions sekmesinden elle açılmalıdır.
+
 ## Derleme ve çalıştırma
 ```powershell
 .\gradlew assembleDebug

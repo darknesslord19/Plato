@@ -125,6 +125,15 @@ class UpdateChecker(
 
     companion object {
         const val DEFAULT_ENDPOINT = "https://api.github.com/repos/liberta09/Play/releases/latest"
+
+        /** "sahip/depo" için releases/latest adresi; biçim uymazsa varsayılan depo (fork derlemeleri kendi release'lerine bakar). */
+        fun endpointFor(repo: String): String =
+            if (Regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$").matches(repo)) {
+                "https://api.github.com/repos/$repo/releases/latest"
+            } else {
+                DEFAULT_ENDPOINT
+            }
+
         private const val MAX_BODY_BYTES = 512L * 1024
         private const val MAX_TAG_CHARS = 24
     }

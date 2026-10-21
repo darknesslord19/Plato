@@ -23,6 +23,27 @@ import java.util.concurrent.TimeUnit
 class UpdateRulesTest {
 
     @Test
+    fun `fork derlemesi kendi deposunun release adresine bakar`() {
+        assertEquals(
+            "https://api.github.com/repos/darknesslord19/Plato/releases/latest",
+            UpdateChecker.endpointFor("darknesslord19/Plato"),
+        )
+        assertEquals(UpdateChecker.DEFAULT_ENDPOINT, UpdateChecker.endpointFor("liberta09/Play"))
+        // Biçimi bozuk depo adı adrese karışmaz, varsayılana düşer.
+        assertEquals(UpdateChecker.DEFAULT_ENDPOINT, UpdateChecker.endpointFor(""))
+        assertEquals(UpdateChecker.DEFAULT_ENDPOINT, UpdateChecker.endpointFor("a/b/../c"))
+        assertEquals(UpdateChecker.DEFAULT_ENDPOINT, UpdateChecker.endpointFor("evil.com/x?y"))
+    }
+
+    @Test
+    fun `fork surumu dort bilesenle artar`() {
+        assertTrue(UpdateRules.isNewer("v1.1.4.2", "1.1.4.1"))
+        assertTrue(UpdateRules.isNewer("v1.1.4.1", "1.1.4"))
+        assertTrue(UpdateRules.isNewer("v1.1.5", "1.1.4.37"))
+        assertFalse(UpdateRules.isNewer("v1.1.4", "1.1.4.1"))
+    }
+
+    @Test
     fun `daha yuksek surum yeni sayilir`() {
         assertTrue(UpdateRules.isNewer("v1.0.1", "1.0.0"))
         assertTrue(UpdateRules.isNewer("v1.1.0", "1.0.9"))
