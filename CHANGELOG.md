@@ -2,6 +2,16 @@
 
 ## Yayınlanmamış / Unreleased
 
+## [1.1.2] — 2026-10-21
+
+### Türkçe
+- **Ağ koruması çökme düzeltmesi:** Ağ koruması (`PlayNetworkGuard`) yerel/özel bir adrese giden isteği engellediğinde uygulama artık kapanmaz; istek sıradan bir ağ hatası gibi sessizce başarısız olur (ör. yerel ağdaki bir addon adresi). Engellenen adresler değişmedi.
+- **Telegram duyurusu:** "Play yayında" duyurusu Telegram kanalı bağlantısıyla ("Aç" düğmesi) yenilendi; 1.1.2 ve sonrasında, 31 Aralık 2026'ya kadar gösterilir.
+
+### English
+- **Network guard crash fix:** When the network guard (`PlayNetworkGuard`) blocks a request to a local/private address, the app no longer closes; the request fails quietly like a normal network error (e.g. an addon on the local network). The set of blocked addresses is unchanged.
+- **Telegram announcement:** The "Play is live" announcement now links to the Telegram channel ("Open" button); shown on 1.1.2 and later, until 31 December 2026.
+
 ## [1.1.1] — 2026-10-21
 
 ### Türkçe
