@@ -54,9 +54,10 @@ Kullanicinin karari (2026-10-21): isler saatlerce surmez. Kod isinin tamami en c
 
 ## 5. Cihaz testi (yalnizca istenirse, otomatik)
 
-- Cihaz testi `python tools/smoke_test.py` (yoksa `python tools/run_diag.py`) ile tek komutla calisir; sonucu tabloyu oldugu gibi rapora koy. Betigin kendisi en cok 15 dakika; asarsa durdur ve o ana kadarki sonucu raporla.
+- Cihaz testi = `python tools/smoke_test.py`; kullanıcı yeni bir hata bulursa önce betiğe o hatayı yakalayan bir kontrol eklenir, sonra düzeltilir.
+- Cihaz testi tek komutla calisir (`python tools/smoke_test.py` veya `python tools/run_diag.py`); sonucu tabloyu oldugu gibi rapora koy. Betigin kendisi en cok 15 dakika; asarsa durdur ve o ana kadarki sonucu raporla.
 - Her komut zaman asimiyla: `curl -m 20`, adb islemleri en cok 3 dakika; takilirsa `adb kill-server; adb start-server; adb connect 127.0.0.1:5555` ve **bir kez** tekrar, olmazsa atla ve raporla.
-- Kurulum: `adb connect 127.0.0.1:5555`, `.\gradlew installDebug`. `pm clear` ve uygulamayi kaldirma yok.
+- Kurulum: `adb connect 127.0.0.1:5555`, `.\gradlew installDebug` (veya `python tools/smoke_test.py --install`). `pm clear` ve uygulamayi kaldirma yok.
 - Log etiketleri: `PlayCs`, `PlayCatalog`, `PlaySubs`, `PlayTorrent`. `adb logcat -d -s AndroidRuntime:E` bos olmali.
 
 ## 6. CloudStream eklenti sorunlari

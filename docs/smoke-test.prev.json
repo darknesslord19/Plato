@@ -1,0 +1,513 @@
+{
+  "timestamp": "2026-10-21 03:08:03",
+  "appVersion": "1.1.0",
+  "cloudstream": [
+    {
+      "name": "AnimeciX",
+      "catalog": "OK (3 satır, 42 içerik)",
+      "load": "OK (Cyberpunk: Edgerunne)",
+      "episode": "OK (S1E1)",
+      "link": "OK (3 link, 1080p)",
+      "media": "OK (MP4 512KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "Anizm",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "BelgeselX",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "DDizi",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "DiziBox",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "DiziGom",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "DiziKorea",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "Dizilla",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "DiziMag",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "DiziMom",
+      "catalog": "OK (5 satır, 121 içerik)",
+      "load": "OK (The Scandal)",
+      "episode": "OK (S1E1)",
+      "link": "OK (1 link, 360p)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "DiziPal",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "FilmMakinesi",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "FilmModu",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "FullHDFilm",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "HDFilmCehennemi",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "HDFilmIzle",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "HintFilmIzle",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "JetFilmizle",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "KultFilmler",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "SelcukFlix",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "SetFilmIzle",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "SezonlukDizi",
+      "catalog": "OK (9 satır, 179 içerik)",
+      "load": "OK (Cyberpunk: Edgerunne)",
+      "episode": "OK (S1E1)",
+      "link": "OK (1 link, 1080p)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "SinemaCX",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "SinemaTV",
+      "catalog": "OK (8 satır, 254 içerik)",
+      "load": "OK (Дракон-горничная гос)",
+      "episode": "OK (Film)",
+      "link": "OK (4 link, 720p)",
+      "media": "OK (M3U8 86KB)",
+      "subtitle": "OK (6 sub, ENGLISH 1479 satır)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "Sinewix",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "TavsiyeFilmIzle",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "Watch2Movies",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "WebteIzle",
+      "catalog": "OK (8 satır, 117 içerik)",
+      "load": "OK (Nutcrackers)",
+      "episode": "OK (Film)",
+      "link": "OK (2 link, 360p)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "YabanciDizi",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Katalog boş ya da zaman aşımı"
+    }
+  ],
+  "nuvio_addons": [
+    {
+      "name": "İzlemeli.com Katalog",
+      "kind": "Video Addon",
+      "stream": "X (0 akış / zaman aşımı)",
+      "media": "-",
+      "subtitle": "Yok (0)",
+      "status": "X",
+      "reason": "Akış bulunamadı / zaman aşımı"
+    },
+    {
+      "name": "Torrentio",
+      "kind": "Video Addon",
+      "stream": "OK (93 akış)",
+      "media": "torrent, atlandı",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "Nexus",
+      "kind": "Video Addon",
+      "stream": "OK (5 akış)",
+      "media": "torrent, atlandı",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
+    }
+  ],
+  "nuvio_js": [
+    {
+      "name": "AnimeCix",
+      "target": "Film (tt0137523)",
+      "stream": "atlandı",
+      "media": "-",
+      "subtitle": "-",
+      "status": "atlandı",
+      "reason": "Yalnızca dizi destekliyor"
+    },
+    {
+      "name": "AnimeCix",
+      "target": "Dizi (tt0903747 S1B1)",
+      "stream": "X (0 akış)",
+      "media": "-",
+      "subtitle": "Yok (0)",
+      "status": "X",
+      "reason": "Akış bulunamadı"
+    },
+    {
+      "name": "Anizium",
+      "target": "Film (tt0137523)",
+      "stream": "atlandı",
+      "media": "-",
+      "subtitle": "-",
+      "status": "atlandı",
+      "reason": "Yalnızca dizi destekliyor"
+    },
+    {
+      "name": "Anizium",
+      "target": "Dizi (tt0903747 S1B1)",
+      "stream": "X (0 akış)",
+      "media": "-",
+      "subtitle": "Yok (0)",
+      "status": "X",
+      "reason": "Akış bulunamadı"
+    },
+    {
+      "name": "Dizilla",
+      "target": "Film (tt0137523)",
+      "stream": "atlandı",
+      "media": "-",
+      "subtitle": "-",
+      "status": "atlandı",
+      "reason": "Yalnızca dizi destekliyor"
+    },
+    {
+      "name": "Dizilla",
+      "target": "Dizi (tt0903747 S1B1)",
+      "stream": "X (0 akış)",
+      "media": "-",
+      "subtitle": "Yok (0)",
+      "status": "X",
+      "reason": "Akış bulunamadı"
+    },
+    {
+      "name": "FullHDFilmizlesene",
+      "target": "Film (tt0137523)",
+      "stream": "OK (1 akış)",
+      "media": "OK (M3U8 3KB)",
+      "subtitle": "OK (1 sub, TR 1733 satır)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "FullHDFilmizlesene",
+      "target": "Dizi (tt0903747 S1B1)",
+      "stream": "atlandı",
+      "media": "-",
+      "subtitle": "-",
+      "status": "atlandı",
+      "reason": "Yalnızca film destekliyor"
+    },
+    {
+      "name": "HDFilmCehennemi",
+      "target": "Film (tt0137523)",
+      "stream": "OK (1 akış)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "OK (6 sub, TR 1811 satır)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "HDFilmCehennemi",
+      "target": "Dizi (tt0903747 S1B1)",
+      "stream": "X (0 akış)",
+      "media": "-",
+      "subtitle": "Yok (0)",
+      "status": "X",
+      "reason": "Akış bulunamadı"
+    },
+    {
+      "name": "SelcukFlix",
+      "target": "Film (tt0137523)",
+      "stream": "X (0 akış)",
+      "media": "-",
+      "subtitle": "Yok (0)",
+      "status": "X",
+      "reason": "Akış bulunamadı"
+    },
+    {
+      "name": "SelcukFlix",
+      "target": "Dizi (tt0903747 S1B1)",
+      "stream": "X (0 akış)",
+      "media": "-",
+      "subtitle": "Yok (0)",
+      "status": "X",
+      "reason": "Akış bulunamadı"
+    }
+  ],
+  "subtitles": [
+    {
+      "name": "AltyazıDB",
+      "target": "tt0137523",
+      "search": "OK (TR 10)",
+      "parse": "OK (1797 satır)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "AltyazıTR",
+      "target": "tt0137523",
+      "search": "OK (TR 10)",
+      "parse": "OK (1732 satır)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "Yerleşik Çevrimiçi Arama",
+      "target": "tt0137523",
+      "search": "X (TR yok)",
+      "parse": "-",
+      "status": "X",
+      "reason": "Türkçe çevrimiçi altyazı bulunamadı"
+    }
+  ],
+  "continue_watching": [
+    {
+      "name": "CsNextEpisodeFinder",
+      "target": "AnimeciX (Chitose Is in the Ra) S1B1",
+      "details": "OK (S1E2, dataUrl farklı)",
+      "status": "OK",
+      "reason": "-"
+    }
+  ],
+  "updates_and_announcements": [
+    {
+      "name": "GitHub releases/latest",
+      "details": "OK (tag: v1.1.0)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "announcements.json",
+      "details": "OK (0 duyuru)",
+      "status": "OK",
+      "reason": "-"
+    }
+  ]
+}

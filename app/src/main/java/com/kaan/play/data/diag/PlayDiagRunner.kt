@@ -3,21 +3,23 @@ package com.kaan.play.data.diag
 import android.content.Context
 import android.util.Log
 import com.kaan.play.AppContainer
-import com.kaan.play.data.addon.Addon
+import com.kaan.play.BuildConfig
+import com.kaan.play.data.addon.DefaultSubtitleAddons
+import com.kaan.play.data.cloudstream.CsNextEpisodeFinder
 import com.kaan.play.data.cloudstream.InstalledCsPlugin
 import com.kaan.play.data.db.AddonType
 import com.kaan.play.data.model.MediaType
+import com.kaan.play.data.net.PlayJson
 import com.kaan.play.data.plugin.runtime.PluginOutcome
 import com.kaan.play.data.plugin.runtime.PluginRequest
 import com.kaan.play.data.plugin.runtime.toPlayable
 import com.kaan.play.data.stream.AddonStreamProvider
-import com.kaan.play.data.stream.MediaIdentityResolver
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.stream.StreamResult
 import com.kaan.play.data.stream.StreamSource
-import com.kaan.play.data.stream.TitleCleaner
 import com.kaan.play.data.subtitle.AddonSubtitleProvider
+import com.kaan.play.data.subtitle.OnlineSubtitleProvider
 import com.kaan.play.data.subtitle.SubtitleLoad
 import com.kaan.play.data.subtitle.SubtitleResult
 import com.kaan.play.data.subtitle.SubtitleTrack
@@ -26,13 +28,23 @@ import com.lagradost.cloudstream3.LiveStreamLoadResponse
 import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -43,9 +55,24 @@ import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "PlayDiag"
 
+/**
+ * Play Otomatik Duman Testi ve Oynatma Tanısı Çalıştırıcısı.
+ *
+ * Kapsam:
+ * a) CloudStream: açık her eklenti (en çok 4 paralel) -> katalog -> load -> bölüm -> loadLinks -> medya (~512KB) -> eklenti altyazısı.
+ * b) Nuvio addon: akış -> medya imzası (~512KB); torrent akışlar "torrent, atlandı".
+ * c) Nuvio JS eklentileri: sabit TMDB filmi (tt0137523) ve dizi bölümü (tt0903747 S1B1) ile akış -> medya.
+ * d) Altyazı: AltyazıDB, AltyazıTR ve yerleşik çevrimiçi arama (tt0137523) Türkçe sonuç ve ilk altyazı indirme/ayrıştırma.
+ * e) Devam et: açık ilk CloudStream dizisinde CsNextEpisodeFinder S1B1'den sonraki bölümü bulma (dataUrl farkı).
+ * f) Güncelleme ve duyuru: GitHub releases/latest ve announcements.json okunup ayrıştırılması (yalnızca okuma).
+ *
+ * Güvenlik ve Gizlilik:
+ * - Hiçbir URL, IP, çerez, anahtar veya token dosya ve loga yazılmaz.
+ * - Tanı kodu yalnızca debug derlemede çalışır.
+ */
 object PlayDiagRunner {
 
-    data class DiagResult(
+    data class CsDiagResult(
         val pluginName: String,
         val catalogStatus: String,
         val loadStatus: String,
@@ -53,18 +80,51 @@ object PlayDiagRunner {
         val linkStatus: String,
         val mediaStatus: String,
         val subPluginStatus: String,
-        val subOnlineStatus: String,
+        val status: String,
         val errorReason: String,
     )
 
-    data class NuvioDiagResult(
+    data class NuvioAddonDiagResult(
         val name: String,
         val kind: String,
         val streamStatus: String,
         val mediaStatus: String,
         val subSourceStatus: String,
-        val subAddonStatus: String,
-        val subOnlineStatus: String,
+        val status: String,
+        val errorReason: String,
+    )
+
+    data class NuvioJsDiagResult(
+        val name: String,
+        val target: String,
+        val streamStatus: String,
+        val mediaStatus: String,
+        val subSourceStatus: String,
+        val status: String,
+        val errorReason: String,
+    )
+
+    data class SubtitleDiagResult(
+        val name: String,
+        val target: String,
+        val searchStatus: String,
+        val parseStatus: String,
+        val status: String,
+        val errorReason: String,
+    )
+
+    data class ContinueDiagResult(
+        val name: String,
+        val target: String,
+        val details: String,
+        val status: String,
+        val errorReason: String,
+    )
+
+    data class UpdateAnnounceDiagResult(
+        val name: String,
+        val details: String,
+        val status: String,
         val errorReason: String,
     )
 
@@ -73,8 +133,15 @@ object PlayDiagRunner {
         container: AppContainer,
         filterNames: List<String>? = null,
     ): File = withContext(Dispatchers.IO) {
-        Log.i(TAG, "=== CloudStream ve Nuvio Oynatma & Altyazı Tanısı Başlatıldı ===")
+        Log.i(TAG, "=== Play Otomatik Duman Testi (Smoke Test) Başlatıldı ===")
 
+        val outDir = File(context.filesDir, "diag")
+        if (!outDir.exists()) outDir.mkdirs()
+        val jsonFile = File(outDir, "smoke_test.json")
+        val mdFile = File(outDir, "smoke-test.md")
+        val oldMdFile = File(outDir, "oynatma-tanisi.md")
+
+        // 1. Gerekli varsayılan depoları ve addon'ları etkinleştir
         val defaultRepos = listOf(
             "https://raw.githubusercontent.com/Wiojelt/TurkSinema/main/repo.json",
             "https://raw.githubusercontent.com/Wiojelt/WioSinema/builds/repo.json",
@@ -92,11 +159,17 @@ object PlayDiagRunner {
         }
         runCatching { container.csRepos.setAllEnabled(true) }
 
-        // Nuvio eklenti ve altyazı addon'larını da aktif yap
+        // Nuvio eklenti ve altyazı addon'larını aktif yap
         runCatching {
             container.database.addonDao().setAllEnabledOfType(AddonType.NUVIO_ADDON, true)
             container.database.addonDao().setAllEnabledOfType(AddonType.NUVIO_PLUGIN_REPO, true)
             container.database.pluginDao().setAllEnabled(true)
+        }
+
+        // Varsayılan altyazı addon'larını tohumla (AltyazıDB ve AltyazıTR)
+        runCatching {
+            DefaultSubtitleAddons.seedIfNeeded(container.database.addonDao(), container.settings.store)
+            container.database.addonDao().setAllEnabledOfType(AddonType.NUVIO_ADDON, true)
         }
 
         val allInstalled = runCatching {
@@ -125,7 +198,6 @@ object PlayDiagRunner {
         val repoMap = runCatching {
             container.database.addonDao().enabledOfType(AddonType.CLOUDSTREAM_REPO).associate { it.id to it.name }
         }.getOrDefault(emptyMap())
-        Log.i(TAG, "CS Depoları: $repoMap")
 
         val preferredRepos = mapOf(
             "AnimeciX" to "gsrepo",
@@ -176,113 +248,144 @@ object PlayDiagRunner {
 
         Log.i(TAG, "Test edilecek CloudStream eklenti sayısı: ${targetPlugins.size}")
 
-        val csResults = targetPlugins.map { plugin ->
-            val res = testPlugin(container, plugin)
-            kotlinx.coroutines.delay(500)
-            res
-        }
-
-        // Nuvio tanı çalıştırması (filtre boşsa veya nuvio içeriyorsa)
-        val runNuvio = filterNames == null || filterNames.any { it.contains("nuvio", ignoreCase = true) || it.contains("jasoelys", ignoreCase = true) }
-        val nuvioResults = if (runNuvio) testNuvioSources(container) else emptyList()
-
-        val outDir = File(context.filesDir, "diag")
-        if (!outDir.exists()) outDir.mkdirs()
-        val outFile = File(outDir, "oynatma-tanisi.md")
-
-        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-        val md = buildString {
-            appendLine("# CloudStream Oynatma ve Altyazı Tanısı")
-            appendLine()
-            appendLine("- **Tarih:** $timestamp")
-            appendLine("- **Test Edilen Eklenti Sayısı:** ${csResults.size}")
-            appendLine()
-            appendLine("| Eklenti | Katalog | Load | Bölüm | Link | Çalışan Medya | Altyazı (eklenti) | Altyazı (internet) | Hata/Neden |")
-            appendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-            for (r in csResults) {
-                appendLine("| ${r.pluginName} | ${r.catalogStatus} | ${r.loadStatus} | ${r.episodeStatus} | ${r.linkStatus} | ${r.mediaStatus} | ${r.subPluginStatus} | ${r.subOnlineStatus} | ${r.errorReason} |")
-            }
-
-            if (nuvioResults.isNotEmpty()) {
-                appendLine()
-                appendLine("# Nuvio Oynatma ve Altyazı Tanısı")
-                appendLine()
-                appendLine("- **Tarih:** $timestamp")
-                appendLine("- **Test Edilen Nuvio Kaynak Sayısı:** ${nuvioResults.size}")
-                appendLine()
-                appendLine("| Kaynak | Tür | Akış | Çalışan Medya | Altyazı (kaynak) | Altyazı Addon (TR) | İnternet Arama (TR) | Hata/Neden |")
-                appendLine("| --- | --- | --- | --- | --- | --- | --- | --- |")
-                for (r in nuvioResults) {
-                    appendLine("| ${r.name} | ${r.kind} | ${r.streamStatus} | ${r.mediaStatus} | ${r.subSourceStatus} | ${r.subAddonStatus} | ${r.subOnlineStatus} | ${r.errorReason} |")
+        // -------------------------------------------------------------------------
+        // (a) CloudStream: Açık eklentiler (en çok 4 paralel)
+        // -------------------------------------------------------------------------
+        val semaphore = Semaphore(4)
+        val csResults = coroutineScope {
+            targetPlugins.map { plugin ->
+                async {
+                    semaphore.withPermit {
+                        testPlugin(container, plugin)
+                    }
                 }
-            }
+            }.awaitAll()
         }
 
-        outFile.writeText(md, Charsets.UTF_8)
-        Log.i(TAG, "=== Oynatma Tanısı Tamamlandı ===")
-        Log.i(TAG, "Dosya: ${outFile.absolutePath}")
-        Log.i(TAG, "DIAGNOSTIC_COMPLETED: ${outFile.absolutePath}")
-        outFile
+        savePartialJson(jsonFile, csResults = csResults)
+
+        // -------------------------------------------------------------------------
+        // (b) Nuvio Video Addon'ları
+        // -------------------------------------------------------------------------
+        val addonResults = testNuvioAddons(container)
+        savePartialJson(jsonFile, csResults = csResults, addonResults = addonResults)
+
+        // -------------------------------------------------------------------------
+        // (c) Nuvio JS Eklentileri (Scrapers)
+        // -------------------------------------------------------------------------
+        val jsResults = testNuvioJsPlugins(container)
+        savePartialJson(jsonFile, csResults = csResults, addonResults = addonResults, jsResults = jsResults)
+
+        // -------------------------------------------------------------------------
+        // (d) Altyazı Sağlayıcıları (AltyazıDB, AltyazıTR, Yerleşik Çevrimiçi Arama)
+        // -------------------------------------------------------------------------
+        val subResults = testSubtitles(container)
+        savePartialJson(jsonFile, csResults = csResults, addonResults = addonResults, jsResults = jsResults, subResults = subResults)
+
+        // -------------------------------------------------------------------------
+        // (e) Devam Et: CsNextEpisodeFinder testi (S1B1 -> sonraki bölüm)
+        // -------------------------------------------------------------------------
+        val continueResult = testCsNextEpisode(container, targetPlugins.ifEmpty { allPlugins })
+        savePartialJson(jsonFile, csResults = csResults, addonResults = addonResults, jsResults = jsResults, subResults = subResults, continueResult = continueResult)
+
+        // -------------------------------------------------------------------------
+        // (f) Güncelleme ve Duyuru (GitHub releases/latest ve announcements.json)
+        // -------------------------------------------------------------------------
+        val updateResults = testUpdatesAndAnnouncements(container)
+
+        // Nihai JSON kaydı
+        val finalJson = buildSmokeTestJson(
+            versionName = BuildConfig.VERSION_NAME,
+            csResults = csResults,
+            addonResults = addonResults,
+            jsResults = jsResults,
+            subResults = subResults,
+            continueResult = continueResult,
+            updateResults = updateResults,
+        )
+        jsonFile.writeText(finalJson, Charsets.UTF_8)
+
+        // Markdown oluştur ve cihazda kaydet
+        val md = buildMarkdown(
+            versionName = BuildConfig.VERSION_NAME,
+            csResults = csResults,
+            addonResults = addonResults,
+            jsResults = jsResults,
+            subResults = subResults,
+            continueResult = continueResult,
+            updateResults = updateResults,
+        )
+        mdFile.writeText(md, Charsets.UTF_8)
+        oldMdFile.writeText(md, Charsets.UTF_8)
+
+        Log.i(TAG, "=== Play Otomatik Duman Testi Tamamlandı ===")
+        Log.i(TAG, "JSON: ${jsonFile.absolutePath}")
+        Log.i(TAG, "SMOKE_TEST_COMPLETED: ${jsonFile.absolutePath}")
+        Log.i(TAG, "DIAGNOSTIC_COMPLETED: ${jsonFile.absolutePath}")
+
+        jsonFile
     }
 
     private suspend fun testPlugin(
         container: AppContainer,
         plugin: InstalledCsPlugin,
-    ): DiagResult {
-        Log.i(TAG, "[${plugin.name}] Test başlıyor...")
+    ): CsDiagResult {
+        Log.i(TAG, "[CS:${plugin.name}] Test başlıyor...")
         val apis = runCatching { container.csRepos.loadApis(plugin.id) }.getOrNull()
         if (apis.isNullOrEmpty()) {
-            Log.w(TAG, "[${plugin.name}] Dex yüklenemedi / API bulunamadı")
-            return DiagResult(
+            Log.w(TAG, "[CS:${plugin.name}] Dex yüklenemedi / API sınıfı bulunamadı")
+            return CsDiagResult(
                 pluginName = plugin.name,
-                catalogStatus = "X (Yüklenemedi)",
+                catalogStatus = "X (Dex yüklenemedi)",
                 loadStatus = "-",
                 episodeStatus = "-",
                 linkStatus = "-",
                 mediaStatus = "-",
                 subPluginStatus = "-",
-                subOnlineStatus = "-",
+                status = "X",
                 errorReason = "Dex yükleme / API sınıfı bulunamadı",
             )
         }
 
         val api = apis.first()
 
-        // 1. Katalog (mainPage)
+        // 1. Katalog (mainPage, zaman aşımı: 6 sn)
         val sections = runCatching {
-            container.csRuntime.mainPage(api, 1, timeoutMs = 6_000L)
+            withTimeoutOrNull(6_000L) {
+                container.csRuntime.mainPage(api, 1, timeoutMs = 6_000L)
+            }
         }.getOrNull() ?: emptyList()
 
         val allItems = sections.flatMap { it.items }.distinctBy { it.url.ifBlank { it.name } }
         if (allItems.isEmpty()) {
             val cfBlocked = com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver.wasBlocked(api.mainUrl)
-            val reason = if (cfBlocked) "Cloudflare engeli / Turnstile" else "Katalog içeriği boş"
-            Log.w(TAG, "[${plugin.name}] Katalog boş: $reason")
-            return DiagResult(
+            val reason = if (cfBlocked) "Cloudflare engeli / Turnstile" else "Katalog boş ya da zaman aşımı"
+            Log.w(TAG, "[CS:${plugin.name}] Katalog başarısız: $reason")
+            return CsDiagResult(
                 pluginName = plugin.name,
-                catalogStatus = "X (0 içerik)",
+                catalogStatus = "X ($reason)",
                 loadStatus = "-",
                 episodeStatus = "-",
                 linkStatus = "-",
                 mediaStatus = "-",
                 subPluginStatus = "-",
-                subOnlineStatus = "-",
+                status = "X",
                 errorReason = reason,
             )
         }
 
         val catalogStatus = "OK (${sections.size} satır, ${allItems.size} içerik)"
-        Log.i(TAG, "[${plugin.name}] Katalog başarılı: $catalogStatus")
+        Log.i(TAG, "[CS:${plugin.name}] Katalog başarılı: $catalogStatus")
 
-        val testItems = allItems.take(3)
-        var lastResult: DiagResult? = null
+        val testItems = allItems.take(2)
+        var lastResult: CsDiagResult? = null
 
         for (item in testItems) {
             val itemTitle = item.name
-            Log.i(TAG, "[${plugin.name}] İçerik deneniyor: $itemTitle (${item.url})")
 
+            // 2. Load (zaman aşımı: 12 sn)
             var loadErr: Throwable? = null
-            val loadResp = withTimeoutOrNull(15_000L) {
+            val loadResp = withTimeoutOrNull(12_000L) {
                 try {
                     api.load(item.url)
                 } catch (t: Throwable) {
@@ -292,35 +395,35 @@ object PlayDiagRunner {
             }
 
             if (loadResp == null) {
-                Log.w(TAG, "[${plugin.name}] load($itemTitle) başarısız -> ${loadErr?.javaClass?.name}: ${loadErr?.message}", loadErr)
-                lastResult = DiagResult(
+                val errName = loadErr?.javaClass?.simpleName ?: "zaman aşımı"
+                lastResult = CsDiagResult(
                     pluginName = plugin.name,
                     catalogStatus = catalogStatus,
-                    loadStatus = "X (${itemTitle.take(20)})",
+                    loadStatus = "X ($errName)",
                     episodeStatus = "-",
                     linkStatus = "-",
                     mediaStatus = "-",
                     subPluginStatus = "-",
-                    subOnlineStatus = "-",
-                    errorReason = "load() hata: ${loadErr?.javaClass?.simpleName ?: "boş/zaman aşımı"}",
+                    status = "X",
+                    errorReason = "load() hata: $errName",
                 )
                 continue
             }
 
             val loadStatus = "OK (${loadResp.name.take(20)})"
 
+            // 3. Bölüm / dataUrl çözümü
             val (dataUrl, episodeLabel) = resolveDataUrl(loadResp)
             if (dataUrl.isNullOrBlank()) {
-                Log.w(TAG, "[${plugin.name}] dataUrl çözülemedi: $episodeLabel")
-                lastResult = DiagResult(
+                lastResult = CsDiagResult(
                     pluginName = plugin.name,
                     catalogStatus = catalogStatus,
                     loadStatus = loadStatus,
-                    episodeStatus = episodeLabel,
+                    episodeStatus = "X ($episodeLabel)",
                     linkStatus = "-",
                     mediaStatus = "-",
                     subPluginStatus = "-",
-                    subOnlineStatus = "-",
+                    status = "X",
                     errorReason = "Bölüm/dataUrl bulunamadı",
                 )
                 continue
@@ -328,27 +431,24 @@ object PlayDiagRunner {
 
             val episodeStatus = "OK ($episodeLabel)"
 
-            // 3. Link ve Altyazı çıkarımı (loadLinks)
+            // 4. Link çıkarımı (loadLinks, zaman aşımı: 15 sn)
             val source = StreamSource(addonId = plugin.id, addonName = plugin.name)
-            val streams = withTimeoutOrNull(20_000L) {
-                runCatching { container.csRuntime.loadLinksDirect(api, dataUrl, source, 18_000L) }.getOrNull()
+            val streams = withTimeoutOrNull(15_000L) {
+                runCatching { container.csRuntime.loadLinksDirect(api, dataUrl, source, 14_000L) }.getOrNull()
             } ?: emptyList()
 
             if (streams.isEmpty()) {
-                Log.w(TAG, "[${plugin.name}] loadLinks link bulamadı")
-                if (lastResult == null || lastResult.linkStatus.startsWith("X")) {
-                    lastResult = DiagResult(
-                        pluginName = plugin.name,
-                        catalogStatus = catalogStatus,
-                        loadStatus = loadStatus,
-                        episodeStatus = episodeStatus,
-                        linkStatus = "X (0 link)",
-                        mediaStatus = "-",
-                        subPluginStatus = "-",
-                        subOnlineStatus = "-",
-                        errorReason = "Extractor link çıkaramadı",
-                    )
-                }
+                lastResult = CsDiagResult(
+                    pluginName = plugin.name,
+                    catalogStatus = catalogStatus,
+                    loadStatus = loadStatus,
+                    episodeStatus = episodeStatus,
+                    linkStatus = "X (0 link / zaman aşımı)",
+                    mediaStatus = "-",
+                    subPluginStatus = "-",
+                    status = "X",
+                    errorReason = "Extractor link çıkaramadı",
+                )
                 continue
             }
 
@@ -356,10 +456,10 @@ object PlayDiagRunner {
             val qualityStr = firstStream.resolution?.let { "${it}p" } ?: "?"
             val linkStatus = "OK (${streams.size} link, $qualityStr)"
 
-            // 4. Doğrudan link medya testi (HEAD / ~512KB GET)
+            // 5. Medya imzası (~512KB GET)
             var mediaOk = false
             var probeMsg = ""
-            for (st in streams.take(3)) {
+            for (st in streams.take(2)) {
                 val (ok, msg) = probeMedia(container.httpClient, st)
                 probeMsg = msg
                 if (ok) {
@@ -367,6 +467,7 @@ object PlayDiagRunner {
                     break
                 }
             }
+
             val mediaStatus = if (probeMsg == "torrent, atlandı") {
                 "torrent, atlandı"
             } else if (mediaOk) {
@@ -374,15 +475,15 @@ object PlayDiagRunner {
             } else {
                 "X ($probeMsg)"
             }
-            val errorReason = if (mediaOk || probeMsg == "torrent, atlandı") "-" else "Medya doğrulanamadı: $probeMsg"
 
-            Log.i(TAG, "[${plugin.name}] Medya sonucu: $mediaStatus ($errorReason)")
-
-            // 5. Altyazı testi (eklenti altyazısı)
+            // 6. Eklenti altyazısı
             val allSubs = streams.flatMap { it.subtitles }.distinctBy { it.url }
             var subPluginStatus = "Yok (0)"
             if (allSubs.isNotEmpty()) {
-                val trSub = allSubs.firstOrNull { it.language?.contains("tr", ignoreCase = true) == true || it.language?.contains("tur", ignoreCase = true) == true }
+                val trSub = allSubs.firstOrNull {
+                    it.language?.contains("tr", ignoreCase = true) == true ||
+                            it.language?.contains("tur", ignoreCase = true) == true
+                }
                 val candidate = trSub ?: allSubs.first()
                 val track = SubtitleTrack(
                     url = candidate.url,
@@ -390,57 +491,23 @@ object PlayDiagRunner {
                     origin = plugin.name,
                     headers = candidate.headers,
                 )
-                val loadRes = container.subtitleLoader.load(track)
+                val loadRes = withTimeoutOrNull(6_000L) {
+                    container.subtitleLoader.load(track)
+                }
                 subPluginStatus = when (loadRes) {
                     is SubtitleLoad.Loaded -> {
                         val langTag = (candidate.language ?: "TR").uppercase()
                         "OK (${allSubs.size} sub, $langTag ${loadRes.cues.size} satır)"
                     }
-                    is SubtitleLoad.Failed -> "X (${allSubs.size} sub, ${loadRes.reason})"
+                    is SubtitleLoad.Failed -> "X (${loadRes.reason})"
+                    null -> "X (zaman aşımı)"
                 }
             }
 
-            // 6. İnternetten altyazı arama testi
-            var subOnlineStatus = "Yok (0)"
-            try {
-                val (cleanTitle, parsedYear) = TitleCleaner.cleanTitleAndYear(loadResp.name)
-                val year = loadResp.year ?: parsedYear
-                val isSeries = loadResp is TvSeriesLoadResponse || loadResp is AnimeLoadResponse
-                val identity = MediaIdentityResolver.resolveIdentity(
-                    rawTitle = loadResp.name,
-                    rawYear = year,
-                    syncData = runCatching { loadResp.syncData }.getOrNull(),
-                    type = if (isSeries) MediaType.Tv else MediaType.Movie,
-                    tmdb = container.tmdb,
-                )
-                val req = StreamRequest(
-                    tmdbId = identity.tmdbId ?: 0,
-                    imdbId = identity.imdbId,
-                    type = if (isSeries) MediaType.Tv else MediaType.Movie,
-                    season = 1,
-                    episode = 1,
-                    title = identity.cleanTitle,
-                    year = identity.year,
-                )
-                val onlineTracks = withTimeoutOrNull(6_000L) {
-                    container.subtitleProvider.subtitles(req)
-                        .filterIsInstance<SubtitleResult.Found>()
-                        .flatMapConcat { it.tracks.asFlow() }
-                        .toList()
-                } ?: emptyList()
-                val trCount = onlineTracks.count { it.language?.equals("tr", ignoreCase = true) == true }
-                subOnlineStatus = if (trCount > 0) {
-                    "OK (TR $trCount)"
-                } else if (onlineTracks.isNotEmpty()) {
-                    "OK (${onlineTracks.size})"
-                } else {
-                    "Yok (0)"
-                }
-            } catch (t: Throwable) {
-                subOnlineStatus = "X (${t.javaClass.simpleName})"
-            }
+            val finalStatus = if (mediaOk || probeMsg == "torrent, atlandı") "OK" else "X"
+            val errorReason = if (finalStatus == "OK") "-" else "Medya doğrulanamadı: $probeMsg"
 
-            val result = DiagResult(
+            val result = CsDiagResult(
                 pluginName = plugin.name,
                 catalogStatus = catalogStatus,
                 loadStatus = loadStatus,
@@ -448,20 +515,18 @@ object PlayDiagRunner {
                 linkStatus = linkStatus,
                 mediaStatus = mediaStatus,
                 subPluginStatus = subPluginStatus,
-                subOnlineStatus = subOnlineStatus,
+                status = finalStatus,
                 errorReason = errorReason,
             )
 
-            if (mediaOk) {
+            if (mediaOk || probeMsg == "torrent, atlandı") {
                 return result
             } else {
-                if (lastResult == null || lastResult.linkStatus.startsWith("X")) {
-                    lastResult = result
-                }
+                lastResult = result
             }
         }
 
-        return lastResult ?: DiagResult(
+        return lastResult ?: CsDiagResult(
             pluginName = plugin.name,
             catalogStatus = catalogStatus,
             loadStatus = "X",
@@ -469,13 +534,13 @@ object PlayDiagRunner {
             linkStatus = "-",
             mediaStatus = "-",
             subPluginStatus = "-",
-            subOnlineStatus = "-",
+            status = "X",
             errorReason = "İçerik testleri başarısız",
         )
     }
 
-    private suspend fun testNuvioSources(container: AppContainer): List<NuvioDiagResult> {
-        val results = mutableListOf<NuvioDiagResult>()
+    private suspend fun testNuvioAddons(container: AppContainer): List<NuvioAddonDiagResult> {
+        val results = mutableListOf<NuvioAddonDiagResult>()
         val testMovie = StreamRequest(
             tmdbId = 550,
             imdbId = "tt0137523",
@@ -493,32 +558,6 @@ object PlayDiagRunner {
             year = 2008,
         )
 
-        // 1. Altyazı Addon'ları testi (ALTYAZI, nexus)
-        val addonSubProvider = AddonSubtitleProvider(
-            addons = container.addons::enabledAddons,
-            client = container.httpClient,
-            timeout = { 6.seconds },
-        )
-        val addonSubTracks = withTimeoutOrNull(6_000L) {
-            addonSubProvider.subtitles(testMovie)
-                .filterIsInstance<SubtitleResult.Found>()
-                .flatMapConcat { it.tracks.asFlow() }
-                .toList()
-        } ?: emptyList()
-        val addonTrCount = addonSubTracks.count { it.language?.equals("tr", ignoreCase = true) == true }
-        val subAddonStr = if (addonTrCount > 0) "OK (TR $addonTrCount)" else if (addonSubTracks.isNotEmpty()) "OK (${addonSubTracks.size})" else "Yok (0)"
-
-        // İnternet arama testi
-        val onlineTracks = withTimeoutOrNull(6_000L) {
-            container.subtitleProvider.subtitles(testMovie)
-                .filterIsInstance<SubtitleResult.Found>()
-                .flatMapConcat { it.tracks.asFlow() }
-                .toList()
-        } ?: emptyList()
-        val onlineTrCount = onlineTracks.count { it.language?.equals("tr", ignoreCase = true) == true }
-        val subOnlineStr = if (onlineTrCount > 0) "OK (TR $onlineTrCount)" else if (onlineTracks.isNotEmpty()) "OK (${onlineTracks.size})" else "Yok (0)"
-
-        // 2. Nuvio Video Addon'ları
         val allAddons = runCatching { container.addons.enabledAddons() }.getOrDefault(emptyList())
         val videoAddons = allAddons.filter { addon ->
             addon.manifest.resources.any { it.name.equals("stream", ignoreCase = true) }
@@ -526,7 +565,7 @@ object PlayDiagRunner {
 
         for (addon in videoAddons) {
             Log.i(TAG, "[Nuvio Addon: ${addon.manifest.name}] Test başlıyor...")
-            val req = if (addon.manifest.types.contains("series")) testSeries else testMovie
+            val req = if (addon.manifest.types.contains("movie")) testMovie else testSeries
             val streamProvider = AddonStreamProvider(
                 addons = { listOf(addon) },
                 client = container.httpClient,
@@ -549,7 +588,7 @@ object PlayDiagRunner {
                 }
             }
 
-            val streamStatus = if (streams.isNotEmpty()) "OK (${streams.size} akış)" else "X (0 akış)"
+            val streamStatus = if (streams.isNotEmpty()) "OK (${streams.size} akış)" else "X (0 akış / zaman aşımı)"
             val mediaStatus = if (probeMsg == "torrent, atlandı") {
                 "torrent, atlandı"
             } else if (mediaOk) {
@@ -563,124 +602,584 @@ object PlayDiagRunner {
             val subs = streams.flatMap { it.subtitles }
             val subSourceStatus = if (subs.isNotEmpty()) {
                 val candidate = subs.firstOrNull { it.language?.contains("tr", ignoreCase = true) == true } ?: subs.first()
-                val loadRes = container.subtitleLoader.load(SubtitleTrack(candidate.url, candidate.language, addon.manifest.name, headers = candidate.headers))
+                val loadRes = withTimeoutOrNull(6_000L) {
+                    container.subtitleLoader.load(SubtitleTrack(candidate.url, candidate.language, addon.manifest.name, headers = candidate.headers))
+                }
                 if (loadRes is SubtitleLoad.Loaded) "OK (${subs.size} sub, TR ${loadRes.cues.size} satır)" else "X (${subs.size} sub)"
             } else "Yok (0)"
 
-            results += NuvioDiagResult(
+            val finalStatus = if (mediaOk || probeMsg == "torrent, atlandı") "OK" else "X"
+            val errorReason = if (finalStatus == "OK") "-" else if (streams.isEmpty()) "Akış bulunamadı / zaman aşımı" else probeMsg
+
+            results += NuvioAddonDiagResult(
                 name = addon.manifest.name,
                 kind = "Video Addon",
                 streamStatus = streamStatus,
                 mediaStatus = mediaStatus,
                 subSourceStatus = subSourceStatus,
-                subAddonStatus = subAddonStr,
-                subOnlineStatus = subOnlineStr,
-                errorReason = if (mediaOk || probeMsg == "torrent, atlandı") "-" else if (streams.isEmpty()) "Akış bulunamadı" else probeMsg,
+                status = finalStatus,
+                errorReason = errorReason,
             )
         }
 
-        // 3. Nuvio JS Plugins (Scrapers)
+        return results
+    }
+
+    private suspend fun testNuvioJsPlugins(container: AppContainer): List<NuvioJsDiagResult> {
+        val results = mutableListOf<NuvioJsDiagResult>()
+        val testMovie = StreamRequest(
+            tmdbId = 550,
+            imdbId = "tt0137523",
+            type = MediaType.Movie,
+            title = "Fight Club",
+            year = 1999,
+        )
+        val testSeries = StreamRequest(
+            tmdbId = 1396,
+            imdbId = "tt0903747",
+            type = MediaType.Tv,
+            season = 1,
+            episode = 1,
+            title = "Breaking Bad",
+            year = 2008,
+        )
+
         val plugins = runCatching { container.plugins.enabledPlugins() }.getOrDefault(emptyList())
 
         for (plugin in plugins) {
             Log.i(TAG, "[Nuvio Scraper: ${plugin.name}] Test başlıyor...")
-            val req = if (plugin.pluginId.contains("anime", ignoreCase = true) || plugin.pluginId.contains("aniz", ignoreCase = true)) {
-                StreamRequest(
-                    tmdbId = 1399,
-                    imdbId = "tt0877057",
-                    type = MediaType.Tv,
-                    season = 1,
-                    episode = 1,
-                    title = "Death Note",
-                    year = 2006,
-                )
-            } else if (plugin.supportedTypes.contains("tv") || plugin.supportedTypes.contains("series")) {
-                testSeries
-            } else {
-                testMovie
-            }
-
             val code = runCatching { container.plugins.loadCode(plugin.id) }.getOrNull()
             if (code.isNullOrBlank()) {
-                results += NuvioDiagResult(
+                results += NuvioJsDiagResult(
                     name = plugin.name,
-                    kind = "JS Scraper",
+                    target = "Film/Dizi",
                     streamStatus = "X (Kod yok)",
                     mediaStatus = "-",
                     subSourceStatus = "-",
-                    subAddonStatus = subAddonStr,
-                    subOnlineStatus = subOnlineStr,
+                    status = "X",
                     errorReason = "Betik dosyası okunamadı",
                 )
                 continue
             }
 
             val savedSettings = container.pluginSettings.get(plugin.id)
-            val pluginRequest = PluginRequest(
-                tmdbId = req.tmdbId.toString(),
-                mediaType = if (req.type == MediaType.Movie) "movie" else "tv",
-                season = req.season,
-                episode = req.episode,
-            )
-            val outcome = withTimeoutOrNull(15_000L) {
-                container.pluginRuntime.run(code, pluginRequest, plugin.pluginId, timeoutMs = 12_000L, savedSettings)
-            }
+            val types = plugin.supportedTypes
+            val supportsMovie = types.isEmpty() || types.any { it.contains("movie", ignoreCase = true) }
+            val supportsTv = types.isEmpty() || types.any { it.contains("tv", ignoreCase = true) || it.contains("series", ignoreCase = true) }
 
-            if (outcome == null || outcome !is PluginOutcome.Success) {
-                val err = (outcome as? PluginOutcome.Failure)?.message ?: "Zaman aşımı / hata"
-                results += NuvioDiagResult(
+            // Test 1: Film (tt0137523)
+            if (supportsMovie) {
+                val movieReq = PluginRequest(tmdbId = testMovie.tmdbId.toString(), mediaType = "movie", season = 1, episode = 1)
+                val movieOutcome = withTimeoutOrNull(12_000L) {
+                    container.pluginRuntime.run(code, movieReq, plugin.pluginId, timeoutMs = 10_000L, savedSettings)
+                }
+
+                if (movieOutcome == null || movieOutcome !is PluginOutcome.Success) {
+                    val err = (movieOutcome as? PluginOutcome.Failure)?.message ?: "Zaman aşımı / hata"
+                    results += NuvioJsDiagResult(
+                        name = plugin.name,
+                        target = "Film (tt0137523)",
+                        streamStatus = "X (Hata)",
+                        mediaStatus = "-",
+                        subSourceStatus = "-",
+                        status = "X",
+                        errorReason = err.take(40),
+                    )
+                } else {
+                    val source = StreamSource(-plugin.id, plugin.name)
+                    val playableStreams = movieOutcome.streams.map { it.toPlayable(source) }
+                    val streamStatus = if (playableStreams.isNotEmpty()) "OK (${playableStreams.size} akış)" else "X (0 akış)"
+
+                    var mediaOk = false
+                    var probeMsg = ""
+                    for (st in playableStreams.take(2)) {
+                        val (ok, msg) = probeMedia(container.httpClient, st)
+                        probeMsg = msg
+                        if (ok) {
+                            mediaOk = true
+                            break
+                        }
+                    }
+
+                    val mediaStatus = if (probeMsg == "torrent, atlandı") {
+                        "torrent, atlandı"
+                    } else if (mediaOk) {
+                        "OK ($probeMsg)"
+                    } else if (playableStreams.isNotEmpty()) {
+                        "X ($probeMsg)"
+                    } else {
+                        "-"
+                    }
+
+                    val subs = playableStreams.flatMap { it.subtitles }
+                    val subSourceStatus = if (subs.isNotEmpty()) {
+                        val candidate = subs.firstOrNull { it.language?.contains("tr", ignoreCase = true) == true } ?: subs.first()
+                        val loadRes = withTimeoutOrNull(6_000L) {
+                            container.subtitleLoader.load(SubtitleTrack(candidate.url, candidate.language, plugin.name, headers = candidate.headers))
+                        }
+                        if (loadRes is SubtitleLoad.Loaded) "OK (${subs.size} sub, TR ${loadRes.cues.size} satır)" else "X (${subs.size} sub)"
+                    } else "Yok (0)"
+
+                    val finalStatus = if (mediaOk || probeMsg == "torrent, atlandı") "OK" else "X"
+                    val errorReason = if (finalStatus == "OK") "-" else if (playableStreams.isEmpty()) "Akış bulunamadı" else probeMsg
+
+                    results += NuvioJsDiagResult(
+                        name = plugin.name,
+                        target = "Film (tt0137523)",
+                        streamStatus = streamStatus,
+                        mediaStatus = mediaStatus,
+                        subSourceStatus = subSourceStatus,
+                        status = finalStatus,
+                        errorReason = errorReason,
+                    )
+                }
+            } else {
+                results += NuvioJsDiagResult(
                     name = plugin.name,
-                    kind = "JS Scraper",
-                    streamStatus = "X (Hata)",
+                    target = "Film (tt0137523)",
+                    streamStatus = "atlandı",
                     mediaStatus = "-",
                     subSourceStatus = "-",
-                    subAddonStatus = subAddonStr,
-                    subOnlineStatus = subOnlineStr,
-                    errorReason = err.take(40),
+                    status = "atlandı",
+                    errorReason = "Yalnızca dizi destekliyor",
                 )
-                continue
             }
 
-            val source = StreamSource(-plugin.id, plugin.name)
-            val playableStreams = outcome.streams.map { it.toPlayable(source) }
-            val streamStatus = if (playableStreams.isNotEmpty()) "OK (${playableStreams.size} akış)" else "X (0 akış)"
+            // Test 2: Dizi (tt0903747 S1B1)
+            if (supportsTv) {
+                val tvReq = PluginRequest(tmdbId = testSeries.tmdbId.toString(), mediaType = "tv", season = 1, episode = 1)
+                val tvOutcome = withTimeoutOrNull(12_000L) {
+                    container.pluginRuntime.run(code, tvReq, plugin.pluginId, timeoutMs = 10_000L, savedSettings)
+                }
 
-            var mediaOk = false
-            var probeMsg = ""
-            for (st in playableStreams.take(2)) {
-                val (ok, msg) = probeMedia(container.httpClient, st)
-                probeMsg = msg
-                if (ok) {
-                    mediaOk = true
-                    break
+                if (tvOutcome == null || tvOutcome !is PluginOutcome.Success) {
+                    val err = (tvOutcome as? PluginOutcome.Failure)?.message ?: "Zaman aşımı / hata"
+                    results += NuvioJsDiagResult(
+                        name = plugin.name,
+                        target = "Dizi (tt0903747 S1B1)",
+                        streamStatus = "X (Hata)",
+                        mediaStatus = "-",
+                        subSourceStatus = "-",
+                        status = "X",
+                        errorReason = err.take(40),
+                    )
+                } else {
+                    val source = StreamSource(-plugin.id, plugin.name)
+                    val playableStreams = tvOutcome.streams.map { it.toPlayable(source) }
+                    val streamStatus = if (playableStreams.isNotEmpty()) "OK (${playableStreams.size} akış)" else "X (0 akış)"
+
+                    var mediaOk = false
+                    var probeMsg = ""
+                    for (st in playableStreams.take(2)) {
+                        val (ok, msg) = probeMedia(container.httpClient, st)
+                        probeMsg = msg
+                        if (ok) {
+                            mediaOk = true
+                            break
+                        }
+                    }
+
+                    val mediaStatus = if (probeMsg == "torrent, atlandı") {
+                        "torrent, atlandı"
+                    } else if (mediaOk) {
+                        "OK ($probeMsg)"
+                    } else if (playableStreams.isNotEmpty()) {
+                        "X ($probeMsg)"
+                    } else {
+                        "-"
+                    }
+
+                    val subs = playableStreams.flatMap { it.subtitles }
+                    val subSourceStatus = if (subs.isNotEmpty()) {
+                        val candidate = subs.firstOrNull { it.language?.contains("tr", ignoreCase = true) == true } ?: subs.first()
+                        val loadRes = withTimeoutOrNull(6_000L) {
+                            container.subtitleLoader.load(SubtitleTrack(candidate.url, candidate.language, plugin.name, headers = candidate.headers))
+                        }
+                        if (loadRes is SubtitleLoad.Loaded) "OK (${subs.size} sub, TR ${loadRes.cues.size} satır)" else "X (${subs.size} sub)"
+                    } else "Yok (0)"
+
+                    val finalStatus = if (mediaOk || probeMsg == "torrent, atlandı") "OK" else "X"
+                    val errorReason = if (finalStatus == "OK") "-" else if (playableStreams.isEmpty()) "Akış bulunamadı" else probeMsg
+
+                    results += NuvioJsDiagResult(
+                        name = plugin.name,
+                        target = "Dizi (tt0903747 S1B1)",
+                        streamStatus = streamStatus,
+                        mediaStatus = mediaStatus,
+                        subSourceStatus = subSourceStatus,
+                        status = finalStatus,
+                        errorReason = errorReason,
+                    )
+                }
+            } else {
+                results += NuvioJsDiagResult(
+                    name = plugin.name,
+                    target = "Dizi (tt0903747 S1B1)",
+                    streamStatus = "atlandı",
+                    mediaStatus = "-",
+                    subSourceStatus = "-",
+                    status = "atlandı",
+                    errorReason = "Yalnızca film destekliyor",
+                )
+            }
+        }
+
+        return results
+    }
+
+    private suspend fun testSubtitles(container: AppContainer): List<SubtitleDiagResult> {
+        val results = mutableListOf<SubtitleDiagResult>()
+        val movieReq = StreamRequest(
+            tmdbId = 550,
+            imdbId = "tt0137523",
+            type = MediaType.Movie,
+            title = "Fight Club",
+            year = 1999,
+        )
+
+        val allAddons = runCatching { container.addons.enabledAddons() }.getOrDefault(emptyList())
+
+        // 1. AltyazıDB
+        val altyaziDbAddon = allAddons.firstOrNull { it.manifest.id == "com.blast.altyazidb.subtitles" || it.manifest.name.contains("AltyazıDB", ignoreCase = true) }
+        if (altyaziDbAddon != null) {
+            val provider = AddonSubtitleProvider(
+                addons = { listOf(altyaziDbAddon) },
+                client = container.httpClient,
+                timeout = { 8.seconds },
+            )
+            val tracks = withTimeoutOrNull(8_000L) {
+                provider.subtitles(movieReq)
+                    .filterIsInstance<SubtitleResult.Found>()
+                    .flatMapConcat { it.tracks.asFlow() }
+                    .toList()
+            } ?: emptyList()
+
+            val trTracks = tracks.filter { it.language?.equals("tr", ignoreCase = true) == true || it.language?.equals("tur", ignoreCase = true) == true }
+            if (trTracks.isNotEmpty()) {
+                val candidate = trTracks.first()
+                val loadRes = withTimeoutOrNull(8_000L) { container.subtitleLoader.load(candidate) }
+                if (loadRes is SubtitleLoad.Loaded && loadRes.cues.isNotEmpty()) {
+                    results += SubtitleDiagResult(
+                        name = "AltyazıDB",
+                        target = "tt0137523",
+                        searchStatus = "OK (TR ${trTracks.size})",
+                        parseStatus = "OK (${loadRes.cues.size} satır)",
+                        status = "OK",
+                        errorReason = "-",
+                    )
+                } else {
+                    val err = (loadRes as? SubtitleLoad.Failed)?.reason ?: "Ayrıştırma hatası"
+                    results += SubtitleDiagResult(
+                        name = "AltyazıDB",
+                        target = "tt0137523",
+                        searchStatus = "OK (TR ${trTracks.size})",
+                        parseStatus = "X ($err)",
+                        status = "X",
+                        errorReason = "Altyazı ayrıştırılamadı: $err",
+                    )
+                }
+            } else {
+                results += SubtitleDiagResult(
+                    name = "AltyazıDB",
+                    target = "tt0137523",
+                    searchStatus = if (tracks.isEmpty()) "X (0 sonuç)" else "X (TR yok)",
+                    parseStatus = "-",
+                    status = "X",
+                    errorReason = "Türkçe altyazı bulunamadı",
+                )
+            }
+        } else {
+            results += SubtitleDiagResult(
+                name = "AltyazıDB",
+                target = "tt0137523",
+                searchStatus = "X (Addon bulunamadı)",
+                parseStatus = "-",
+                status = "X",
+                errorReason = "AltyazıDB addon yüklü/aktif değil",
+            )
+        }
+
+        // 2. AltyazıTR
+        val altyaziTrAddon = allAddons.firstOrNull { it.manifest.id == "com.ege.altyazitr" || it.manifest.name.contains("AltyazıTR", ignoreCase = true) }
+        if (altyaziTrAddon != null) {
+            val provider = AddonSubtitleProvider(
+                addons = { listOf(altyaziTrAddon) },
+                client = container.httpClient,
+                timeout = { 8.seconds },
+            )
+            val tracks = withTimeoutOrNull(8_000L) {
+                provider.subtitles(movieReq)
+                    .filterIsInstance<SubtitleResult.Found>()
+                    .flatMapConcat { it.tracks.asFlow() }
+                    .toList()
+            } ?: emptyList()
+
+            val trTracks = tracks.filter { it.language?.equals("tr", ignoreCase = true) == true || it.language?.equals("tur", ignoreCase = true) == true }
+            if (trTracks.isNotEmpty()) {
+                val candidate = trTracks.first()
+                val loadRes = withTimeoutOrNull(8_000L) { container.subtitleLoader.load(candidate) }
+                if (loadRes is SubtitleLoad.Loaded && loadRes.cues.isNotEmpty()) {
+                    results += SubtitleDiagResult(
+                        name = "AltyazıTR",
+                        target = "tt0137523",
+                        searchStatus = "OK (TR ${trTracks.size})",
+                        parseStatus = "OK (${loadRes.cues.size} satır)",
+                        status = "OK",
+                        errorReason = "-",
+                    )
+                } else {
+                    val err = (loadRes as? SubtitleLoad.Failed)?.reason ?: "Ayrıştırma hatası"
+                    results += SubtitleDiagResult(
+                        name = "AltyazıTR",
+                        target = "tt0137523",
+                        searchStatus = "OK (TR ${trTracks.size})",
+                        parseStatus = "X ($err)",
+                        status = "X",
+                        errorReason = "Altyazı ayrıştırılamadı: $err",
+                    )
+                }
+            } else {
+                results += SubtitleDiagResult(
+                    name = "AltyazıTR",
+                    target = "tt0137523",
+                    searchStatus = if (tracks.isEmpty()) "X (0 sonuç)" else "X (TR yok)",
+                    parseStatus = "-",
+                    status = "X",
+                    errorReason = "Türkçe altyazı bulunamadı",
+                )
+            }
+        } else {
+            results += SubtitleDiagResult(
+                name = "AltyazıTR",
+                target = "tt0137523",
+                searchStatus = "X (Addon bulunamadı)",
+                parseStatus = "-",
+                status = "X",
+                errorReason = "AltyazıTR addon yüklü/aktif değil",
+            )
+        }
+
+        // 3. Yerleşik Çevrimiçi Arama
+        try {
+            val onlineProvider = OnlineSubtitleProvider(
+                client = container.httpClient,
+                languages = { listOf("tr", "en") },
+                timeout = 8.seconds,
+            )
+            val tracks = withTimeoutOrNull(8_000L) { onlineProvider.search(movieReq) } ?: emptyList()
+            val trTracks = tracks.filter { it.language?.equals("tr", ignoreCase = true) == true || it.language?.equals("tur", ignoreCase = true) == true }
+
+            if (trTracks.isNotEmpty()) {
+                val candidate = trTracks.first()
+                val loadRes = withTimeoutOrNull(8_000L) { container.subtitleLoader.load(candidate) }
+                if (loadRes is SubtitleLoad.Loaded && loadRes.cues.isNotEmpty()) {
+                    results += SubtitleDiagResult(
+                        name = "Yerleşik Çevrimiçi Arama",
+                        target = "tt0137523",
+                        searchStatus = "OK (TR ${trTracks.size})",
+                        parseStatus = "OK (${loadRes.cues.size} satır)",
+                        status = "OK",
+                        errorReason = "-",
+                    )
+                } else {
+                    val err = (loadRes as? SubtitleLoad.Failed)?.reason ?: "Ayrıştırma hatası"
+                    results += SubtitleDiagResult(
+                        name = "Yerleşik Çevrimiçi Arama",
+                        target = "tt0137523",
+                        searchStatus = "OK (TR ${trTracks.size})",
+                        parseStatus = "X ($err)",
+                        status = "X",
+                        errorReason = "Altyazı ayrıştırılamadı: $err",
+                    )
+                }
+            } else {
+                results += SubtitleDiagResult(
+                    name = "Yerleşik Çevrimiçi Arama",
+                    target = "tt0137523",
+                    searchStatus = if (tracks.isEmpty()) "X (0 sonuç)" else "X (TR yok)",
+                    parseStatus = "-",
+                    status = "X",
+                    errorReason = "Türkçe çevrimiçi altyazı bulunamadı",
+                )
+            }
+        } catch (e: Exception) {
+            results += SubtitleDiagResult(
+                name = "Yerleşik Çevrimiçi Arama",
+                target = "tt0137523",
+                searchStatus = "X (${e.javaClass.simpleName})",
+                parseStatus = "-",
+                status = "X",
+                errorReason = e.message?.take(40) ?: "İstisna",
+            )
+        }
+
+        return results
+    }
+
+    private suspend fun testCsNextEpisode(container: AppContainer, plugins: List<InstalledCsPlugin>): ContinueDiagResult {
+        Log.i(TAG, "testCsNextEpisode: Açık ilk CloudStream dizisi aranıyor...")
+        val seriesPlugins = plugins.filter { p ->
+            p.tvTypes.any { it.contains("tv", ignoreCase = true) || it.contains("anime", ignoreCase = true) || it.contains("series", ignoreCase = true) }
+        }
+
+        for (plugin in seriesPlugins) {
+            val apis = runCatching { container.csRepos.loadApis(plugin.id) }.getOrNull() ?: continue
+            val api = apis.firstOrNull() ?: continue
+            val sections = runCatching {
+                withTimeoutOrNull(6_000L) {
+                    container.csRuntime.mainPage(api, 1, timeoutMs = 6_000L)
+                }
+            }.getOrNull() ?: continue
+
+            val items = sections.flatMap { it.items }.distinctBy { it.url }
+            for (item in items.take(4)) {
+                val loadResp = withTimeoutOrNull(10_000L) {
+                    runCatching { api.load(item.url) }.getOrNull()
+                } ?: continue
+
+                val episodes = when (loadResp) {
+                    is TvSeriesLoadResponse -> loadResp.episodes
+                    is AnimeLoadResponse -> loadResp.episodes.values.flatten()
+                    else -> emptyList()
+                }
+
+                if (episodes.size >= 2) {
+                    val ep1 = episodes[0]
+                    val s = ep1.season ?: 1
+                    val e = ep1.episode ?: 1
+                    val data1 = ep1.data
+                    val finder = CsNextEpisodeFinder(container.csRepos)
+                    val nextEp = withTimeoutOrNull(10_000L) {
+                        finder.next("cs:${plugin.id}", item.url, data1, s, e)
+                    }
+
+                    if (nextEp != null && nextEp.dataUrl.isNotBlank() && nextEp.dataUrl != data1) {
+                        val epName = "S${nextEp.season}E${nextEp.episode}"
+                        Log.i(TAG, "testCsNextEpisode: Başarılı [${plugin.name}] -> $epName")
+                        return ContinueDiagResult(
+                            name = "CsNextEpisodeFinder",
+                            target = "${plugin.name} (${loadResp.name.take(20)}) S1B1",
+                            details = "OK ($epName, dataUrl farklı)",
+                            status = "OK",
+                            errorReason = "-",
+                        )
+                    } else if (nextEp != null && nextEp.dataUrl == data1) {
+                        Log.w(TAG, "testCsNextEpisode: dataUrl aynı [${plugin.name}]")
+                        return ContinueDiagResult(
+                            name = "CsNextEpisodeFinder",
+                            target = "${plugin.name} (${loadResp.name.take(20)}) S1B1",
+                            details = "X (dataUrl aynı)",
+                            status = "X",
+                            errorReason = "dataUrl aynı",
+                        )
+                    }
                 }
             }
-            val mediaStatus = if (probeMsg == "torrent, atlandı") {
-                "torrent, atlandı"
-            } else if (mediaOk) {
-                "OK ($probeMsg)"
-            } else if (playableStreams.isNotEmpty()) {
-                "X ($probeMsg)"
-            } else {
-                "-"
+        }
+
+        return ContinueDiagResult(
+            name = "CsNextEpisodeFinder",
+            target = "CloudStream Dizisi S1B1",
+            details = "X (Dizi içeriği bulunamadı)",
+            status = "X",
+            errorReason = "Uygun dizi içeriği bulunamadı",
+        )
+    }
+
+    private suspend fun testUpdatesAndAnnouncements(container: AppContainer): List<UpdateAnnounceDiagResult> {
+        val results = mutableListOf<UpdateAnnounceDiagResult>()
+
+        // 1. GitHub releases/latest (yalnızca okuma)
+        try {
+            val req = Request.Builder()
+                .url("https://api.github.com/repos/liberta09/Play/releases/latest")
+                .header("Accept", "application/vnd.github+json")
+                .header("User-Agent", "Play-Android-UpdateCheck")
+                .build()
+            val text = withTimeoutOrNull(8_000L) {
+                container.httpClient.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) resp.body?.string() else null
+                }
             }
+            if (text != null) {
+                val jsonElem = PlayJson.parseToJsonElement(text)
+                val tagName = (jsonElem as? kotlinx.serialization.json.JsonObject)?.get("tag_name")?.let {
+                    (it as? kotlinx.serialization.json.JsonPrimitive)?.content
+                }
+                if (!tagName.isNullOrBlank()) {
+                    results += UpdateAnnounceDiagResult(
+                        name = "GitHub releases/latest",
+                        details = "OK (tag: $tagName)",
+                        status = "OK",
+                        errorReason = "-",
+                    )
+                } else {
+                    results += UpdateAnnounceDiagResult(
+                        name = "GitHub releases/latest",
+                        details = "X (tag_name alanı yok)",
+                        status = "X",
+                        errorReason = "tag_name alanı bulunamadı",
+                    )
+                }
+            } else {
+                results += UpdateAnnounceDiagResult(
+                    name = "GitHub releases/latest",
+                    details = "X (HTTP hatası / zaman aşımı)",
+                    status = "X",
+                    errorReason = "HTTP hatası veya zaman aşımı",
+                )
+            }
+        } catch (e: Exception) {
+            results += UpdateAnnounceDiagResult(
+                name = "GitHub releases/latest",
+                details = "X (${e.javaClass.simpleName})",
+                status = "X",
+                errorReason = e.message?.take(40) ?: "İstisna",
+            )
+        }
 
-            val subs = playableStreams.flatMap { it.subtitles }
-            val subSourceStatus = if (subs.isNotEmpty()) {
-                val candidate = subs.firstOrNull { it.language?.contains("tr", ignoreCase = true) == true } ?: subs.first()
-                val loadRes = container.subtitleLoader.load(SubtitleTrack(candidate.url, candidate.language, plugin.name, headers = candidate.headers))
-                if (loadRes is SubtitleLoad.Loaded) "OK (${subs.size} sub, TR ${loadRes.cues.size} satır)" else "X (${subs.size} sub)"
-            } else "Yok (0)"
-
-            results += NuvioDiagResult(
-                name = plugin.name,
-                kind = "JS Scraper",
-                streamStatus = streamStatus,
-                mediaStatus = mediaStatus,
-                subSourceStatus = subSourceStatus,
-                subAddonStatus = subAddonStr,
-                subOnlineStatus = subOnlineStr,
-                errorReason = if (mediaOk || probeMsg == "torrent, atlandı") "-" else if (playableStreams.isEmpty()) "Akış bulunamadı" else probeMsg,
+        // 2. announcements.json (yalnızca okuma)
+        try {
+            val req = Request.Builder()
+                .url("https://raw.githubusercontent.com/liberta09/Play/main/announcements.json")
+                .header("User-Agent", "Play-Android-AnnouncementCheck")
+                .build()
+            val text = withTimeoutOrNull(8_000L) {
+                container.httpClient.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) resp.body?.string() else null
+                }
+            }
+            if (text != null) {
+                val list = com.kaan.play.data.announcement.AnnouncementRules.parse(text, PlayJson)
+                if (list != null) {
+                    results += UpdateAnnounceDiagResult(
+                        name = "announcements.json",
+                        details = "OK (${list.size} duyuru)",
+                        status = "OK",
+                        errorReason = "-",
+                    )
+                } else {
+                    results += UpdateAnnounceDiagResult(
+                        name = "announcements.json",
+                        details = "X (Ayrıştırma hatası)",
+                        status = "X",
+                        errorReason = "JSON duyuru listesi ayrıştırılamadı",
+                    )
+                }
+            } else {
+                results += UpdateAnnounceDiagResult(
+                    name = "announcements.json",
+                    details = "X (HTTP hatası / zaman aşımı)",
+                    status = "X",
+                    errorReason = "HTTP hatası veya zaman aşımı",
+                )
+            }
+        } catch (e: Exception) {
+            results += UpdateAnnounceDiagResult(
+                name = "announcements.json",
+                details = "X (${e.javaClass.simpleName})",
+                status = "X",
+                errorReason = e.message?.take(40) ?: "İstisna",
             )
         }
 
@@ -757,7 +1256,7 @@ object PlayDiagRunner {
             }
             getResp.close()
 
-            Log.d(TAG, "probeMedia [${stream.source.addonName}]: url=${stream.url} code=$code bytes=$bytesRead headers=${stream.headers}")
+            Log.d(TAG, "probeMedia [${stream.source.addonName}]: code=$code bytes=$bytesRead")
             if (code !in 200..299 && code != 206) {
                 return@withContext false to "HTTP $code"
             }
@@ -771,7 +1270,7 @@ object PlayDiagRunner {
             }
         } catch (e: Exception) {
             val msg = e.message ?: e.javaClass.simpleName
-            Log.w(TAG, "probeMedia [${stream.source.addonName}] GET istisna: $msg (url=${stream.url})")
+            Log.w(TAG, "probeMedia [${stream.source.addonName}] GET istisna: $msg")
             return@withContext false to msg.take(40)
         }
     }
@@ -813,5 +1312,215 @@ object PlayDiagRunner {
         }
 
         return null
+    }
+
+    private fun savePartialJson(
+        jsonFile: File,
+        csResults: List<CsDiagResult> = emptyList(),
+        addonResults: List<NuvioAddonDiagResult> = emptyList(),
+        jsResults: List<NuvioJsDiagResult> = emptyList(),
+        subResults: List<SubtitleDiagResult> = emptyList(),
+        continueResult: ContinueDiagResult? = null,
+        updateResults: List<UpdateAnnounceDiagResult> = emptyList(),
+    ) {
+        try {
+            val json = buildSmokeTestJson(
+                versionName = BuildConfig.VERSION_NAME,
+                csResults = csResults,
+                addonResults = addonResults,
+                jsResults = jsResults,
+                subResults = subResults,
+                continueResult = continueResult,
+                updateResults = updateResults,
+            )
+            jsonFile.writeText(json, Charsets.UTF_8)
+        } catch (e: Exception) {
+            Log.w(TAG, "savePartialJson hata: ${e.message}")
+        }
+    }
+
+    fun buildSmokeTestJson(
+        versionName: String,
+        csResults: List<CsDiagResult> = emptyList(),
+        addonResults: List<NuvioAddonDiagResult> = emptyList(),
+        jsResults: List<NuvioJsDiagResult> = emptyList(),
+        subResults: List<SubtitleDiagResult> = emptyList(),
+        continueResult: ContinueDiagResult? = null,
+        updateResults: List<UpdateAnnounceDiagResult> = emptyList(),
+    ): String {
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        val root = buildJsonObject {
+            put("timestamp", timestamp)
+            put("appVersion", versionName)
+            put("cloudstream", buildJsonArray {
+                csResults.forEach { r ->
+                    add(buildJsonObject {
+                        put("name", r.pluginName)
+                        put("catalog", r.catalogStatus)
+                        put("load", r.loadStatus)
+                        put("episode", r.episodeStatus)
+                        put("link", r.linkStatus)
+                        put("media", r.mediaStatus)
+                        put("subtitle", r.subPluginStatus)
+                        put("status", r.status)
+                        put("reason", r.errorReason)
+                    })
+                }
+            })
+            put("nuvio_addons", buildJsonArray {
+                addonResults.forEach { r ->
+                    add(buildJsonObject {
+                        put("name", r.name)
+                        put("kind", r.kind)
+                        put("stream", r.streamStatus)
+                        put("media", r.mediaStatus)
+                        put("subtitle", r.subSourceStatus)
+                        put("status", r.status)
+                        put("reason", r.errorReason)
+                    })
+                }
+            })
+            put("nuvio_js", buildJsonArray {
+                jsResults.forEach { r ->
+                    add(buildJsonObject {
+                        put("name", r.name)
+                        put("target", r.target)
+                        put("stream", r.streamStatus)
+                        put("media", r.mediaStatus)
+                        put("subtitle", r.subSourceStatus)
+                        put("status", r.status)
+                        put("reason", r.errorReason)
+                    })
+                }
+            })
+            put("subtitles", buildJsonArray {
+                subResults.forEach { r ->
+                    add(buildJsonObject {
+                        put("name", r.name)
+                        put("target", r.target)
+                        put("search", r.searchStatus)
+                        put("parse", r.parseStatus)
+                        put("status", r.status)
+                        put("reason", r.errorReason)
+                    })
+                }
+            })
+            put("continue_watching", buildJsonArray {
+                if (continueResult != null) {
+                    add(buildJsonObject {
+                        put("name", continueResult.name)
+                        put("target", continueResult.target)
+                        put("details", continueResult.details)
+                        put("status", continueResult.status)
+                        put("reason", continueResult.errorReason)
+                    })
+                }
+            })
+            put("updates_and_announcements", buildJsonArray {
+                updateResults.forEach { r ->
+                    add(buildJsonObject {
+                        put("name", r.name)
+                        put("details", r.details)
+                        put("status", r.status)
+                        put("reason", r.errorReason)
+                    })
+                }
+            })
+        }
+        return root.toString()
+    }
+
+    fun buildMarkdown(
+        versionName: String,
+        csResults: List<CsDiagResult> = emptyList(),
+        addonResults: List<NuvioAddonDiagResult> = emptyList(),
+        jsResults: List<NuvioJsDiagResult> = emptyList(),
+        subResults: List<SubtitleDiagResult> = emptyList(),
+        continueResult: ContinueDiagResult? = null,
+        updateResults: List<UpdateAnnounceDiagResult> = emptyList(),
+        durationStr: String = "-",
+    ): String = buildString {
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        appendLine("# Play Otomatik Duman Testi (Smoke Test)")
+        appendLine()
+        appendLine("- **Tarih:** $timestamp")
+        appendLine("- **Uygulama Sürümü:** $versionName")
+        if (durationStr != "-") {
+            appendLine("- **Toplam Süre:** $durationStr")
+        }
+        appendLine()
+
+        val csOk = csResults.count { it.status == "OK" }
+        val csTotal = csResults.size
+        val addonOk = addonResults.count { it.status == "OK" }
+        val addonTotal = addonResults.size
+        val jsOk = jsResults.count { it.status == "OK" }
+        val jsTotal = jsResults.count { it.status != "atlandı" }
+        val subOk = subResults.count { it.status == "OK" }
+        val subTotal = subResults.size
+
+        appendLine("## Özet")
+        appendLine("- **CloudStream:** $csOk/$csTotal oynatılabilir")
+        appendLine("- **Nuvio Addon:** $addonOk/$addonTotal oynatılabilir")
+        appendLine("- **Nuvio JS Eklentileri:** $jsOk/$jsTotal akış/medya başarılı")
+        appendLine("- **Altyazı Sağlayıcıları:** $subOk/$subTotal Türkçe altyazı başarılı")
+        appendLine("- **Bölüm Devam:** ${continueResult?.status ?: "-"} (${continueResult?.details ?: "-"})")
+        val updOk = updateResults.count { it.status == "OK" }
+        val updTotal = updateResults.size
+        appendLine("- **Güncelleme ve Duyuru:** $updOk/$updTotal başarılı")
+        appendLine()
+
+        // 1. CloudStream Tablosu
+        appendLine("## 1. CloudStream Eklentileri")
+        appendLine("| Eklenti | Katalog | Load | Bölüm | Link | Medya | Altyazı | Durum | Hata/Neden |")
+        appendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+        for (r in csResults) {
+            appendLine("| ${r.pluginName} | ${r.catalogStatus} | ${r.loadStatus} | ${r.episodeStatus} | ${r.linkStatus} | ${r.mediaStatus} | ${r.subPluginStatus} | ${r.status} | ${r.errorReason} |")
+        }
+        appendLine()
+
+        // 2. Nuvio Addon Tablosu
+        appendLine("## 2. Nuvio Addon'ları")
+        appendLine("| Addon | Tür | Akış | Medya | Altyazı | Durum | Hata/Neden |")
+        appendLine("| --- | --- | --- | --- | --- | --- | --- |")
+        for (r in addonResults) {
+            appendLine("| ${r.name} | ${r.kind} | ${r.streamStatus} | ${r.mediaStatus} | ${r.subSourceStatus} | ${r.status} | ${r.errorReason} |")
+        }
+        appendLine()
+
+        // 3. Nuvio JS Eklentileri Tablosu
+        appendLine("## 3. Nuvio JS Eklentileri (Scrapers)")
+        appendLine("| Eklenti | Hedef | Akış | Medya | Altyazı | Durum | Hata/Neden |")
+        appendLine("| --- | --- | --- | --- | --- | --- | --- |")
+        for (r in jsResults) {
+            appendLine("| ${r.name} | ${r.target} | ${r.streamStatus} | ${r.mediaStatus} | ${r.subSourceStatus} | ${r.status} | ${r.errorReason} |")
+        }
+        appendLine()
+
+        // 4. Altyazı Sağlayıcıları Tablosu
+        appendLine("## 4. Altyazı Sağlayıcıları")
+        appendLine("| Sağlayıcı | Hedef | Türkçe Arama | İndirme & Ayrıştırma | Durum | Hata/Neden |")
+        appendLine("| --- | --- | --- | --- | --- | --- |")
+        for (r in subResults) {
+            appendLine("| ${r.name} | ${r.target} | ${r.searchStatus} | ${r.parseStatus} | ${r.status} | ${r.errorReason} |")
+        }
+        appendLine()
+
+        // 5. Devam Et Tablosu
+        appendLine("## 5. Devam Et (CsNextEpisodeFinder)")
+        appendLine("| Bileşen | Hedef | Sonuç | Durum | Hata/Neden |")
+        appendLine("| --- | --- | --- | --- | --- |")
+        if (continueResult != null) {
+            appendLine("| ${continueResult.name} | ${continueResult.target} | ${continueResult.details} | ${continueResult.status} | ${continueResult.errorReason} |")
+        }
+        appendLine()
+
+        // 6. Güncelleme ve Duyuru Kontrolü
+        appendLine("## 6. Güncelleme ve Duyuru Kontrolü")
+        appendLine("| Kaynak | Detay | Durum | Hata/Neden |")
+        appendLine("| --- | --- | --- | --- |")
+        for (r in updateResults) {
+            appendLine("| ${r.name} | ${r.details} | ${r.status} | ${r.errorReason} |")
+        }
     }
 }

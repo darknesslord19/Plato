@@ -2,6 +2,12 @@
 
 ## Yayınlanmamış / Unreleased
 
+### Türkçe
+- **Tek komutluk otomatik duman testi (Kullanıcı kararı 2026-10-21):** `python tools/smoke_test.py` ile uygulamanın ana yollarını (CloudStream eklentileri, Nuvio addon'ları, JS kazıyıcılar, AltyazıDB/AltyazıTR/çevrimiçi altyazı, bölüm devam ve GitHub güncelleme/duyuru) en çok 15 dakikada deneyen ve `docs/smoke-test.md` tablosu üreten otomatik test altyapısı eklendi. Önceki çalıştırmalarla (`docs/smoke-test.prev.json`) karşılaştırılarak gerilemeler (regresyonlar) tespit edilir ve gerileme durumunda betik hata koduyla sonlanır.
+
+### English
+- **Single-command automated smoke test (User decision 2026-10-21):** Added `python tools/smoke_test.py` automated test runner that verifies main application paths (CloudStream plugins, Nuvio addons, JS scrapers, AltyazıDB/AltyazıTR/online subtitles, next episode, GitHub update & announcements) in at most 15 minutes and outputs `docs/smoke-test.md`. Compares against previous runs (`docs/smoke-test.prev.json`) to detect regressions.
+
 ## [1.1.0] — 2026-10-21
 
 ### Türkçe

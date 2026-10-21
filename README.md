@@ -109,6 +109,14 @@ SUBDL_API_KEY=<isteğe bağlı: subdl.com ücretsiz anahtarı>
 ```
 `SUBDL_API_KEY` yoksa SubDL sessizce atlanır (aşağıda "Oynatıcı"). Anahtar derlemede `BuildConfig`'e girer, yani **derlenen APK'nın içinde bulunur**; git'e girmez (`local.properties` `.gitignore`'dadır).
 
+## Otomatik test (Smoke Test)
+Uygulamanın ana yollarını (CloudStream eklentileri, Nuvio addon'ları, JS kazıyıcılar, AltyazıDB/AltyazıTR/çevrimiçi altyazı, bölüm devam ve GitHub güncelleme/duyuru) insan müdahalesi olmadan otomatik denemek ve gerileme (regression) tablosu üretmek için tek komut:
+```powershell
+python tools/smoke_test.py             # Cihazdaki mevcut uygulamayı test eder
+python tools/smoke_test.py --install   # Önce gradlew installDebug çalıştırır, sonra test eder
+```
+Sonuçlar `docs/smoke-test.md` dosyasına yazılır ve önceki çalıştırma (`docs/smoke-test.prev.json`) ile karşılaştırılır. Önce çalışan ancak şimdi bozulan bir özellik varsa en üstte "GERİLEMELER" başlığıyla raporlanır ve betik `1` çıkış koduyla biter.
+
 ## Yol haritası
 - **Faz 1 tamamlandı** (1–10): 8. adım web sitesi ekle (reklamsız web görünümü), 9. adım TV, tablet ve kumanda desteği, 10. adım görünüm cilası. Faz 2'ye kendiliğinden başlanmaz; sıradaki adım için onay bekleniyor.
 - **Faz 2 (Nuvio plugin'leri / JS kazıyıcılar) tamam** (1. tur: eklenti deposu yönetimi + QuickJS çalıştırıcı; 2. tur: kaynak listesine bağlama, eklenti ayarları, sonuç önbelleği, gerçek depo denemesi).
