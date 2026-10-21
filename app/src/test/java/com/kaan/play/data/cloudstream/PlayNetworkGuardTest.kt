@@ -1,13 +1,94 @@
 package com.kaan.play.data.cloudstream
 
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class PlayNetworkGuardTest {
+
+    private fun guardedClient() = OkHttpClient.Builder()
+        .addInterceptor(PlayNetworkGuard.interceptor)
+        // Koruma geçerse buraya düşer; ağa çıkmadan sahte yanıt döner.
+        .addInterceptor { chain ->
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body("ok".toResponseBody())
+                .build()
+        }
+        .build()
+
+    @Test
+    fun `interceptor rejects blocked address with IOException on execute`() {
+        val call = guardedClient().newCall(Request.Builder().url("http://127.0.0.1:8765/announcements.json").build())
+        try {
+            call.execute()
+            fail("Expected BlockedAddressException")
+        } catch (e: BlockedAddressException) {
+            assertTrue(e is IOException)
+            assertTrue(e.cause is SecurityException)
+        }
+    }
+
+    @Test
+    fun `interceptor blocked async call reaches onFailure instead of crashing`() {
+        val failure = AtomicReference<IOException?>()
+        val latch = CountDownLatch(1)
+        // OkHttp, IOException olmayan istisnayı arka plan iş parçacığında yeniden fırlatır (uygulama çöker);
+        // bunu yakalamak için o iş parçacıklarındaki yakalanmamış istisnalar izlenir.
+        val uncaught = AtomicReference<Throwable?>()
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { _, t -> uncaught.set(t); latch.countDown() }
+        try {
+            guardedClient().newCall(Request.Builder().url("http://192.168.1.10/manifest.json").build())
+                .enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        failure.set(e)
+                        latch.countDown()
+                    }
+
+                    override fun onResponse(call: Call, response: Response) {
+                        response.close()
+                        latch.countDown()
+                    }
+                })
+            assertTrue(latch.await(10, TimeUnit.SECONDS))
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(previous)
+        }
+        assertNull(uncaught.get())
+        assertTrue(failure.get() is BlockedAddressException)
+    }
+
+    @Test
+    fun `interceptor lets public and allowed loopback requests through`() {
+        PlayNetworkGuard.allowLoopbackPort(8888)
+        val client = guardedClient()
+        client.newCall(Request.Builder().url("https://example.com/manifest.json").build()).execute().use {
+            assertEquals(200, it.code)
+        }
+        client.newCall(Request.Builder().url("http://127.0.0.1:8888/stream.m3u8").build()).execute().use {
+            assertEquals(200, it.code)
+        }
+    }
 
     @Before
     fun setUp() {

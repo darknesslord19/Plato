@@ -1,7 +1,15 @@
 package com.kaan.play.data.cloudstream
 
+import okhttp3.Interceptor
+import java.io.IOException
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * OkHttp isteği [PlayNetworkGuard] tarafından engellendi. IOException'dır: OkHttp yalnızca IOException'ı
+ * çağırana (`onFailure` / `execute`) iletir; başka bir istisna arka plan iş parçacığında uygulamayı çökertir.
+ */
+class BlockedAddressException(message: String?, cause: Throwable? = null) : IOException(message, cause)
 
 /**
  * CS plugin'lerine karşı ağ güvenliği: yerel/özel IP'ler reddedilir.
@@ -36,6 +44,20 @@ object PlayNetworkGuard {
     }
 
     fun isLoopbackPortAllowed(port: Int): Boolean = allowedLoopbackPorts.contains(port)
+
+    /**
+     * OkHttp istemcileri için koruma: engellenen istek [BlockedAddressException] (IOException) ile reddedilir,
+     * sıradan bir ağ hatası gibi işlenir ve uygulamayı çökertmez. [checkUrl] SecurityException fırlatmaya devam eder.
+     */
+    val interceptor: Interceptor = Interceptor { chain ->
+        val url = chain.request().url.toString()
+        try {
+            checkUrl(url)
+        } catch (e: SecurityException) {
+            throw BlockedAddressException(e.message, e)
+        }
+        chain.proceed(chain.request())
+    }
 
     fun checkUrl(url: String) {
         val lower = url.lowercase()

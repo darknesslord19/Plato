@@ -98,10 +98,10 @@ class AppContainer(context: Context) {
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
+        // Güvenlik denetimi (ilk sırada): engellenen istek IOException ile reddedilir, uygulamayı çökertmez.
+        .addInterceptor(com.kaan.play.data.cloudstream.PlayNetworkGuard.interceptor)
         .addInterceptor { chain ->
             val req = chain.request()
-            // Güvenlik denetimi
-            com.kaan.play.data.cloudstream.PlayNetworkGuard.checkUrl(req.url.toString())
             // 1. sn.hotlinger.com -> four.pichive.online rewrite
             val finalReq = if (req.url.host.contains("sn.hotlinger.com")) {
                 val newUrl = req.url.newBuilder().host("four.pichive.online").build()
