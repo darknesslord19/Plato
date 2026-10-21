@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-10-21 05:28:48",
-  "appVersion": "1.1.1",
+  "timestamp": "2026-10-21 15:25:53",
+  "appVersion": "1.1.2",
   "cloudstream": [
     {
       "name": "AnimeciX",
@@ -26,7 +26,7 @@
     },
     {
       "name": "BelgeselX",
-      "catalog": "OK (12 satır, 218 içerik)",
+      "catalog": "OK (10 satır, 185 içerik)",
       "load": "OK (Geleceğe Kalanlar)",
       "episode": "OK (S1E1)",
       "link": "OK (1 link, 480p)",
@@ -49,13 +49,13 @@
     {
       "name": "DiziBox",
       "catalog": "OK (5 satır, 121 içerik)",
-      "load": "OK (Love in Disguise)",
+      "load": "OK (The Drop: A Snowfall)",
       "episode": "OK (S1E1)",
       "link": "OK (3 link, 2160p)",
       "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
-      "reason": "2. denemede"
+      "reason": "-"
     },
     {
       "name": "DiziGom",
@@ -81,14 +81,14 @@
     },
     {
       "name": "Dizilla",
-      "catalog": "OK (12 satır, 236 içerik)",
-      "load": "OK (Slow Horses)",
+      "catalog": "OK (12 satır, 206 içerik)",
+      "load": "OK (VisionQuest)",
       "episode": "OK (S1E1)",
-      "link": "X (0 link / zaman aşımı)",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Extractor link çıkaramadı"
+      "link": "OK (4 link, 1080p)",
+      "media": "OK (M3U8 10KB)",
+      "subtitle": "OK (3 sub, TÜRKÇE FORCED 34 satır)",
+      "status": "OK",
+      "reason": "2. denemede"
     },
     {
       "name": "DiziMag",
@@ -125,18 +125,18 @@
     },
     {
       "name": "FilmMakinesi",
-      "catalog": "OK (11 satır, 185 içerik)",
-      "load": "OK (Crawlers izle (2026))",
+      "catalog": "OK (10 satır, 172 içerik)",
+      "load": "OK (Moana izle (2026))",
       "episode": "OK (Film)",
       "link": "OK (2 link, 1080p)",
       "media": "OK (M3U8 2KB)",
-      "subtitle": "OK (2 sub, TURKISH 660 satır)",
+      "subtitle": "X (zaman aşımı)",
       "status": "OK",
       "reason": "-"
     },
     {
       "name": "FilmModu",
-      "catalog": "OK (23 satır, 410 içerik)",
+      "catalog": "OK (15 satır, 278 içerik)",
       "load": "OK (Beetlejuice Beetleju)",
       "episode": "OK (Film)",
       "link": "OK (8 link, 1080p)",
@@ -158,12 +158,12 @@
     },
     {
       "name": "HDFilmCehennemi",
-      "catalog": "OK (6 satır, 130 içerik)",
-      "load": "OK (By Any Means)",
+      "catalog": "OK (6 satır, 129 içerik)",
+      "load": "OK (Moana 2026)",
       "episode": "OK (Film)",
-      "link": "OK (4 link, 360p)",
+      "link": "OK (2 link, 360p)",
       "media": "OK (M3U8 2KB)",
-      "subtitle": "Yok (0)",
+      "subtitle": "OK (2 sub, İNGILIZCE ALTYAZI 1244 satır)",
       "status": "OK",
       "reason": "-"
     },
@@ -195,7 +195,7 @@
       "load": "OK (Düşler)",
       "episode": "OK (Film)",
       "link": "OK (6 link, 360p)",
-      "media": "OK (MP4 512KB)",
+      "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
       "reason": "-"
@@ -205,7 +205,7 @@
       "catalog": "OK (24 satır, 311 içerik)",
       "load": "OK (Être et avoir – Olma)",
       "episode": "OK (Film)",
-      "link": "OK (1 link, 360p)",
+      "link": "OK (2 link, 360p)",
       "media": "OK (M3U8 1KB)",
       "subtitle": "OK (1 sub, TÜRKÇE 1256 satır)",
       "status": "OK",
@@ -214,8 +214,30 @@
     {
       "name": "SelcukFlix",
       "catalog": "OK (10 satır, 95 içerik)",
-      "load": "OK (Diversa)",
+      "load": "OK (Spider-Man: Brand Ne)",
       "episode": "OK (Film)",
+      "link": "OK (2 link, 360p)",
+      "media": "OK (M3U8 10KB)",
+      "subtitle": "OK (2 sub, İNGILIZCE 1945 satır)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "SetFilmIzle",
+      "catalog": "OK (27 satır, 365 içerik)",
+      "load": "OK (Yolda Kaldım)",
+      "episode": "OK (Film)",
+      "link": "OK (1 link, 1080p)",
+      "media": "OK (M3U8 83KB)",
+      "subtitle": "OK (4 sub, TR 641 satır)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "SezonlukDizi",
+      "catalog": "OK (9 satır, 176 içerik)",
+      "load": "OK (Brothers)",
+      "episode": "OK (S1E1)",
       "link": "X (0 link / zaman aşımı)",
       "media": "-",
       "subtitle": "-",
@@ -223,30 +245,8 @@
       "reason": "Extractor link çıkaramadı"
     },
     {
-      "name": "SetFilmIzle",
-      "catalog": "OK (27 satır, 367 içerik)",
-      "load": "OK (Ağzımdan Kaçtı)",
-      "episode": "OK (Film)",
-      "link": "OK (1 link, 1080p)",
-      "media": "OK (M3U8 93KB)",
-      "subtitle": "OK (4 sub, TR 724 satır)",
-      "status": "OK",
-      "reason": "2. denemede"
-    },
-    {
-      "name": "SezonlukDizi",
-      "catalog": "OK (9 satır, 179 içerik)",
-      "load": "OK (Cyberpunk: Edgerunne)",
-      "episode": "OK (S1E1)",
-      "link": "OK (1 link, 1080p)",
-      "media": "OK (M3U8 1KB)",
-      "subtitle": "Yok (0)",
-      "status": "OK",
-      "reason": "2. denemede"
-    },
-    {
       "name": "SinemaCX",
-      "catalog": "OK (22 satır, 198 içerik)",
+      "catalog": "OK (21 satır, 200 içerik)",
       "load": "OK (Hazine Avcısının Mac)",
       "episode": "OK (Film)",
       "link": "OK (3 link, 360p)",
@@ -279,7 +279,7 @@
     },
     {
       "name": "TavsiyeFilmIzle",
-      "catalog": "OK (20 satır, 138 içerik)",
+      "catalog": "OK (20 satır, 139 içerik)",
       "load": "OK (Nasıl Katil Olunur H)",
       "episode": "OK (Film)",
       "link": "X (0 link / zaman aşımı)",
@@ -290,14 +290,14 @@
     },
     {
       "name": "Watch2Movies",
-      "catalog": "OK (27 satır, 472 içerik)",
-      "load": "OK (Mikael: Hunter of Tw)",
-      "episode": "OK (Film)",
-      "link": "X (0 link / zaman aşımı)",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
       "media": "-",
       "subtitle": "-",
       "status": "X",
-      "reason": "Extractor link çıkaramadı"
+      "reason": "Katalog boş ya da zaman aşımı"
     },
     {
       "name": "WebteIzle",
@@ -319,7 +319,7 @@
       "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
-      "reason": "-"
+      "reason": "2. denemede"
     }
   ],
   "nuvio_addons": [
@@ -335,7 +335,7 @@
     {
       "name": "Torrentio",
       "kind": "Video Addon",
-      "stream": "OK (93 akış)",
+      "stream": "OK (96 akış)",
       "media": "torrent, atlandı",
       "subtitle": "Yok (0)",
       "status": "OK",
@@ -375,12 +375,12 @@
     {
       "name": "Dizilla",
       "target": "Dizi (tt0903747 S1B1)",
-      "stream": "X (0 akış)",
-      "media": "-",
-      "subtitle": "Yok (0)",
-      "status": "X",
-      "category": "site",
-      "reason": "Akış bulunamadı"
+      "stream": "OK (1 akış)",
+      "media": "OK (M3U8 10KB)",
+      "subtitle": "OK (2 sub, TR 593 satır)",
+      "status": "OK",
+      "category": "-",
+      "reason": "-"
     },
     {
       "name": "FullHDFilmizlesene",
@@ -415,22 +415,22 @@
     {
       "name": "SelcukFlix",
       "target": "Film (tt0137523)",
-      "stream": "X (0 akış)",
-      "media": "-",
-      "subtitle": "Yok (0)",
-      "status": "X",
-      "category": "site",
-      "reason": "Akış bulunamadı"
+      "stream": "OK (1 akış)",
+      "media": "OK (M3U8 10KB)",
+      "subtitle": "OK (3 sub, TR 1797 satır)",
+      "status": "OK",
+      "category": "-",
+      "reason": "-"
     },
     {
       "name": "SelcukFlix",
       "target": "Dizi (tt0903747 S1B1)",
-      "stream": "X (0 akış)",
-      "media": "-",
-      "subtitle": "Yok (0)",
-      "status": "X",
-      "category": "site",
-      "reason": "Akış bulunamadı"
+      "stream": "OK (1 akış)",
+      "media": "OK (M3U8 10KB)",
+      "subtitle": "OK (2 sub, TR 593 satır)",
+      "status": "OK",
+      "category": "-",
+      "reason": "-"
     }
   ],
   "subtitles": [
@@ -471,13 +471,29 @@
   "updates_and_announcements": [
     {
       "name": "GitHub releases/latest",
-      "details": "OK (tag: v1.1.1)",
+      "details": "OK (tag: v1.1.2)",
       "status": "OK",
       "reason": "-"
     },
     {
       "name": "announcements.json",
       "details": "OK (1 duyuru)",
+      "status": "OK",
+      "reason": "-"
+    }
+  ],
+  "player": [
+    {
+      "name": "Kumandayla sarma",
+      "target": "3 x Sağ, 1 x Sol (çubuk odakta)",
+      "details": "1:13 → 1:23 → 1:33 → 1:43 → 1:33",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "Sürükleyerek sarma",
+      "target": "çubukta %10 → %50",
+      "details": "5:11 / %49",
       "status": "OK",
       "reason": "-"
     }
