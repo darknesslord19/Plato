@@ -33,10 +33,10 @@ Değişmez kurallar: main'e birleştirme ve release yalnızca kullanıcı onayı
 - Detay ekranında "Son bölüm: S3 B5 · 2 gün önce" ve "Sonraki bölüm: 28 Ekim".
 - Veri: TMDB (günde bir kontrol); yalnızca CloudStream'den açılan dizilerde eklentinin bölüm listesi (en iyi çaba, `CsNextEpisodeFinder`).
 - Dikkat: bölüm TMDB'de yayınlansa da altyazılı/dublajlı kaynaklar günler sonra düşebilir; rozet birkaç saat gecikmeli gösterilebilir.
-- **Açık karar:** yalnızca rozet mi, ayrı "Yeni bölümler" rafı da mı? (Öneri: yalnızca rozet.)
+- **Karar (2026-10-21):** hem rozet hem ayrı **"Yeni bölümler" rafı** olacak. Raf yalnızca en az bir yeni bölüm varsa görünür (boş raf gösterilmez); şartnamede raf konumu ve sıralama netleştirilir.
 
 ### Aşama 2 — Gelir altyapısı
-- "Geliştiriciyi destekle" düğmesi (Patreon / Shopier / Papara; **açık karar:** hangisi).
+- "Geliştiriciyi destekle" düğmesi (Patreon / Shopier / Papara; **kullanıcı araştırıyor, acil değil**, şartname yazılmadan önce seçilir).
 - **Destekçi kodu:** kod = ad + bitiş tarihi, geliştiricideki gizli anahtarla imzalı; uygulama yalnızca açık anahtarla cihazda doğrular (sunucu yok). Girişi Ayarlar > Hakkında içinde (Ayarlar'a yeni ana kalem yok).
 - Destekçi özellikleri herkese **görünür ama kilitli** ("Destekçilere özel" + Destekle düğmesi). Süre bitince sessizce kilitlenir.
 - Destekçilere özel: yeni bölüm **bildirimi** ve **"Bu hafta çıkacaklar" takvimi** (günlük arka plan kontrolü, cihazda), özel temalar/ikonlar, "Destekçi" rozeti, erken erişim, özel Telegram kanalı.
@@ -54,13 +54,13 @@ Değişmez kurallar: main'e birleştirme ve release yalnızca kullanıcı onayı
 - Sunucu tarafı destekçi kontrolü (cihaz sınırı 2–3). Sunucu maliyeti ve bakımı gerektirir.
 
 ## 4. Açık sorular (kullanıcıdan beklenen)
-1. Yeni bölüm için yalnızca rozet yeterli mi, ayrı "Yeni bölümler" rafı da isteniyor mu?
-2. Ödeme hangi siteden alınacak (Patreon / Shopier / Papara)?
+1. Ödeme sitesi: kullanıcı araştırıyor (Aşama 2 şartnamesinden önce gerekli).
 
 ## 5. Günlük ritim
 - Her gün tek konu, 20–30 dk konuşma. Konuşulanlar bu dosyaya işlenir.
 - Bir aşamanın şartnamesi bitip onaylanınca yapım başlar; yapım sürerken sıradaki aşama konuşulur.
 
 ## 6. Karar günlüğü
+- 2026-10-21: Yeni bölüm için hem rozet hem "Yeni bölümler" rafı. Ödeme sitesi kullanıcı araştırınca seçilecek.
 - 2026-10-21: Watch List, Play'e karıştırılmaz; ayrı bir oluşum olarak kalır.
 - 2026-10-21: Gelir için bağış/destekçi modeli ile başlanır; hesap + bulut sonraya. Çalışma sistemi (yukarıdaki 7 adım) ve bu dosya oluşturuldu.
