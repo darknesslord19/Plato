@@ -43,8 +43,9 @@ Değişmez kurallar: main'e birleştirme ve release yalnızca kullanıcı onayı
 - Dürüst sınır: GPL-3.0 ve açık kod nedeniyle uygulama içi kilit kırılabilir; bu aşama için yeterli kabul edildi. Gerçek koruma yalnızca sunucu tarafı hizmetle mümkün (Aşama 4).
 - Ücretli modele geçmeden önce **avukat görüşü** alınması önerildi (içerik değil yazılım/hizmet için ücret; telif riski).
 
-### Aşama 3 — Bağlantılar
-- Trakt, Simkl (ücretsiz kalır), Watch List entegrasyonu. En kolay yol Trakt üzerinden; Watch List'in kendi girişi/sunucusu varsa o da kullanılabilir (**açık soru:** var mı?).
+### Aşama 3 — Bağlantılar (Trakt, Simkl)
+- Trakt ve Simkl (ücretsiz kalır).
+- **Watch List ayrı kalır:** kullanıcı kararı (2026-10-21), Watch List ile Play karıştırılmaz; kendi başına bir uygulama olarak ilerler. İleride ihtiyaç doğarsa ayrıca konuşulur.
 - Misafir modu: giriş yapmadan her şey bugünkü gibi çalışır.
 - Not: CLAUDE.md "Kapsam dışı" listesinde "tracker" ve "profil/kilit" var; bu aşamaya başlarken kural güncellenir.
 
@@ -53,13 +54,13 @@ Değişmez kurallar: main'e birleştirme ve release yalnızca kullanıcı onayı
 - Sunucu tarafı destekçi kontrolü (cihaz sınırı 2–3). Sunucu maliyeti ve bakımı gerektirir.
 
 ## 4. Açık sorular (kullanıcıdan beklenen)
-1. Watch List uygulamasının kendi giriş sistemi / sunucusu (ör. Firebase) var mı?
-2. Yeni bölüm için yalnızca rozet yeterli mi, ayrı "Yeni bölümler" rafı da isteniyor mu?
-3. Ödeme hangi siteden alınacak (Patreon / Shopier / Papara)?
+1. Yeni bölüm için yalnızca rozet yeterli mi, ayrı "Yeni bölümler" rafı da isteniyor mu?
+2. Ödeme hangi siteden alınacak (Patreon / Shopier / Papara)?
 
 ## 5. Günlük ritim
 - Her gün tek konu, 20–30 dk konuşma. Konuşulanlar bu dosyaya işlenir.
 - Bir aşamanın şartnamesi bitip onaylanınca yapım başlar; yapım sürerken sıradaki aşama konuşulur.
 
 ## 6. Karar günlüğü
+- 2026-10-21: Watch List, Play'e karıştırılmaz; ayrı bir oluşum olarak kalır.
 - 2026-10-21: Gelir için bağış/destekçi modeli ile başlanır; hesap + bulut sonraya. Çalışma sistemi (yukarıdaki 7 adım) ve bu dosya oluşturuldu.
