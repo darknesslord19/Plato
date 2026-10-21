@@ -2,10 +2,16 @@
 
 ## Yayınlanmamış / Unreleased
 
+## [1.1.1] — 2026-10-21
+
 ### Türkçe
+- **Hazır katalog: Play Özel Kataloglar (Kullanıcı kararı 2026-10-21):** İlk kurulumda (ve altyazı eklentilerini önceden almış kullanıcılarda bir kez) Play Özel Kataloglar katalog eklentisi açık olarak eklenir; yalnızca katalog verir, akış vermez. Silinirse geri gelmez. Rafları ana sayfada diğer katalog eklentilerinin ve TMDB raflarının önünde gelir; aynı adlı TMDB rafı ("Popüler filmler/diziler") tekrar gösterilmez. Sunucu kapalıysa raflar sessizce gizlenir.
+- **"Play yayında" duyurusu:** Uygulama içi duyuru eklendi (30 Kasım 2026'ya kadar).
 - **Tek komutluk otomatik duman testi (Kullanıcı kararı 2026-10-21):** `python tools/smoke_test.py` ile uygulamanın ana yollarını (CloudStream eklentileri, Nuvio addon'ları, JS kazıyıcılar, AltyazıDB/AltyazıTR/çevrimiçi altyazı, bölüm devam ve GitHub güncelleme/duyuru) en çok 15 dakikada deneyen ve `docs/smoke-test.md` tablosu üreten otomatik test altyapısı eklendi. Önceki çalıştırmalarla (`docs/smoke-test.prev.json`) karşılaştırılarak gerilemeler (regresyonlar) tespit edilir ve gerileme durumunda betik hata koduyla sonlanır.
 
 ### English
+- **Built-in catalog: Play Custom Catalogs (User decision 2026-10-21):** On first install (and once for users who already received the subtitle addons) the Play Custom Catalogs addon is added enabled; it provides catalogs only, no streams. Once deleted it does not come back. Its rows come first on the home screen, before other catalog addons and TMDB rows; a TMDB row with the same name ("Popular movies/series") is not shown twice. If the server is down, the rows are hidden silently.
+- **"Play is live" announcement:** In-app announcement added (until 30 November 2026).
 - **Single-command automated smoke test (User decision 2026-10-21):** Added `python tools/smoke_test.py` automated test runner that verifies main application paths (CloudStream plugins, Nuvio addons, JS scrapers, AltyazıDB/AltyazıTR/online subtitles, next episode, GitHub update & announcements) in at most 15 minutes and outputs `docs/smoke-test.md`. Compares against previous runs (`docs/smoke-test.prev.json`) to detect regressions.
 
 ## [1.1.0] — 2026-10-21
