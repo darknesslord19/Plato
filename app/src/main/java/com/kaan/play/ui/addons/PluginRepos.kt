@@ -253,11 +253,13 @@ private fun RepoRow(repo: PluginRepo, busy: Boolean, enabled: Boolean, onCheck: 
  */
 @Composable
 fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
-    val vm = containerViewModel { InstalledAddonsViewModel(it.addons, it.plugins, it.csRepos) }
+    val vm = containerViewModel { c -> InstalledAddonsViewModel(c.addons, c.plugins, c.csRepos) { c.catalogRepository.cache.clear() } }
     val addons by vm.addons.collectAsStateWithLifecycle()
     val groups by vm.groups.collectAsStateWithLifecycle()
     val csGroups by vm.csGroups.collectAsStateWithLifecycle()
+    val csDomains by vm.csDomains.collectAsStateWithLifecycle()
     var toRemove by remember { mutableStateOf<Addon?>(null) }
+    var domainEdit by remember { mutableStateOf<com.kaan.play.data.cloudstream.InstalledCsPlugin?>(null) }
 
     val addonList = addons
     val groupList = groups
@@ -360,11 +362,26 @@ fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
                         }
                     }
                     items(group.plugins, key = { "csp-${it.id}" }) { plugin ->
-                        CsPluginRow(plugin = plugin, onToggle = { vm.setCsPluginEnabled(plugin, it) })
+                        CsPluginRow(
+                            plugin = plugin,
+                            onToggle = { vm.setCsPluginEnabled(plugin, it) },
+                            domain = csDomains[plugin.pluginId],
+                            onEditDomain = { domainEdit = plugin },
+                        )
                     }
                 }
             }
         }
+    }
+
+    domainEdit?.let { plugin ->
+        CsDomainDialog(
+            plugin = plugin,
+            current = csDomains[plugin.pluginId],
+            loadDefault = { vm.csDefaultUrl(plugin) },
+            onSave = { url, onResult -> vm.setCsDomain(plugin, url, onResult) },
+            onDismiss = { domainEdit = null },
+        )
     }
 
     toRemove?.let { addon ->

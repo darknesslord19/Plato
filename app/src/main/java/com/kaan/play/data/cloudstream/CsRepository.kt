@@ -67,6 +67,8 @@ class CsRepository(
     private val loader: PluginDexLoader,
     private val clock: () -> Long = System::currentTimeMillis,
     private val parallelDownloads: Int = 2,
+    /** Kullanıcının eklenti başına girdiği site adresleri; null ise (testler) geçersiz kılma yok. */
+    val domains: CsDomainOverrides? = null,
 ) {
 
     val repos: Flow<List<CsRepo>> = combine(
@@ -243,15 +245,38 @@ class CsRepository(
      * Açık eklentiler için [MainAPI] listesini döner.
      * Her çağrıda DEX'i [PathClassLoader] ile yükler (Android sınıf yükleyici önbelleği bunu ucuzlatır).
      */
-    suspend fun loadApis(pluginRowId: Long): List<MainAPI> {
+    suspend fun loadApis(pluginRowId: Long, applyDomainOverride: Boolean = true): List<MainAPI> {
         val row = pluginDao.byId(pluginRowId) ?: return emptyList()
         val dexFile = store.dexFile(pluginRowId)
         if (!dexFile.exists()) return emptyList()
         // row.pluginId = depo düzeyindeki internalName; gerçek sınıf adı manifest.json'daki
         // pluginClassName'dir ve genelde farklıdır (bkz. resolveMainClassName).
         val className = resolveMainClassName(store.readManifest(pluginRowId), row.pluginId)
-        return loader.loadPlugin(dexFile, className)
+        val apis = loader.loadPlugin(dexFile, className)
+        if (applyDomainOverride) applyDomain(row.pluginId, apis)
+        return apis
     }
+
+    /**
+     * Kullanıcı bu eklenti için yeni bir site adresi girdiyse her [MainAPI]'nin `mainUrl`'si onunla değiştirilir.
+     * Her yüklemede yeni örnekler geldiği için her seferinde uygulanır; hata olursa eklentinin kendi adresi kalır.
+     */
+    private suspend fun applyDomain(internalName: String, apis: List<MainAPI>) {
+        val override = runCatching { domains?.get(internalName) }.getOrNull() ?: return
+        apis.forEach { api ->
+            try {
+                api.mainUrl = override
+            } catch (t: Throwable) {
+                Log.d(TAG, "applyDomain: ${api.name} adresi değiştirilemedi ${t.javaClass.simpleName}")
+            }
+        }
+    }
+
+    /** Eklentinin kendi (geçersiz kılınmamış) site adresi; yüklenemezse null. */
+    suspend fun defaultMainUrl(pluginRowId: Long): String? =
+        runCatching { loadApis(pluginRowId, applyDomainOverride = false).firstOrNull()?.mainUrl }
+            .getOrNull()
+            ?.takeIf { it.startsWith("http", ignoreCase = true) }
 
     suspend fun enabledPlugins(): List<InstalledCsPlugin> =
         pluginDao.enabledOfType(AddonType.CLOUDSTREAM_REPO).map { it.toInstalled() }

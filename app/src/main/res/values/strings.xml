@@ -483,4 +483,14 @@
     <string name="provider_verify_title">Security Verification</string>
     <string name="provider_verify_close">Close</string>
     <string name="provider_verify_hint">Please check the box on screen</string>
+    <!-- CloudStream eklentisi site adresi (alan adı değişince) -->
+    <string name="cs_domain_action">Change site address</string>
+    <string name="cs_domain_title">Site address</string>
+    <string name="cs_domain_message">If the site moved to a new domain, enter the new address. This addon will use it from now on.</string>
+    <string name="cs_domain_default">Addon\'s own address: %1$s</string>
+    <string name="cs_domain_label">New address</string>
+    <string name="cs_domain_invalid">Enter a valid web address, e.g. https://example.com</string>
+    <string name="cs_domain_save">Save</string>
+    <string name="cs_domain_reset">Use addon\'s address</string>
+    <string name="cs_domain_current">Address: %1$s</string>
 </resources>

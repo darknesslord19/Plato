@@ -301,6 +301,14 @@ class AppContainer(context: Context) {
             httpClient = httpClient,
             store = csDexStore,
             loader = csDexLoader,
+            domains = csDomains,
+        )
+    }
+
+    /** Kullanıcının CloudStream eklentileri için girdiği yeni site adresleri (alan adı değişince). */
+    val csDomains: com.kaan.play.data.cloudstream.CsDomainOverrides by lazy {
+        com.kaan.play.data.cloudstream.CsDomainOverrides(
+            PreferenceDataStoreFactory.create { appContext.preferencesDataStoreFile("cs_domains") },
         )
     }
 

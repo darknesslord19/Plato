@@ -2,6 +2,14 @@
 
 ## Yayınlanmamış / Unreleased
 
+### Türkçe
+- **Site adresi değiştirme:** Ayarlar › Eklentiler › Yüklü eklentiler'de her CloudStream eklentisinin yanında küre düğmesi var. Site yeni bir alan adına taşındıysa yeni adresi yazıp kaydet; eklenti bundan sonra o adresi kullanır. "Eklentinin adresine dön" ile eskiye dönülür.
+- **Otomatik derleme:** GitHub Actions her gönderimde testleri çalıştırır ve imzalı APK'yı Releases'e koyar.
+
+### English
+- **Change site address:** In Settings › Addons › Installed addons, each CloudStream addon has a globe button. If the site moved to a new domain, enter the new address; the addon uses it from then on. "Use addon's address" reverts it.
+- **Automatic builds:** GitHub Actions runs the tests and publishes a signed APK to Releases on every push.
+
 ## [1.1.4] — 2026-10-21
 
 ### Türkçe

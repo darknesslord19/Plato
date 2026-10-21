@@ -465,4 +465,14 @@
     <string name="provider_verify_title">Güvenlik Doğrulaması</string>
     <string name="provider_verify_close">Kapat</string>
     <string name="provider_verify_hint">Lütfen ekrandaki kutucuğu işaretleyin</string>
+    <!-- CloudStream eklentisi site adresi (alan adı değişince) -->
+    <string name="cs_domain_action">Site adresini değiştir</string>
+    <string name="cs_domain_title">Site adresi</string>
+    <string name="cs_domain_message">Site yeni bir alan adına taşındıysa yeni adresi yaz. Eklenti bundan sonra bu adresi kullanır.</string>
+    <string name="cs_domain_default">Eklentinin kendi adresi: %1$s</string>
+    <string name="cs_domain_label">Yeni adres</string>
+    <string name="cs_domain_invalid">Geçerli bir web adresi yaz, ör. https://ornek.com</string>
+    <string name="cs_domain_save">Kaydet</string>
+    <string name="cs_domain_reset">Eklentinin adresine dön</string>
+    <string name="cs_domain_current">Adres: %1$s</string>
 </resources>
