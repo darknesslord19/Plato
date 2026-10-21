@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-21 04:25:10",
+  "timestamp": "2026-10-21 05:02:11",
   "appVersion": "1.1.0",
   "cloudstream": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "name": "Anizm",
-      "catalog": "OK (10 satır, 248 içerik)",
+      "catalog": "OK (10 satır, 251 içerik)",
       "load": "OK (Anime ara)",
       "episode": "X (Bölüm yok)",
       "link": "-",
@@ -26,7 +26,7 @@
     },
     {
       "name": "BelgeselX",
-      "catalog": "OK (13 satır, 238 içerik)",
+      "catalog": "OK (12 satır, 218 içerik)",
       "load": "OK (Geleceğe Kalanlar)",
       "episode": "OK (S1E1)",
       "link": "OK (1 link, 480p)",
@@ -44,7 +44,7 @@
       "media": "OK (MP4 512KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
-      "reason": "-"
+      "reason": "2. denemede"
     },
     {
       "name": "DiziBox",
@@ -81,14 +81,14 @@
     },
     {
       "name": "Dizilla",
-      "catalog": "OK (12 satır, 238 içerik)",
-      "load": "OK (Phony)",
-      "episode": "OK (S1E1)",
-      "link": "X (0 link / zaman aşımı)",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
       "media": "-",
       "subtitle": "-",
       "status": "X",
-      "reason": "Extractor link çıkaramadı"
+      "reason": "Katalog boş ya da zaman aşımı"
     },
     {
       "name": "DiziMag",
@@ -125,36 +125,36 @@
     },
     {
       "name": "FilmMakinesi",
-      "catalog": "OK (11 satır, 184 içerik)",
+      "catalog": "OK (11 satır, 185 içerik)",
       "load": "OK (Crawlers izle (2026))",
       "episode": "OK (Film)",
       "link": "OK (2 link, 1080p)",
       "media": "OK (M3U8 2KB)",
       "subtitle": "OK (2 sub, TURKISH 660 satır)",
       "status": "OK",
-      "reason": "-"
+      "reason": "2. denemede"
     },
     {
       "name": "FilmModu",
-      "catalog": "OK (21 satır, 377 içerik)",
+      "catalog": "OK (23 satır, 410 içerik)",
       "load": "OK (Beetlejuice Beetleju)",
       "episode": "OK (Film)",
       "link": "OK (8 link, 1080p)",
       "media": "OK (M3U8 213KB)",
       "subtitle": "OK (1 sub, TÜRKÇE 1470 satır)",
       "status": "OK",
-      "reason": "-"
+      "reason": "2. denemede"
     },
     {
       "name": "FullHDFilm",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
+      "catalog": "OK (3 satır, 75 içerik)",
+      "load": "OK (Uykucu (2025))",
+      "episode": "OK (Film)",
+      "link": "OK (1 link, 360p)",
+      "media": "X (Connection closed by peer)",
+      "subtitle": "X (zaman aşımı)",
       "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "reason": "Medya doğrulanamadı: Connection closed by peer"
     },
     {
       "name": "HDFilmCehennemi",
@@ -169,12 +169,12 @@
     },
     {
       "name": "HDFilmIzle",
-      "catalog": "OK (10 satır, 125 içerik)",
-      "load": "OK (Aile Planı (2023) Th)",
+      "catalog": "OK (16 satır, 205 içerik)",
+      "load": "OK (Of-Pof Balık (2026) )",
       "episode": "OK (Film)",
       "link": "OK (1 link, 360p)",
       "media": "X (Connection closed by peer)",
-      "subtitle": "X (zaman aşımı)",
+      "subtitle": "Yok (0)",
       "status": "X",
       "reason": "Medya doğrulanamadı: Connection closed by peer"
     },
@@ -195,7 +195,7 @@
       "load": "OK (Düşler)",
       "episode": "OK (Film)",
       "link": "OK (6 link, 360p)",
-      "media": "OK (MP4 512KB)",
+      "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
       "reason": "-"
@@ -209,7 +209,7 @@
       "media": "OK (M3U8 1KB)",
       "subtitle": "OK (1 sub, TÜRKÇE 1256 satır)",
       "status": "OK",
-      "reason": "-"
+      "reason": "2. denemede"
     },
     {
       "name": "SelcukFlix",
@@ -231,7 +231,7 @@
       "media": "OK (M3U8 93KB)",
       "subtitle": "OK (4 sub, TR 724 satır)",
       "status": "OK",
-      "reason": "-"
+      "reason": "2. denemede"
     },
     {
       "name": "SezonlukDizi",
@@ -242,16 +242,16 @@
       "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
-      "reason": "-"
+      "reason": "2. denemede"
     },
     {
       "name": "SinemaCX",
-      "catalog": "OK (22 satır, 198 içerik)",
+      "catalog": "OK (10 satır, 111 içerik)",
       "load": "OK (Hazine Avcısının Mac)",
       "episode": "OK (Film)",
       "link": "OK (3 link, 360p)",
       "media": "OK (M3U8 2KB)",
-      "subtitle": "X (zaman aşımı)",
+      "subtitle": "OK (1 sub, TURKISH 772 satır)",
       "status": "OK",
       "reason": "-"
     },
@@ -313,9 +313,9 @@
     {
       "name": "YabanciDizi",
       "catalog": "OK (16 satır, 235 içerik)",
-      "load": "OK (007: Road to a Milli)",
+      "load": "OK (3Below: Tales of Arc)",
       "episode": "OK (S1E1)",
-      "link": "OK (3 link, 360p)",
+      "link": "OK (10 link, 360p)",
       "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
@@ -415,22 +415,22 @@
     {
       "name": "SelcukFlix",
       "target": "Film (tt0137523)",
-      "stream": "X (Hata)",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "category": "uygulama",
-      "reason": "Hata"
-    },
-    {
-      "name": "SelcukFlix",
-      "target": "Dizi (tt0903747 S1B1)",
       "stream": "X (0 akış)",
       "media": "-",
       "subtitle": "Yok (0)",
       "status": "X",
       "category": "site",
       "reason": "Akış bulunamadı"
+    },
+    {
+      "name": "SelcukFlix",
+      "target": "Dizi (tt0903747 S1B1)",
+      "stream": "X (Hata)",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "category": "uygulama",
+      "reason": "Hata"
     }
   ],
   "subtitles": [
