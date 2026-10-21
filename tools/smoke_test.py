@@ -21,6 +21,9 @@ Gereksinimler (2026-10-21 Kullanıcı Kararı):
    ilerleme çubuğunda sarınca video başa dönüyordu). Debug derlemedeki `play_test_video` ekstrasıyla
    herkese açık bir test videosu açılır (izleme geçmişine yazılmaz); konumlar ekrandan okunur.
    --no-player ile atlanır.
+8. Ana sayfa eklenti seçicisinde geçiş (kullanıcının bulduğu hata, 2026-10-21: Nuvio katalog addon'u seçiliyken
+   CloudStream eklentisi seçilince seçim uygulanmıyordu). Nuvio → CloudStream → CloudStream → Nuvio; her adımda
+   hap yeni sağlayıcının adını göstermeli. Sonunda "Tüm sağlayıcılar"a dönülür. --no-selector ile atlanır.
 """
 
 import argparse
@@ -263,6 +266,136 @@ def player_seek_check(adb, dev):
         _adb_shell(adb, dev, "am", "force-stop", "com.kaan.play")
 
 
+_NAV_LABELS = {"Ana sayfa", "Ara", "Kütüphane", "Ayarlar", "Home", "Search", "Library", "Settings"}
+
+
+def _ui_nodes(adb, dev):
+    _adb_shell(adb, dev, "uiautomator", "dump", "/sdcard/play_ui.xml")
+    xml = _adb_shell(adb, dev, "cat", "/sdcard/play_ui.xml")
+    out = []
+    for m in re.finditer(r'text="([^"]*)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml):
+        if m.group(1):
+            out.append((m.group(1).replace("&amp;", "&"), *map(int, m.groups()[1:])))
+    return out
+
+
+def _screen_size(adb, dev):
+    m = re.search(r"(\d+)x(\d+)", _adb_shell(adb, dev, "wm", "size").strip().splitlines()[-1])
+    return (int(m.group(1)), int(m.group(2))) if m else (1600, 900)
+
+
+def _tap_node(adb, dev, node):
+    _, x0, y0, x1, y1 = node
+    _adb_shell(adb, dev, "input", "tap", str((x0 + x1) // 2), str((y0 + y1) // 2))
+
+
+def _pill_node(adb, dev, size):
+    """
+    Sağ alttaki seçici hapı. Hap içeriğin üstüne en son çizildiği için dökümde sağ alt bölgedeki son metindir
+    (alttaki afiş başlıkları ondan önce gelir); gezinme etiketleri sayılmaz.
+    """
+    w, h = size
+    cands = [n for n in _ui_nodes(adb, dev) if n[1] > w * 0.55 and n[2] > h * 0.75 and n[0] not in _NAV_LABELS]
+    return cands[-1] if cands else None
+
+
+def _open_selector_tab(adb, dev, size, tab):
+    pill = _pill_node(adb, dev, size)
+    if pill is None:
+        return False
+    _tap_node(adb, dev, pill)
+    time.sleep(2)
+    # Sekme çipi: aynı metinli bölüm başlığından önce (daha yukarıda) durur.
+    chips = [n for n in _ui_nodes(adb, dev) if n[0] == tab]
+    if not chips:
+        return False
+    _tap_node(adb, dev, min(chips, key=lambda n: n[2]))
+    time.sleep(1.5)
+    return True
+
+
+def _providers_in_sheet(adb, dev, prefix):
+    """Açık seçicideki sağlayıcı satırları: alt yazısı `prefix` ile başlayan satırın üstündeki ad."""
+    nodes = _ui_nodes(adb, dev)
+    out = []
+    for i, n in enumerate(nodes):
+        if n[0].startswith(prefix) and i > 0:
+            out.append(nodes[i - 1])
+    return out
+
+
+def _wait_pill(adb, dev, size, name, timeout=10):
+    deadline = time.time() + timeout
+    last = None
+    while time.time() < deadline:
+        pill = _pill_node(adb, dev, size)
+        last = pill[0] if pill else None
+        if last == name:
+            return True, last
+        time.sleep(1)
+    return False, last
+
+
+def provider_switch_check(adb, dev):
+    """Nuvio → CloudStream → CloudStream → Nuvio geçişlerinde seçimin anında uygulandığını dener."""
+    print("\nEklenti seçici geçiş kontrolü...")
+    names = ["Nuvio → CloudStream", "CloudStream → CloudStream", "CloudStream → Nuvio"]
+    rows = [{"name": n, "target": "-", "details": "-", "status": "X", "reason": "-"} for n in names]
+    size = _screen_size(adb, dev)
+    _adb_shell(adb, dev, "am", "force-stop", "com.kaan.play")
+    _adb_shell(adb, dev, "monkey", "-p", "com.kaan.play", "-c", "android.intent.category.LAUNCHER", "1")
+    time.sleep(15)  # sağlayıcı listesi yüklensin
+
+    def select(tab, prefix, index):
+        if not _open_selector_tab(adb, dev, size, tab):
+            return None, "Seçici açılamadı"
+        items = _providers_in_sheet(adb, dev, prefix)
+        if len(items) <= index:
+            _adb_shell(adb, dev, "input", "keyevent", "KEYCODE_BACK")
+            time.sleep(1)
+            return None, f"{tab} sağlayıcısı yok"
+        node = items[index]
+        _tap_node(adb, dev, node)
+        return node[0], None
+
+    try:
+        first, err = select("Nuvio", "Nuvio · ", 0)
+        if err or not _wait_pill(adb, dev, size, first)[0]:
+            for r in rows:
+                r["reason"] = err or "Nuvio seçimi uygulanmadı"
+                r["status"] = "atlandı" if err and "yok" in err else "X"
+            return rows
+        steps = [("CloudStream", "CloudStream · ", 0), ("CloudStream", "CloudStream · ", 1), ("Nuvio", "Nuvio · ", 0)]
+        prev = first
+        for row, (tab, prefix, idx) in zip(rows, steps):
+            name, err = select(tab, prefix, idx)
+            if err:
+                row["status"] = "atlandı" if "yok" in err else "X"
+                row["reason"] = err
+                continue
+            ok, shown = _wait_pill(adb, dev, size, name)
+            row["target"] = f"{prev} → {name}"
+            row["details"] = f"hap: {shown}"
+            if ok:
+                row["status"] = "OK"
+            else:
+                row["reason"] = "Seçim uygulanmadı (hap değişmedi)" if shown == prev else "Hap beklenen adı göstermedi"
+            prev = name
+        return rows
+    finally:
+        # Varsayılan akışa dön
+        pill = _pill_node(adb, dev, size)
+        if pill is not None:
+            _tap_node(adb, dev, pill)
+            time.sleep(2)
+            for n in _ui_nodes(adb, dev):
+                if n[0] in ("Tüm sağlayıcılar", "All providers"):
+                    _tap_node(adb, dev, n)
+                    break
+            time.sleep(1)
+        _adb_shell(adb, dev, "am", "force-stop", "com.kaan.play")
+
+
 def detect_regressions(curr_data, prev_data):
     """
     Önceki çalıştırmada 'OK' olup bu çalıştırmada 'X' olanları listeler.
@@ -288,6 +421,8 @@ def detect_regressions(curr_data, prev_data):
             m[("Güncelleme/Duyuru", item.get("name", ""))] = item
         for item in data.get("player", []):
             m[("Oynatıcı", item.get("name", ""))] = item
+        for item in data.get("selector", []):
+            m[("Seçici", item.get("name", ""))] = item
         return m
 
     prev_map = make_map(prev_data)
@@ -323,6 +458,7 @@ def generate_markdown(curr_data, duration_str, regressions):
     cont_list = curr_data.get("continue_watching", [])
     upd_list = curr_data.get("updates_and_announcements", [])
     player_list = curr_data.get("player", [])
+    selector_list = curr_data.get("selector", [])
 
     cs_ok = sum(1 for x in cs_list if x.get("status") == "OK")
     cs_total = len(cs_list)
@@ -423,6 +559,15 @@ def generate_markdown(curr_data, duration_str, regressions):
             lines.append(f"| {r.get('name','-')} | {r.get('target','-')} | {r.get('details','-')} | {r.get('status','-')} | {r.get('reason','-')} |")
         lines.append("")
 
+    # 8. Ana sayfa eklenti seçicisinde geçiş
+    if selector_list:
+        lines.append("## 8. Eklenti seçici (geçiş)")
+        lines.append("| Geçiş | Hedef | Sonuç | Durum | Hata/Neden |")
+        lines.append("| --- | --- | --- | --- | --- |")
+        for r in selector_list:
+            lines.append(f"| {r.get('name','-')} | {r.get('target','-')} | {r.get('details','-')} | {r.get('status','-')} | {r.get('reason','-')} |")
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -435,6 +580,7 @@ def main():
     parser.add_argument("--prev", type=str, default=DEFAULT_PREV_JSON, help="Önceki test JSON dosyası")
     parser.add_argument("--out-md", type=str, default=DEFAULT_MD_OUT, help="Çıktı Markdown dosyası yolu")
     parser.add_argument("--no-player", action="store_true", help="Oynatıcı sarma kontrolünü atlar")
+    parser.add_argument("--no-selector", action="store_true", help="Eklenti seçici geçiş kontrolünü atlar")
     args = parser.parse_args()
 
     adb = find_adb(args.adb)
@@ -505,6 +651,11 @@ def main():
         curr_data["player"] = player_seek_check(adb, dev)
         for r in curr_data["player"]:
             print(f"[Oynatıcı] {r['name']}: {r['status']} ({r['details']}) {r['reason'] if r['status'] != 'OK' else ''}")
+
+    if not args.no_selector:
+        curr_data["selector"] = provider_switch_check(adb, dev)
+        for r in curr_data["selector"]:
+            print(f"[Seçici] {r['name']}: {r['status']} ({r['target']}; {r['details']}) {r['reason'] if r['status'] != 'OK' else ''}")
 
     # Önceki çalıştırmayı oku
     prev_data = None
