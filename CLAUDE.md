@@ -2,6 +2,9 @@
 
 Sade, özgün bir Android film/dizi istemcisi. Kotlin + Jetpack Compose + Material 3. applicationId `com.kaan.play`, minSdk 24, compileSdk/targetSdk 37.
 
+## Yol haritası (her göreve başlamadan önce oku)
+Uzun vadeli plan, çalışma sistemi (şartname → onay → yapım → doğrulama → beta → yayın), aşamalar ve kararlar `docs/yol-haritasi.md` içindedir. **Her göreve başlamadan önce bu dosya okunur**; bir karar değişirse ya da bir aşama ilerlerse aynı işte dosya güncellenir. Dosyada onaylanmamış bir özelliğe kullanıcı onayı olmadan başlanmaz.
+
 ## Kopyalama yok, özgün kimlik (bağlayıcı kural)
 - Her şey sıfırdan yazılır. Başka bir uygulamadan kod, ikon, logo, metin, renk veya kart biçimi kopyalanmaz.
 - `referans/` içindeki ekran görüntüleri yalnızca **düzen ve bilgi hiyerarşisi** için bakılır. Renk, ikon, metin ve kart biçimi özgün olur. Referanstaki fazla ayar ve süsler taşınmaz.
