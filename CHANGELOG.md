@@ -2,6 +2,18 @@
 
 ## Yayınlanmamış / Unreleased
 
+## [1.1.4] — 2026-10-21
+
+### Türkçe
+- **Kurulu tüm depolar:** Ekran artık tüm Nuvio ve CloudStream depolarını gösteriyor (Nuvio addon'ları, Nuvio eklenti depoları ve CloudStream depoları; iki bölümde).
+- **Eklenti seçici:** Nuvio bölümü en üstte, CloudStream bölümü altında; iğnelenenler kendi bölümünün başında. Yalnızca katalog veren Nuvio kaynakları listelenir.
+- **Seçim düzeltmesi:** Eklenti seçerken seçimin uygulanmaması düzeltildi; seçim hemen uygulanır, düğme yeni adı gösterir ve ana sayfa yeni sağlayıcının raflarına geçer.
+
+### English
+- **All installed repositories:** The screen now shows every Nuvio and CloudStream repository (Nuvio addons, Nuvio plugin repositories and CloudStream repositories, in two sections).
+- **Addon picker:** The Nuvio section comes first, CloudStream below it; pinned items stay at the top of their own section. Only Nuvio sources that provide catalogs are listed.
+- **Selection fix:** Fixed picking an addon not taking effect; the choice now applies right away, the button shows the new name and the home screen switches to the new provider's rows.
+
 ## [1.1.3] — 2026-10-21
 
 ### Türkçe
