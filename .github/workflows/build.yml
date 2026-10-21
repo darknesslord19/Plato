@@ -150,8 +150,17 @@ jobs:
         run: |
           apk="app/build/outputs/apk/release/Play-${{ steps.version.outputs.name }}.apk"
           test -f "$apk" || { echo "::error::$apk bulunamadı"; exit 1; }
-          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
-          "$apksigner" verify --print-certs "$apk" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          if [ -z "$apksigner" ]; then
+            echo "::warning::apksigner bulunamadı; imza doğrulaması atlandı."
+            exit 0
+          fi
+          if ! "$apksigner" verify --print-certs "$apk" > /tmp/apksigner.txt 2>&1; then
+            msg=$(tail -5 /tmp/apksigner.txt | sed -e ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=APK imzası::$msg"
+            exit 1
+          fi
+          grep -iE "certificate (DN|SHA-256)" /tmp/apksigner.txt || true
 
       - name: Anahtar dosyasını sil
         if: always()
@@ -165,6 +174,7 @@ jobs:
             app/build/outputs/apk/release/Play-${{ steps.version.outputs.name }}.apk
             app/build/outputs/apk/release/Play-${{ steps.version.outputs.name }}-SHA256.txt
           retention-days: 30
+          if-no-files-found: error
 
       - name: GitHub Release yayımla
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -180,6 +190,12 @@ jobs:
 
           ⚠️ Geçici anahtarla imzalandı: önceki sürümün üzerine kurulamaz, önce kaldırman gerekir. Depo ayarlarına KEYSTORE_BASE64 ve KEYSTORE_PASSWORD ekleyince bu sorun kalkar."
           fi
-          gh release create "v$NAME" \
+          if ! gh release create "v$NAME" \
             "$dir/Play-$NAME.apk" "$dir/Play-$NAME-SHA256.txt" \
-            --target "$GITHUB_SHA" --title "Play $NAME" --notes "$notes" --latest
+            --target "$GITHUB_SHA" --title "Play $NAME" --notes "$notes" --latest > /tmp/release.txt 2>&1; then
+            cat /tmp/release.txt
+            msg=$(tail -5 /tmp/release.txt | sed -e ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=GitHub Release::$msg"
+            exit 1
+          fi
+          cat /tmp/release.txt
