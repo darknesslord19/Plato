@@ -95,3 +95,8 @@ Is bitince kisa ve su sirayla:
 5. **APK** - masaustundeki dosya adi (verildiyse).
 
 Bir adim yapilamadiysa (cihaz bagli degil, derleme kirik) "bitti" deme; nerede durdugunu ve nedenini yaz.
+
+## 10. Yayın sonrası README
+
+Her yeni sürüm yayınlandığında README'deki "APK İNDİR" düğmesinin adresi yeni APK'ya güncellenir:
+`https://github.com/liberta09/Play/releases/download/v<sürüm>/Play-<sürüm>.apk` (kullanıcı kararı 2026-10-21: düğme sayfaya değil, doğrudan dosyaya gider). Bu adım yayının parçasıdır; atlanırsa kullanıcılar eski sürümü indirir.
