@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-10-21 05:02:11",
-  "appVersion": "1.1.0",
+  "timestamp": "2026-10-21 05:28:48",
+  "appVersion": "1.1.1",
   "cloudstream": [
     {
       "name": "AnimeciX",
@@ -44,7 +44,7 @@
       "media": "OK (MP4 512KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
-      "reason": "2. denemede"
+      "reason": "-"
     },
     {
       "name": "DiziBox",
@@ -55,7 +55,7 @@
       "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
-      "reason": "-"
+      "reason": "2. denemede"
     },
     {
       "name": "DiziGom",
@@ -81,14 +81,14 @@
     },
     {
       "name": "Dizilla",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
+      "catalog": "OK (12 satır, 236 içerik)",
+      "load": "OK (Slow Horses)",
+      "episode": "OK (S1E1)",
+      "link": "X (0 link / zaman aşımı)",
       "media": "-",
       "subtitle": "-",
       "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "reason": "Extractor link çıkaramadı"
     },
     {
       "name": "DiziMag",
@@ -132,7 +132,7 @@
       "media": "OK (M3U8 2KB)",
       "subtitle": "OK (2 sub, TURKISH 660 satır)",
       "status": "OK",
-      "reason": "2. denemede"
+      "reason": "-"
     },
     {
       "name": "FilmModu",
@@ -143,7 +143,7 @@
       "media": "OK (M3U8 213KB)",
       "subtitle": "OK (1 sub, TÜRKÇE 1470 satır)",
       "status": "OK",
-      "reason": "2. denemede"
+      "reason": "-"
     },
     {
       "name": "FullHDFilm",
@@ -161,7 +161,7 @@
       "catalog": "OK (6 satır, 130 içerik)",
       "load": "OK (By Any Means)",
       "episode": "OK (Film)",
-      "link": "OK (2 link, 360p)",
+      "link": "OK (4 link, 360p)",
       "media": "OK (M3U8 2KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
@@ -195,7 +195,7 @@
       "load": "OK (Düşler)",
       "episode": "OK (Film)",
       "link": "OK (6 link, 360p)",
-      "media": "OK (M3U8 1KB)",
+      "media": "OK (MP4 512KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
       "reason": "-"
@@ -209,7 +209,7 @@
       "media": "OK (M3U8 1KB)",
       "subtitle": "OK (1 sub, TÜRKÇE 1256 satır)",
       "status": "OK",
-      "reason": "2. denemede"
+      "reason": "-"
     },
     {
       "name": "SelcukFlix",
@@ -246,7 +246,7 @@
     },
     {
       "name": "SinemaCX",
-      "catalog": "OK (10 satır, 111 içerik)",
+      "catalog": "OK (22 satır, 198 içerik)",
       "load": "OK (Hazine Avcısının Mac)",
       "episode": "OK (Film)",
       "link": "OK (3 link, 360p)",
@@ -315,7 +315,7 @@
       "catalog": "OK (16 satır, 235 içerik)",
       "load": "OK (3Below: Tales of Arc)",
       "episode": "OK (S1E1)",
-      "link": "OK (10 link, 360p)",
+      "link": "OK (12 link, 360p)",
       "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
@@ -425,12 +425,12 @@
     {
       "name": "SelcukFlix",
       "target": "Dizi (tt0903747 S1B1)",
-      "stream": "X (Hata)",
+      "stream": "X (0 akış)",
       "media": "-",
-      "subtitle": "-",
+      "subtitle": "Yok (0)",
       "status": "X",
-      "category": "uygulama",
-      "reason": "Hata"
+      "category": "site",
+      "reason": "Akış bulunamadı"
     }
   ],
   "subtitles": [
@@ -471,13 +471,13 @@
   "updates_and_announcements": [
     {
       "name": "GitHub releases/latest",
-      "details": "OK (tag: v1.1.0)",
+      "details": "OK (tag: v1.1.1)",
       "status": "OK",
       "reason": "-"
     },
     {
       "name": "announcements.json",
-      "details": "OK (0 duyuru)",
+      "details": "OK (1 duyuru)",
       "status": "OK",
       "reason": "-"
     }
