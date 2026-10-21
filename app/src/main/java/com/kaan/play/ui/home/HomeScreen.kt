@@ -107,7 +107,9 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val hasSource by container.hasAnySource.collectAsStateWithLifecycle(initialValue = null)
     val selectedProviders by container.providers.selectedProviders.collectAsStateWithLifecycle(initialValue = emptySet())
-    val allProviders by container.providers.allProviders.collectAsStateWithLifecycle(initialValue = emptyList())
+    // null: liste henüz yükleniyor (boş listeyle karıştırılmasın; bkz. ProviderRules.resolveSelection).
+    val loadedProviders by container.providers.allProviders.collectAsStateWithLifecycle(initialValue = null)
+    val allProviders = loadedProviders.orEmpty()
     var showProviderSelector by remember { mutableStateOf(false) }
     var activeProviderRow by remember { mutableStateOf<CatalogRow?>(null) }
 
@@ -124,22 +126,19 @@ fun HomeScreen(
         return
     }
 
-    val isAllSelected = ProviderRules.isAllProviders(selectedProviders)
-    val validSelected = remember(allProviders, selectedProviders) {
-        allProviders.filter { it.id in selectedProviders }
+    val selection = remember(loadedProviders, selectedProviders) {
+        ProviderRules.resolveSelection(selectedProviders, loadedProviders)
     }
+    val validSelected = selection.valid
 
-    // Gizlenen sağlayıcı önceden seçiliyse sessizce düşür
-    LaunchedEffect(allProviders, selectedProviders) {
-        if (allProviders.isNotEmpty() && selectedProviders.isNotEmpty() && !isAllSelected) {
-            val validIds = selectedProviders.filter { id -> allProviders.any { it.id == id } }.toSet()
-            if (validIds != selectedProviders) {
-                container.providers.setSelectedProviders(validIds)
-            }
+    // Silinen/kapatılan sağlayıcı seçiliyse sessizce düşür; liste yüklenirken hiçbir şey düşürülmez.
+    LaunchedEffect(selection.stale) {
+        if (selection.stale.isNotEmpty()) {
+            container.providers.setSelectedProviders(selectedProviders - selection.stale)
         }
     }
 
-    val effectiveIsAll = isAllSelected || (allProviders.isNotEmpty() && validSelected.isEmpty())
+    val effectiveIsAll = selection.showAll
     val pillText = when {
         effectiveIsAll || validSelected.isEmpty() -> stringResource(R.string.provider_pill_select)
         validSelected.size == 1 -> validSelected.first().name
@@ -186,11 +185,12 @@ fun HomeScreen(
             ProviderSelectorSheet(
                 providers = allProviders,
                 selectedIds = selectedProviders,
+                // Uygulama kapsamında yazılır: seçici kapanırken ya da ekran değişirken yazma iptal olmasın.
                 onSelectSingle = { id ->
-                    scope.launch { container.providers.setSelectedProviders(ProviderRules.singleSelect(id)) }
+                    container.appScope.launch { container.providers.setSelectedProviders(ProviderRules.singleSelect(id)) }
                 },
                 onApplyMulti = { ids ->
-                    scope.launch { container.providers.setSelectedProviders(ids) }
+                    container.appScope.launch { container.providers.setSelectedProviders(ids) }
                 },
                 onTogglePin = { id ->
                     scope.launch { container.providers.togglePin(id) }

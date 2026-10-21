@@ -7,6 +7,12 @@ enum class ProviderTab { All, CloudStream, Nuvio }
 
 enum class ProviderKind { CloudStream, NuvioAddon, NuvioPlugin }
 
+/**
+ * Ana sayfa seçiminin çözümü ([ProviderRules.resolveSelection]). [valid]: listede bulunan seçili sağlayıcılar;
+ * [showAll]: varsayılan akış gösterilir; [stale]: listede artık olmayan (silinmiş/kapatılmış) seçili kimlikler.
+ */
+data class ResolvedSelection(val valid: List<ProviderItem>, val showAll: Boolean, val stale: Set<String>)
+
 /** Seçicide bölüm: önce Nuvio, sonra CloudStream (kullanıcı kararı 2026-10-21). */
 enum class ProviderSectionKind { Nuvio, CloudStream }
 

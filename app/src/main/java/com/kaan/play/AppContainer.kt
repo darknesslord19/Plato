@@ -309,7 +309,7 @@ class AppContainer(context: Context) {
 
     /** Sağlayıcı merkezli ana sayfa için sağlayıcı listesi ve seçim durumu (Aşama A). */
     val providers: com.kaan.play.data.provider.ProviderRepository by lazy {
-        com.kaan.play.data.provider.ProviderRepository(database.addonDao(), database.pluginDao(), settings.store, csRepos)
+        com.kaan.play.data.provider.ProviderRepository(database.addonDao(), database.pluginDao(), settings.store, csRepos, appScope)
     }
 
     /** Sağlayıcı merkezli ana sayfa için katalog çekme ve önbellek yöneticisi (Aşama B). */

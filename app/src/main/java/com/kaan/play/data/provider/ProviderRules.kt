@@ -47,6 +47,21 @@ object ProviderRules {
     }
 
     /**
+     * Seçili kimlikleri sağlayıcı listesiyle eşleştirir (kullanıcı bildirimi 2026-10-21: seçim uygulanmıyordu).
+     * [providers] null ise liste henüz yükleniyordur: seçim olduğu gibi korunur, hiçbir kimlik düşürülmez
+     * (yüklenmemiş listeyi "boş" sanıp yeni seçimi silmek seçimi geri alıyordu). Liste yüklenince yalnızca listede
+     * gerçekten olmayan kimlikler [ResolvedSelection.stale] olur.
+     */
+    fun resolveSelection(selectedIds: Set<String>, providers: List<ProviderItem>?): ResolvedSelection {
+        if (isAllProviders(selectedIds)) return ResolvedSelection(emptyList(), showAll = true, stale = emptySet())
+        if (providers == null) return ResolvedSelection(emptyList(), showAll = false, stale = emptySet())
+        val known = providers.mapTo(HashSet()) { it.id }
+        val valid = providers.filter { it.id in selectedIds }
+        val stale = selectedIds.filterTo(LinkedHashSet()) { it !in known && it != ProviderConstants.ALL_PROVIDERS_ID }
+        return ResolvedSelection(valid, showAll = valid.isEmpty(), stale = stale)
+    }
+
+    /**
      * Ana sayfa kataloğu verebilen Nuvio sağlayıcıları: açık ve manifestinde `catalogs` olan addon'lar ve plugin
      * depoları (girdi sırası korunur). Katalogsuz olanlar (Torrentio, Nexus, altyazı addon'ları, yalnızca kazıyıcı
      * listeleyen plugin depoları) seçicide ve ana sayfada yer almaz. Hepsi aynı addon katalog yolundan (`nuvio_addon:`) çekilir.

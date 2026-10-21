@@ -10,10 +10,16 @@ import com.kaan.play.data.db.AddonDao
 import com.kaan.play.data.db.AddonType
 import com.kaan.play.data.db.PluginDao
 import com.kaan.play.data.net.PlayJson
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -25,6 +31,8 @@ class ProviderRepository(
     private val pluginDao: PluginDao,
     private val dataStore: DataStore<Preferences>,
     private val csRepository: CsRepository? = null,
+    /** Verilirse CloudStream listesi bu kapsamda bir kez hesaplanıp paylaşılır (her toplayıcı DEX yüklemesin). */
+    private val scope: CoroutineScope? = null,
 ) {
 
     val pinnedProviders: Flow<Set<String>> = dataStore.data.map { prefs ->
@@ -40,7 +48,16 @@ class ProviderRepository(
     private suspend fun csPluginHasCatalog(pluginId: Long): Boolean {
         val repo = csRepository ?: return true
         csHasCatalogCache[pluginId]?.let { return it }
-        val apis = runCatching { repo.loadApis(pluginId) }.getOrDefault(emptyList())
+        // İptal yutulmaz ve hata önbelleğe girmez: eskiden runCatching iptali de yakalayıp "katalog yok" diye kalıcı
+        // önbelleğe yazıyordu; liste hesaplanırken uygulama arka plana geçince o eklenti oturum boyunca listeden
+        // düşüyor, seçiliyse seçim de temizleniyordu.
+        val apis = try {
+            repo.loadApis(pluginId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            return false
+        }
         val hasCatalog = apis.any { api ->
             api.hasMainPage || runCatching { !api.mainPage.isNullOrEmpty() }.getOrDefault(false)
         }
@@ -62,6 +79,9 @@ class ProviderRepository(
             ProviderItem(id = id, name = p.name, subtitle = sub, kind = ProviderKind.CloudStream)
         }
     }
+        // DEX yükleme ana iş parçacığında değil; listeyi toplayan her ekran ayrı ayrı yeniden hesaplamasın.
+        .flowOn(Dispatchers.IO)
+        .let { flow -> scope?.let { flow.shareIn(it, SharingStarted.WhileSubscribed(5_000), replay = 1) } ?: flow }
 
     /**
      * Katalog veren Nuvio sağlayıcıları: addon'lar ve manifestinde `catalogs` olan plugin depoları

@@ -196,4 +196,55 @@ class ProviderRulesTest {
         assertEquals(listOf("nuvio_addon:1", "nuvio_addon:6"), items.map { it.id })
         assertTrue(items.all { it.kind == ProviderKind.NuvioAddon })
     }
+
+    // --- Seçim uygulanmıyordu (kullanıcı bildirimi 2026-10-21): Nuvio "izlelan" seçiliyken CloudStream eklentisi seçildi ---
+
+    private val switchProviders = listOf(
+        ProviderItem(id = "nuvio_addon:10", name = "izlelan", subtitle = "Nuvio · izlelan", kind = ProviderKind.NuvioAddon),
+        ProviderItem(id = "nuvio_addon:11", name = "İzlemeli.com Katalog", subtitle = "Nuvio", kind = ProviderKind.NuvioAddon),
+        ProviderItem(id = "cs:7", name = "AlbaniaLive", subtitle = "CloudStream", kind = ProviderKind.CloudStream),
+        ProviderItem(id = "cs:8", name = "DiziBox", subtitle = "CloudStream", kind = ProviderKind.CloudStream),
+    )
+
+    private fun pillName(selected: Set<String>, providers: List<ProviderItem>?): String? =
+        ProviderRules.resolveSelection(selected, providers).let { if (it.showAll) null else it.valid.firstOrNull()?.name }
+
+    @Test
+    fun switchingBetweenNuvioAndCloudStreamAppliesImmediately() {
+        var selected = ProviderRules.singleSelect("nuvio_addon:10")
+        assertEquals("izlelan", pillName(selected, switchProviders))
+        // Nuvio → CloudStream
+        selected = ProviderRules.singleSelect("cs:7")
+        assertEquals("AlbaniaLive", pillName(selected, switchProviders))
+        assertTrue(ProviderRules.resolveSelection(selected, switchProviders).stale.isEmpty())
+        // CloudStream → CloudStream
+        selected = ProviderRules.singleSelect("cs:8")
+        assertEquals("DiziBox", pillName(selected, switchProviders))
+        // CloudStream → Nuvio
+        selected = ProviderRules.singleSelect("nuvio_addon:11")
+        assertEquals("İzlemeli.com Katalog", pillName(selected, switchProviders))
+    }
+
+    @Test
+    fun selectionIsKeptWhileProviderListIsStillLoading() {
+        // Liste henüz gelmedi (null): yeni seçim düşürülmez, varsayılan akışa da dönülmez.
+        val resolved = ProviderRules.resolveSelection(setOf("cs:7"), null)
+        assertTrue(resolved.stale.isEmpty())
+        assertFalse(resolved.showAll)
+        // Liste gelince seçim uygulanır.
+        assertEquals("AlbaniaLive", pillName(setOf("cs:7"), switchProviders))
+    }
+
+    @Test
+    fun removedProviderIsDroppedOnlyAfterListLoaded() {
+        val resolved = ProviderRules.resolveSelection(setOf("cs:99", "cs:8"), switchProviders)
+        assertEquals(setOf("cs:99"), resolved.stale)
+        assertEquals(listOf("DiziBox"), resolved.valid.map { it.name })
+        // Hiç sağlayıcı yoksa (hepsi silindi) seçim düşer, varsayılan akış gösterilir.
+        val none = ProviderRules.resolveSelection(setOf("cs:7"), emptyList())
+        assertTrue(none.showAll)
+        assertEquals(setOf("cs:7"), none.stale)
+        // "Tüm sağlayıcılar"
+        assertTrue(ProviderRules.resolveSelection(emptySet(), switchProviders).showAll)
+    }
 }
