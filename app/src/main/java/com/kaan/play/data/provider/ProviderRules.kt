@@ -87,4 +87,31 @@ object ProviderRules {
             )
         return nuvioProviders + pinnedCs
     }
+
+    /**
+     * Ana sayfadaki bir sağlayıcı bölümünde gösterilecek raflar. Hata, boş sonuç ve öğesiz raflar gösterilmez:
+     * sunucu kapalıysa ya da yanıt vermezse bölüm sessizce gizlenir (boş liste).
+     */
+    fun homeSectionRows(result: CatalogResult): List<CatalogRow> = when (result) {
+        is CatalogResult.Success -> result.rows.filter { it.items.isNotEmpty() }
+        else -> emptyList()
+    }
+
+    /**
+     * Ana sayfada sağlayıcı raflarıyla aynı adı taşıyan TMDB raflarının anahtarları (ikinci kopya gizlenir).
+     * Yalnızca gerçekten görünen (yüklenmiş, öğeli) sağlayıcı rafları sayılır; addon rafı yüklenemezse TMDB rafı
+     * görünür kalır. Karşılaştırma büyük/küçük harf ve fazla boşluk duyarsız, Türkçe harf kurallarıyla
+     * ("Popüler filmler" = "Popüler Filmler").
+     */
+    fun <K> duplicateTmdbRows(tmdbTitles: Map<K, String>, shownProviderTitles: Collection<String>): Set<K> {
+        val shown = shownProviderTitles.mapTo(HashSet()) { normalizeRowTitle(it) }
+        if (shown.isEmpty()) return emptySet()
+        return tmdbTitles.filterValues { normalizeRowTitle(it) in shown }.keys
+    }
+
+    private val TURKISH = Locale.forLanguageTag("tr")
+    private val SPACES = Regex("\\s+")
+
+    internal fun normalizeRowTitle(title: String): String =
+        title.trim().replace(SPACES, " ").lowercase(TURKISH)
 }

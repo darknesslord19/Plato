@@ -96,4 +96,39 @@ class ProviderRulesTest {
         assertFalse(ProviderRules.isAllProviders(setOf("cs:1")))
         assertFalse(ProviderRules.isAllProviders(setOf("cs:1", "nuvio_addon:10")))
     }
+
+    private fun row(title: String, items: Int = 1) = CatalogRow(
+        id = title,
+        title = title,
+        items = List(items) { CatalogItem(id = "i$it", title = "F$it", posterUrl = null, providerId = "nuvio_addon:1") },
+        providerId = "nuvio_addon:1",
+        providerName = "Play Özel Kataloglar",
+    )
+
+    @Test
+    fun homeSectionRowsKeepsOnlyRowsWithItems() {
+        val result = CatalogResult.Success(listOf(row("Popüler Filmler"), row("Boş", items = 0)))
+        assertEquals(listOf("Popüler Filmler"), ProviderRules.homeSectionRows(result).map { it.title })
+        assertTrue(ProviderRules.homeSectionRows(CatalogResult.NoCatalogProvided).isEmpty())
+    }
+
+    @Test
+    fun duplicateTmdbRowsHidesSameNamedRowsTurkishCaseInsensitive() {
+        val tmdb = mapOf(
+            "trend_movies" to "Trend filmler",
+            "popular_movies" to "Popüler filmler",
+            "popular_series" to "Popüler  diziler ",
+        )
+        val shown = listOf("Haftanın Filmleri", "Popüler Filmler", "POPÜLER DİZİLER")
+        assertEquals(setOf("popular_movies", "popular_series"), ProviderRules.duplicateTmdbRows(tmdb, shown))
+    }
+
+    @Test
+    fun duplicateTmdbRowsKeepsTmdbWhenAddonRowsNotShown() {
+        val tmdb = mapOf("popular_movies" to "Popüler filmler")
+        // Addon rafı yüklenemedi (sunucu kapalı): görünen raf yok, TMDB rafı kalır.
+        assertTrue(ProviderRules.duplicateTmdbRows(tmdb, emptyList()).isEmpty())
+        // İngilizce arayüzde adlar farklı: gizlenmez.
+        assertTrue(ProviderRules.duplicateTmdbRows(mapOf("popular_movies" to "Popular movies"), listOf("Popüler Filmler")).isEmpty())
+    }
 }

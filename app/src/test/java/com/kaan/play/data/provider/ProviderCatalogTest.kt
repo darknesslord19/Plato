@@ -282,6 +282,30 @@ class ProviderCatalogTest {
         assertEquals("Page 2 Film", page2Items[0].title)
     }
 
+    @Test
+    fun playCatalogsServerDownHidesSectionSilently(): Unit = runBlocking {
+        // Play Özel Kataloglar tohumlandığı gibi; sunucu kapalı (her istek bağlantı hatası).
+        val seeded = com.kaan.play.data.addon.DefaultCatalogAddons.DEFAULTS.single()
+        val addon = Addon(
+            id = 5L,
+            type = AddonType.NUVIO_ADDON,
+            sourceUrl = seeded.url,
+            manifest = seeded.manifest,
+            enabled = true,
+            addedAt = 1000L,
+        )
+        var calls = 0
+        val downClient = createFakeOkHttpClient { calls++; throw IOException("Connection refused") }
+
+        val rows = NuvioAddonCatalog(addon, downClient).rows().first()
+
+        assertTrue(rows.isEmpty())
+        assertEquals(10, calls)
+        // Ana sayfa bölümü: hata/boş sonuçta raf gösterilmez (sessizce gizlenir).
+        assertTrue(ProviderRules.homeSectionRows(CatalogResult.Empty).isEmpty())
+        assertTrue(ProviderRules.homeSectionRows(CatalogResult.Error()).isEmpty())
+    }
+
     private fun createFakeOkHttpClient(interceptor: (Request) -> Response): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor { chain -> interceptor(chain.request()) }

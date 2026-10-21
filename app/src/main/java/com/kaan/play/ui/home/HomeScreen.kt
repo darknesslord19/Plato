@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -254,6 +255,16 @@ private fun HomeContent(
     val listState = rememberLazyListState()
     LaunchedEffect(hasContinue) { if (hasContinue) listState.scrollToItem(0) }
 
+    // Sağlayıcı raflarıyla aynı adı taşıyan TMDB rafı (ör. "Popüler filmler") ikinci kopya olarak gizlenir;
+    // yalnızca gerçekten görünen sağlayıcı rafları sayılır (addon rafı yüklenemezse TMDB rafı kalır).
+    val shownProviderTitles = remember { mutableStateMapOf<String, List<String>>() }
+    val tmdbTitles = HomeRow.entries.associateWith { stringResource(it.titleRes()) }
+    val providerIds = homeProviders.mapTo(HashSet()) { it.id }
+    val hiddenTmdbRows = ProviderRules.duplicateTmdbRows(
+        tmdbTitles,
+        shownProviderTitles.filterKeys { it in providerIds }.values.flatten(),
+    )
+
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -306,10 +317,11 @@ private fun HomeContent(
                     onOpenProviderDetail = onOpenProviderDetail,
                     onOpenProviderCategory = onOpenProviderCategory,
                     onOpenSearch = onOpenSearch,
+                    onShownTitles = { titles -> shownProviderTitles[provider.id] = titles },
                 )
             }
         }
-        HomeRow.entries.forEach { row ->
+        HomeRow.entries.filterNot { it in hiddenTmdbRows }.forEach { row ->
             item(key = row.name) {
                 Section(
                     title = stringResource(row.titleRes()),
@@ -477,6 +489,7 @@ private fun LazyProviderSection(
     onOpenProviderDetail: (providerId: String, url: String) -> Unit,
     onOpenProviderCategory: (CatalogRow) -> Unit,
     onOpenSearch: (String) -> Unit,
+    onShownTitles: (List<String>) -> Unit = {},
 ) {
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
@@ -497,18 +510,18 @@ private fun LazyProviderSection(
         loadSemaphore.withPermit {
             try {
                 val result = container.catalogRepository.loadCatalog(setOf(provider.id))
-                state = when (result) {
-                    is CatalogResult.Success -> {
-                        val valid = result.rows.filter { it.items.isNotEmpty() }
-                        if (valid.isNotEmpty()) ProviderSectionUiState.Ready(valid)
-                        else ProviderSectionUiState.Hidden
-                    }
-                    else -> ProviderSectionUiState.Hidden
-                }
+                // Sunucu kapalı / hata / boş: bölüm sessizce gizlenir (ProviderRules.homeSectionRows).
+                val valid = ProviderRules.homeSectionRows(result)
+                state = if (valid.isNotEmpty()) ProviderSectionUiState.Ready(valid) else ProviderSectionUiState.Hidden
             } catch (_: Throwable) {
                 state = ProviderSectionUiState.Hidden
             }
         }
+    }
+
+    // Görünen raf adlarını ana sayfaya bildir (aynı adlı TMDB raflarını gizlemek için).
+    LaunchedEffect(state) {
+        onShownTitles((state as? ProviderSectionUiState.Ready)?.rows?.map { it.title }.orEmpty())
     }
 
     when (val current = state) {
