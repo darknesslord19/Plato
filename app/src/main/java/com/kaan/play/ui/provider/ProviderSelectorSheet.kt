@@ -52,6 +52,7 @@ import com.kaan.play.R
 import com.kaan.play.data.provider.ProviderConstants
 import com.kaan.play.data.provider.ProviderItem
 import com.kaan.play.data.provider.ProviderRules
+import com.kaan.play.data.provider.ProviderSectionKind
 import com.kaan.play.data.provider.ProviderTab
 import com.kaan.play.ui.components.Button
 import com.kaan.play.ui.components.FilterPill
@@ -84,11 +85,9 @@ fun ProviderSelectorSheet(
     var isMultiSelect by remember { mutableStateOf(false) }
     var draftSelected by remember(selectedIds) { mutableStateOf(selectedIds - ProviderConstants.ALL_PROVIDERS_ID) }
 
-    val tabFiltered = remember(providers, selectedTab) {
-        ProviderRules.filterByTab(providers, selectedTab)
-    }
-    val visibleItems = remember(tabFiltered, query) {
-        ProviderRules.filterByQuery(tabFiltered, query)
+    // Önce Nuvio, sonra CloudStream; sekme ve arama iki bölümü birlikte süzer (ProviderRules.selectorSections).
+    val sections = remember(providers, selectedTab, query) {
+        ProviderRules.selectorSections(providers, selectedTab, query)
     }
 
     val inputMode = LocalInputModeManager.current.inputMode
@@ -250,46 +249,51 @@ fun ProviderSelectorSheet(
                         }
                     }
 
-                    // Bölüm başlığı
-                    if (visibleItems.isNotEmpty()) {
-                        item(key = "header_providers") {
+                    sections.forEach { section ->
+                        // Bölüm başlığı (Nuvio / CloudStream)
+                        item(key = "header_${section.kind.name}") {
                             Text(
-                                text = stringResource(R.string.provider_section_title),
+                                text = stringResource(
+                                    when (section.kind) {
+                                        ProviderSectionKind.Nuvio -> R.string.provider_section_nuvio
+                                        ProviderSectionKind.CloudStream -> R.string.provider_section_cloudstream
+                                    },
+                                ),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp),
                             )
                         }
-                    }
 
-                    // Eklentiler listesi
-                    items(visibleItems, key = { it.id }) { item ->
-                        val isSelected = if (isMultiSelect) {
-                            item.id in draftSelected
-                        } else {
-                            item.id in selectedIds && !ProviderRules.isAllProviders(selectedIds)
+                        // Eklentiler listesi
+                        items(section.items, key = { it.id }) { item ->
+                            val isSelected = if (isMultiSelect) {
+                                item.id in draftSelected
+                            } else {
+                                item.id in selectedIds && !ProviderRules.isAllProviders(selectedIds)
+                            }
+
+                            ProviderRow(
+                                item = item,
+                                isSelected = isSelected,
+                                isMultiSelect = isMultiSelect,
+                                onClick = {
+                                    if (isMultiSelect) {
+                                        draftSelected = ProviderRules.toggleMultiSelect(draftSelected, item.id)
+                                    } else {
+                                        onSelectSingle(item.id)
+                                        onDismiss()
+                                    }
+                                },
+                                onLongClick = {
+                                    if (!isMultiSelect) {
+                                        isMultiSelect = true
+                                        draftSelected = setOf(item.id)
+                                    }
+                                },
+                                onTogglePin = { onTogglePin(item.id) },
+                            )
                         }
-
-                        ProviderRow(
-                            item = item,
-                            isSelected = isSelected,
-                            isMultiSelect = isMultiSelect,
-                            onClick = {
-                                if (isMultiSelect) {
-                                    draftSelected = ProviderRules.toggleMultiSelect(draftSelected, item.id)
-                                } else {
-                                    onSelectSingle(item.id)
-                                    onDismiss()
-                                }
-                            },
-                            onLongClick = {
-                                if (!isMultiSelect) {
-                                    isMultiSelect = true
-                                    draftSelected = setOf(item.id)
-                                }
-                            },
-                            onTogglePin = { onTogglePin(item.id) },
-                        )
                     }
                 }
             }

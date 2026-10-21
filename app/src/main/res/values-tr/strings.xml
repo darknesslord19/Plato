@@ -440,7 +440,8 @@
     <string name="provider_tab_all">Hepsi</string>
     <string name="provider_tab_cloudstream" translatable="false">CloudStream</string>
     <string name="provider_tab_nuvio" translatable="false">Nuvio</string>
-    <string name="provider_section_title">Sağlayıcılar</string>
+    <string name="provider_section_nuvio">Nuvio</string>
+    <string name="provider_section_cloudstream">CloudStream</string>
     <string name="provider_all_providers">Tüm sağlayıcılar</string>
     <string name="provider_all_providers_desc">Varsayılan akış</string>
     <string name="provider_pin">Sabitle</string>

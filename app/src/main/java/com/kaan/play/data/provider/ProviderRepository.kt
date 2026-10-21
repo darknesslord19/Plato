@@ -63,15 +63,26 @@ class ProviderRepository(
         }
     }
 
-    private val nuvioProviders: Flow<List<ProviderItem>> = addonDao.observeOfType(AddonType.NUVIO_ADDON).map { addons ->
-        addons.filter { a ->
-            if (!a.enabled) return@filter false
-            val manifest = runCatching { PlayJson.decodeFromString(AddonManifest.serializer(), a.manifestJson) }.getOrNull()
-            manifest != null && manifest.catalogs.isNotEmpty()
-        }.map { a ->
-            val id = "nuvio_addon:${a.id}"
-            ProviderItem(id = id, name = a.name, subtitle = "Nuvio · ${a.name}", kind = ProviderKind.NuvioAddon, addonId = a.addonId)
-        }
+    /**
+     * Katalog veren Nuvio sağlayıcıları: addon'lar ve manifestinde `catalogs` olan plugin depoları
+     * ([ProviderRules.nuvioCatalogProviders]). Plugin deposu manifesti addon manifesti olarak okunamıyorsa
+     * (yalnızca `scrapers` listesi) katalog sunmaz sayılır.
+     */
+    private val nuvioProviders: Flow<List<ProviderItem>> = combine(
+        addonDao.observeOfType(AddonType.NUVIO_ADDON),
+        addonDao.observeOfType(AddonType.NUVIO_PLUGIN_REPO),
+    ) { addons, pluginRepos ->
+        ProviderRules.nuvioCatalogProviders(
+            (addons + pluginRepos).map { a ->
+                NuvioSource(
+                    rowId = a.id,
+                    name = a.name,
+                    addonId = a.addonId,
+                    enabled = a.enabled,
+                    manifest = runCatching { PlayJson.decodeFromString(AddonManifest.serializer(), a.manifestJson) }.getOrNull(),
+                )
+            },
+        )
     }
 
     /**

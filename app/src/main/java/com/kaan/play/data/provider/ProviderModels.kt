@@ -7,6 +7,23 @@ enum class ProviderTab { All, CloudStream, Nuvio }
 
 enum class ProviderKind { CloudStream, NuvioAddon, NuvioPlugin }
 
+/** Seçicide bölüm: önce Nuvio, sonra CloudStream (kullanıcı kararı 2026-10-21). */
+enum class ProviderSectionKind { Nuvio, CloudStream }
+
+data class ProviderSection(val kind: ProviderSectionKind, val items: List<ProviderItem>)
+
+/**
+ * Nuvio kaynağı (addon ya da plugin deposu) satırı; [manifest] Stremio addon manifesti olarak okunamazsa null.
+ * [rowId]: `addons` tablosundaki satır kimliği (katalog yolu `nuvio_addon:<rowId>` ile bunu bulur).
+ */
+data class NuvioSource(
+    val rowId: Long,
+    val name: String,
+    val addonId: String?,
+    val enabled: Boolean,
+    val manifest: com.kaan.play.data.addon.AddonManifest?,
+)
+
 /**
  * Sağlayıcı seçicide listelenen tek bir eklenti / sağlayıcı öğesi.
  * [id]: Benzersiz kimlik (örn. "cs:12", "nuvio_addon:3", "nuvio_plugin:5").

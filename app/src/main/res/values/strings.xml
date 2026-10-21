@@ -458,7 +458,8 @@
     <string name="provider_tab_all">All</string>
     <string name="provider_tab_cloudstream" translatable="false">CloudStream</string>
     <string name="provider_tab_nuvio" translatable="false">Nuvio</string>
-    <string name="provider_section_title">Providers</string>
+    <string name="provider_section_nuvio">Nuvio</string>
+    <string name="provider_section_cloudstream">CloudStream</string>
     <string name="provider_all_providers">All providers</string>
     <string name="provider_all_providers_desc">Default feed</string>
     <string name="provider_pin">Pin</string>

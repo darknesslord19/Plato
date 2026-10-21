@@ -31,6 +31,38 @@ object ProviderRules {
     }
 
     /**
+     * Seçici bölümleri (kullanıcı kararı 2026-10-21): sekme ve arama süzüldükten sonra önce **Nuvio**, sonra
+     * **CloudStream**; her bölümde iğnelenenler ([ProviderItem.isPinned]) üstte, sonra alfabetik. Boş bölüm dönmez.
+     * Tek listede alfabetik sıralamada 160+ CloudStream eklentisi arasında Nuvio sağlayıcıları kayboluyordu.
+     */
+    fun selectorSections(items: List<ProviderItem>, tab: ProviderTab, query: String): List<ProviderSection> {
+        val visible = filterByQuery(filterByTab(items, tab), query)
+        val order = compareByDescending<ProviderItem> { it.isPinned }
+            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+            .thenBy { it.id }
+        return listOf(
+            ProviderSection(ProviderSectionKind.Nuvio, visible.filter { it.kind != ProviderKind.CloudStream }.sortedWith(order)),
+            ProviderSection(ProviderSectionKind.CloudStream, visible.filter { it.kind == ProviderKind.CloudStream }.sortedWith(order)),
+        ).filter { it.items.isNotEmpty() }
+    }
+
+    /**
+     * Ana sayfa kataloğu verebilen Nuvio sağlayıcıları: açık ve manifestinde `catalogs` olan addon'lar ve plugin
+     * depoları (girdi sırası korunur). Katalogsuz olanlar (Torrentio, Nexus, altyazı addon'ları, yalnızca kazıyıcı
+     * listeleyen plugin depoları) seçicide ve ana sayfada yer almaz. Hepsi aynı addon katalog yolundan (`nuvio_addon:`) çekilir.
+     */
+    fun nuvioCatalogProviders(sources: List<NuvioSource>): List<ProviderItem> =
+        sources.filter { it.enabled && it.manifest?.catalogs?.isNotEmpty() == true }.map { s ->
+            ProviderItem(
+                id = "nuvio_addon:${s.rowId}",
+                name = s.name,
+                subtitle = "Nuvio · ${s.name}",
+                kind = ProviderKind.NuvioAddon,
+                addonId = s.addonId,
+            )
+        }
+
+    /**
      * Sabitlenenleri en üste alır, kendi aralarında ve sabitlenmeyenler kendi aralarında alfabetik sıralanır.
      */
     fun applyPinningAndSort(items: List<ProviderItem>, pinnedIds: Set<String>): List<ProviderItem> {

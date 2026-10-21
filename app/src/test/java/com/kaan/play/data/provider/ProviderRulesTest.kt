@@ -1,5 +1,8 @@
 package com.kaan.play.data.provider
 
+import com.kaan.play.data.addon.AddonManifest
+import com.kaan.play.data.addon.ManifestCatalog
+import com.kaan.play.data.addon.ManifestResource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -130,5 +133,67 @@ class ProviderRulesTest {
         assertTrue(ProviderRules.duplicateTmdbRows(tmdb, emptyList()).isEmpty())
         // İngilizce arayüzde adlar farklı: gizlenmez.
         assertTrue(ProviderRules.duplicateTmdbRows(mapOf("popular_movies" to "Popular movies"), listOf("Popüler Filmler")).isEmpty())
+    }
+
+    // --- Seçici bölümleri (kullanıcı bildirimi 2026-10-21: "Hepsi"de Nuvio sağlayıcıları görünmüyordu) ---
+
+    private val sectionItems = listOf(
+        ProviderItem(id = "cs:1", name = "Aardvark", subtitle = "CloudStream", kind = ProviderKind.CloudStream),
+        ProviderItem(id = "cs:2", name = "DiziBox", subtitle = "CloudStream", kind = ProviderKind.CloudStream),
+        ProviderItem(id = "cs:3", name = "Zeta", subtitle = "CloudStream", kind = ProviderKind.CloudStream, isPinned = true),
+        ProviderItem(id = "nuvio_addon:10", name = "Play Özel Kataloglar", subtitle = "Nuvio", kind = ProviderKind.NuvioAddon),
+        ProviderItem(id = "nuvio_addon:11", name = "İzlemeli.com Katalog", subtitle = "Nuvio", kind = ProviderKind.NuvioAddon, isPinned = true),
+        ProviderItem(id = "nuvio_addon:12", name = "Jasoelys", subtitle = "Nuvio", kind = ProviderKind.NuvioAddon),
+    )
+
+    @Test
+    fun selectorSectionsPutNuvioFirstThenCloudStreamWithPinnedOnTop() {
+        val sections = ProviderRules.selectorSections(sectionItems, ProviderTab.All, "")
+        assertEquals(listOf(ProviderSectionKind.Nuvio, ProviderSectionKind.CloudStream), sections.map { it.kind })
+        // İğnelenen bölümünün en üstünde, sonra alfabetik ("Aardvark" alfabede önde olsa da Nuvio bölümü önce gelir).
+        assertEquals(listOf("nuvio_addon:11", "nuvio_addon:12", "nuvio_addon:10"), sections[0].items.map { it.id })
+        assertEquals(listOf("cs:3", "cs:1", "cs:2"), sections[1].items.map { it.id })
+    }
+
+    @Test
+    fun selectorSectionsTabsShowOnlyTheirOwnSection() {
+        assertEquals(listOf(ProviderSectionKind.Nuvio), ProviderRules.selectorSections(sectionItems, ProviderTab.Nuvio, "").map { it.kind })
+        assertEquals(listOf(ProviderSectionKind.CloudStream), ProviderRules.selectorSections(sectionItems, ProviderTab.CloudStream, "").map { it.kind })
+    }
+
+    @Test
+    fun selectorSectionsSearchFiltersBothSectionsAndDropsEmptyOnes() {
+        // Arama iki bölümü birlikte süzer; eşleşmesi olmayan bölüm düşer.
+        val both = ProviderRules.selectorSections(sectionItems, ProviderTab.All, "kata")
+        assertEquals(listOf(ProviderSectionKind.Nuvio), both.map { it.kind })
+        assertEquals(setOf("nuvio_addon:10", "nuvio_addon:11"), both.single().items.map { it.id }.toSet())
+        val cs = ProviderRules.selectorSections(sectionItems, ProviderTab.All, "dizi")
+        assertEquals(listOf(ProviderSectionKind.CloudStream), cs.map { it.kind })
+        assertTrue(ProviderRules.selectorSections(sectionItems, ProviderTab.All, "yok-böyle").isEmpty())
+    }
+
+    private fun manifest(id: String, catalogs: Int, resource: String = "catalog") = AddonManifest(
+        id = id,
+        name = id,
+        types = listOf("movie", "series"),
+        resources = listOf(ManifestResource(resource)),
+        catalogs = List(catalogs) { ManifestCatalog("movie", "c$it", "Raf $it") },
+    )
+
+    @Test
+    fun nuvioCatalogProvidersKeepOnlyEnabledSourcesWithCatalogs() {
+        val sources = listOf(
+            NuvioSource(1, "İzlemeli.com Katalog", "izlemeli", enabled = true, manifest = manifest("izlemeli", 3)),
+            NuvioSource(2, "Torrentio", "torrentio", enabled = true, manifest = manifest("torrentio", 0, "stream")),
+            NuvioSource(3, "AltyazıDB", "altyazidb", enabled = true, manifest = manifest("altyazidb", 0, "subtitles")),
+            NuvioSource(4, "Kapalı Katalog", "kapali", enabled = false, manifest = manifest("kapali", 2)),
+            // Yalnızca "scrapers" listeleyen plugin deposu (ör. jasoelys): addon manifesti olarak okunamaz.
+            NuvioSource(5, "jasoelys", null, enabled = true, manifest = null),
+            // Manifestinde catalogs olan plugin deposu: aynı addon katalog yolundan gösterilir.
+            NuvioSource(6, "Katalog Deposu", "repo.catalogs", enabled = true, manifest = manifest("repo.catalogs", 1)),
+        )
+        val items = ProviderRules.nuvioCatalogProviders(sources)
+        assertEquals(listOf("nuvio_addon:1", "nuvio_addon:6"), items.map { it.id })
+        assertTrue(items.all { it.kind == ProviderKind.NuvioAddon })
     }
 }
