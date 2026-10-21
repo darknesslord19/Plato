@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-10-21 03:08:03",
+  "timestamp": "2026-10-21 03:17:31",
   "appVersion": "1.1.0",
   "cloudstream": [
     {
       "name": "AnimeciX",
       "catalog": "OK (3 satır, 42 içerik)",
-      "load": "OK (Cyberpunk: Edgerunne)",
+      "load": "OK (Chitose Is in the Ra)",
       "episode": "OK (S1E1)",
-      "link": "OK (3 link, 1080p)",
+      "link": "OK (1 link, 1080p)",
       "media": "OK (MP4 512KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
@@ -15,25 +15,25 @@
     },
     {
       "name": "Anizm",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
+      "catalog": "OK (10 satır, 245 içerik)",
+      "load": "OK (Anime ara)",
+      "episode": "X (Bölüm yok)",
       "link": "-",
       "media": "-",
       "subtitle": "-",
       "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "reason": "Bölüm/dataUrl bulunamadı"
     },
     {
       "name": "BelgeselX",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
+      "catalog": "OK (12 satır, 218 içerik)",
+      "load": "OK (Geleceğe Kalanlar)",
+      "episode": "OK (S1E1)",
+      "link": "OK (1 link, 480p)",
+      "media": "X (HTTP 400)",
+      "subtitle": "Yok (0)",
       "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "reason": "Medya doğrulanamadı: HTTP 400"
     },
     {
       "name": "DDizi",
@@ -48,47 +48,47 @@
     },
     {
       "name": "DiziBox",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "catalog": "OK (5 satır, 121 içerik)",
+      "load": "OK (Love in Disguise)",
+      "episode": "OK (S1E1)",
+      "link": "OK (3 link, 2160p)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "DiziGom",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "catalog": "OK (19 satır, 314 içerik)",
+      "load": "OK (The Scandal)",
+      "episode": "OK (S1E1)",
+      "link": "OK (2 link, 720p)",
+      "media": "OK (M3U8 154KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "DiziKorea",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "catalog": "OK (5 satır, 75 içerik)",
+      "load": "OK (The World of Love)",
+      "episode": "OK (Film)",
+      "link": "OK (2 link, 360p)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "Dizilla",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
+      "catalog": "OK (12 satır, 238 içerik)",
+      "load": "OK (Phony)",
+      "episode": "OK (S1E1)",
+      "link": "X (0 link / zaman aşımı)",
       "media": "-",
       "subtitle": "-",
       "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "reason": "Extractor link çıkaramadı"
     },
     {
       "name": "DiziMag",
@@ -125,25 +125,25 @@
     },
     {
       "name": "FilmMakinesi",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "catalog": "OK (11 satır, 184 içerik)",
+      "load": "OK (Crawlers izle (2026))",
+      "episode": "OK (Film)",
+      "link": "OK (2 link, 1080p)",
+      "media": "OK (M3U8 2KB)",
+      "subtitle": "OK (2 sub, TURKISH 660 satır)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "FilmModu",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "catalog": "OK (25 satır, 456 içerik)",
+      "load": "OK (Beetlejuice Beetleju)",
+      "episode": "OK (Film)",
+      "link": "OK (8 link, 1080p)",
+      "media": "OK (M3U8 213KB)",
+      "subtitle": "OK (1 sub, TÜRKÇE 1470 satır)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "FullHDFilm",
@@ -158,14 +158,14 @@
     },
     {
       "name": "HDFilmCehennemi",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "catalog": "OK (6 satır, 130 içerik)",
+      "load": "OK (By Any Means)",
+      "episode": "OK (Film)",
+      "link": "OK (4 link, 360p)",
+      "media": "OK (M3U8 2KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "HDFilmIzle",
@@ -180,72 +180,61 @@
     },
     {
       "name": "HintFilmIzle",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
-    },
-    {
-      "name": "JetFilmizle",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
-    },
-    {
-      "name": "KultFilmler",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
-    },
-    {
-      "name": "SelcukFlix",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
-    },
-    {
-      "name": "SetFilmIzle",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
-    },
-    {
-      "name": "SezonlukDizi",
-      "catalog": "OK (9 satır, 179 içerik)",
-      "load": "OK (Cyberpunk: Edgerunne)",
-      "episode": "OK (S1E1)",
-      "link": "OK (1 link, 1080p)",
-      "media": "OK (M3U8 1KB)",
+      "catalog": "OK (10 satır, 72 içerik)",
+      "load": "OK (Jailer 2)",
+      "episode": "OK (Film)",
+      "link": "OK (3 link, 480p)",
+      "media": "OK (M3U8 117KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
       "reason": "-"
     },
     {
-      "name": "SinemaCX",
+      "name": "JetFilmizle",
+      "catalog": "OK (22 satır, 217 içerik)",
+      "load": "OK (Siccin 9)",
+      "episode": "OK (Film)",
+      "link": "X (0 link / zaman aşımı)",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Extractor link çıkaramadı"
+    },
+    {
+      "name": "KultFilmler",
+      "catalog": "OK (24 satır, 311 içerik)",
+      "load": "OK (Être et avoir – Olma)",
+      "episode": "OK (Film)",
+      "link": "OK (1 link, 360p)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "OK (1 sub, TÜRKÇE 1256 satır)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "SelcukFlix",
+      "catalog": "OK (10 satır, 95 içerik)",
+      "load": "OK (Diversa)",
+      "episode": "OK (Film)",
+      "link": "X (0 link / zaman aşımı)",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Extractor link çıkaramadı"
+    },
+    {
+      "name": "SetFilmIzle",
+      "catalog": "OK (27 satır, 367 içerik)",
+      "load": "OK (Ağzımdan Kaçtı)",
+      "episode": "OK (Film)",
+      "link": "OK (1 link, 1080p)",
+      "media": "OK (M3U8 93KB)",
+      "subtitle": "OK (4 sub, TR 724 satır)",
+      "status": "OK",
+      "reason": "-"
+    },
+    {
+      "name": "SezonlukDizi",
       "catalog": "X (Katalog boş ya da zaman aşımı)",
       "load": "-",
       "episode": "-",
@@ -254,6 +243,17 @@
       "subtitle": "-",
       "status": "X",
       "reason": "Katalog boş ya da zaman aşımı"
+    },
+    {
+      "name": "SinemaCX",
+      "catalog": "OK (22 satır, 198 içerik)",
+      "load": "OK (Hazine Avcısının Mac)",
+      "episode": "OK (Film)",
+      "link": "OK (3 link, 360p)",
+      "media": "OK (M3U8 2KB)",
+      "subtitle": "OK (1 sub, TURKISH 772 satır)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "SinemaTV",
@@ -279,25 +279,25 @@
     },
     {
       "name": "TavsiyeFilmIzle",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
+      "catalog": "OK (20 satır, 138 içerik)",
+      "load": "OK (Nasıl Katil Olunur H)",
+      "episode": "OK (Film)",
+      "link": "X (0 link / zaman aşımı)",
       "media": "-",
       "subtitle": "-",
       "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "reason": "Extractor link çıkaramadı"
     },
     {
       "name": "Watch2Movies",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
+      "catalog": "OK (27 satır, 472 içerik)",
+      "load": "OK (Mikael: Hunter of Tw)",
+      "episode": "OK (Film)",
+      "link": "X (0 link / zaman aşımı)",
       "media": "-",
       "subtitle": "-",
       "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "reason": "Extractor link çıkaramadı"
     },
     {
       "name": "WebteIzle",
@@ -312,14 +312,14 @@
     },
     {
       "name": "YabanciDizi",
-      "catalog": "X (Katalog boş ya da zaman aşımı)",
-      "load": "-",
-      "episode": "-",
-      "link": "-",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Katalog boş ya da zaman aşımı"
+      "catalog": "OK (16 satır, 235 içerik)",
+      "load": "OK (3Below: Tales of Arc)",
+      "episode": "OK (S1E1)",
+      "link": "OK (12 link, 360p)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "reason": "-"
     }
   ],
   "nuvio_addons": [
@@ -427,20 +427,20 @@
     {
       "name": "HDFilmCehennemi",
       "target": "Film (tt0137523)",
-      "stream": "OK (1 akış)",
-      "media": "OK (M3U8 1KB)",
-      "subtitle": "OK (6 sub, TR 1811 satır)",
-      "status": "OK",
-      "reason": "-"
+      "stream": "X (Hata)",
+      "media": "-",
+      "subtitle": "-",
+      "status": "X",
+      "reason": "Zaman aşımı / hata"
     },
     {
       "name": "HDFilmCehennemi",
       "target": "Dizi (tt0903747 S1B1)",
-      "stream": "X (0 akış)",
-      "media": "-",
-      "subtitle": "Yok (0)",
-      "status": "X",
-      "reason": "Akış bulunamadı"
+      "stream": "OK (1 akış)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "OK (5 sub, TR 593 satır)",
+      "status": "OK",
+      "reason": "-"
     },
     {
       "name": "SelcukFlix",
@@ -465,7 +465,7 @@
     {
       "name": "AltyazıDB",
       "target": "tt0137523",
-      "search": "OK (TR 10)",
+      "search": "OK (TR 10, toplam 10)",
       "parse": "OK (1797 satır)",
       "status": "OK",
       "reason": "-"
@@ -473,7 +473,7 @@
     {
       "name": "AltyazıTR",
       "target": "tt0137523",
-      "search": "OK (TR 10)",
+      "search": "OK (TR 10, toplam 10)",
       "parse": "OK (1732 satır)",
       "status": "OK",
       "reason": "-"
@@ -481,10 +481,10 @@
     {
       "name": "Yerleşik Çevrimiçi Arama",
       "target": "tt0137523",
-      "search": "X (TR yok)",
-      "parse": "-",
-      "status": "X",
-      "reason": "Türkçe çevrimiçi altyazı bulunamadı"
+      "search": "OK (TR 0, toplam 7)",
+      "parse": "OK (1864 satır)",
+      "status": "OK",
+      "reason": "-"
     }
   ],
   "continue_watching": [
