@@ -243,10 +243,10 @@ def generate_markdown(curr_data, duration_str, regressions):
 
     # 3. Nuvio JS Eklentileri Tablosu
     lines.append("## 3. Nuvio JS Eklentileri (Scrapers)")
-    lines.append("| Eklenti | Hedef | Akış | Medya | Altyazı | Durum | Hata/Neden |")
-    lines.append("| --- | --- | --- | --- | --- | --- | --- |")
+    lines.append("| Eklenti | Hedef | Akış | Medya | Altyazı | Durum | Sınıf | Hata/Neden |")
+    lines.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
     for r in js_list:
-        lines.append(f"| {r.get('name','-')} | {r.get('target','-')} | {r.get('stream','-')} | {r.get('media','-')} | {r.get('subtitle','-')} | {r.get('status','-')} | {r.get('reason','-')} |")
+        lines.append(f"| {r.get('name','-')} | {r.get('target','-')} | {r.get('stream','-')} | {r.get('media','-')} | {r.get('subtitle','-')} | {r.get('status','-')} | {r.get('category','-')} | {r.get('reason','-')} |")
     lines.append("")
 
     # 4. Altyazı Sağlayıcıları Tablosu
@@ -366,13 +366,17 @@ def main():
     md_content = generate_markdown(curr_data, duration_str, regressions)
 
     # Markdown dosyasına yaz
-    os.makedirs(os.path.dirname(args.out_md), exist_ok=True)
+    md_dir = os.path.dirname(os.path.abspath(args.out_md))
+    if md_dir:
+        os.makedirs(md_dir, exist_ok=True)
     with open(args.out_md, "w", encoding="utf-8") as f:
         f.write(md_content)
     print(f"\nMarkdown raporu kaydedildi: {os.path.abspath(args.out_md)}")
 
     # Mevcut sonucu prev JSON olarak kaydet
-    os.makedirs(os.path.dirname(args.prev), exist_ok=True)
+    prev_dir = os.path.dirname(os.path.abspath(args.prev))
+    if prev_dir:
+        os.makedirs(prev_dir, exist_ok=True)
     with open(args.prev, "w", encoding="utf-8") as f:
         json.dump(curr_data, f, ensure_ascii=False, indent=2)
     print(f"Önceki çalıştırma JSON dosyası güncellendi: {os.path.abspath(args.prev)}")

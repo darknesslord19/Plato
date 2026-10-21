@@ -103,6 +103,7 @@ object PlayDiagRunner {
         val mediaStatus: String,
         val subSourceStatus: String,
         val status: String,
+        val category: String = "-",
         val errorReason: String,
     )
 
@@ -636,23 +637,6 @@ object PlayDiagRunner {
 
     private suspend fun testNuvioJsPlugins(container: AppContainer): List<NuvioJsDiagResult> {
         val results = mutableListOf<NuvioJsDiagResult>()
-        val testMovie = StreamRequest(
-            tmdbId = 550,
-            imdbId = "tt0137523",
-            type = MediaType.Movie,
-            title = "Fight Club",
-            year = 1999,
-        )
-        val testSeries = StreamRequest(
-            tmdbId = 1396,
-            imdbId = "tt0903747",
-            type = MediaType.Tv,
-            season = 1,
-            episode = 1,
-            title = "Breaking Bad",
-            year = 2008,
-        )
-
         val plugins = runCatching { container.plugins.enabledPlugins() }.getOrDefault(emptyList())
 
         for (plugin in plugins) {
@@ -666,6 +650,7 @@ object PlayDiagRunner {
                     mediaStatus = "-",
                     subSourceStatus = "-",
                     status = "X",
+                    category = "uygulama",
                     errorReason = "Betik dosyası okunamadı",
                 )
                 continue
@@ -673,167 +658,165 @@ object PlayDiagRunner {
 
             val savedSettings = container.pluginSettings.get(plugin.id)
             val types = plugin.supportedTypes
-            val supportsMovie = types.isEmpty() || types.any { it.contains("movie", ignoreCase = true) }
-            val supportsTv = types.isEmpty() || types.any { it.contains("tv", ignoreCase = true) || it.contains("series", ignoreCase = true) }
+            val isAnime = plugin.name.contains("anime", ignoreCase = true) ||
+                plugin.name.contains("aniz", ignoreCase = true) ||
+                types.any { it.contains("anime", ignoreCase = true) }
 
-            // Test 1: Film (tt0137523)
-            if (supportsMovie) {
-                val movieReq = PluginRequest(tmdbId = testMovie.tmdbId.toString(), mediaType = "movie", season = 1, episode = 1)
-                val movieOutcome = withTimeoutOrNull(12_000L) {
-                    container.pluginRuntime.run(code, movieReq, plugin.pluginId, timeoutMs = 10_000L, savedSettings)
-                }
-
-                if (movieOutcome == null || movieOutcome !is PluginOutcome.Success) {
-                    val err = (movieOutcome as? PluginOutcome.Failure)?.message ?: "Zaman aşımı / hata"
-                    results += NuvioJsDiagResult(
-                        name = plugin.name,
-                        target = "Film (tt0137523)",
-                        streamStatus = "X (Hata)",
-                        mediaStatus = "-",
-                        subSourceStatus = "-",
-                        status = "X",
-                        errorReason = err.take(40),
-                    )
-                } else {
-                    val source = StreamSource(-plugin.id, plugin.name)
-                    val playableStreams = movieOutcome.streams.map { it.toPlayable(source) }
-                    val streamStatus = if (playableStreams.isNotEmpty()) "OK (${playableStreams.size} akış)" else "X (0 akış)"
-
-                    var mediaOk = false
-                    var probeMsg = ""
-                    for (st in playableStreams.take(2)) {
-                        val (ok, msg) = probeMedia(container.httpClient, st)
-                        probeMsg = msg
-                        if (ok) {
-                            mediaOk = true
-                            break
-                        }
-                    }
-
-                    val mediaStatus = if (probeMsg == "torrent, atlandı") {
-                        "torrent, atlandı"
-                    } else if (mediaOk) {
-                        "OK ($probeMsg)"
-                    } else if (playableStreams.isNotEmpty()) {
-                        "X ($probeMsg)"
-                    } else {
-                        "-"
-                    }
-
-                    val subs = playableStreams.flatMap { it.subtitles }
-                    val subSourceStatus = if (subs.isNotEmpty()) {
-                        val candidate = subs.firstOrNull { it.language?.contains("tr", ignoreCase = true) == true } ?: subs.first()
-                        val loadRes = withTimeoutOrNull(6_000L) {
-                            container.subtitleLoader.load(SubtitleTrack(candidate.url, candidate.language, plugin.name, headers = candidate.headers))
-                        }
-                        if (loadRes is SubtitleLoad.Loaded) "OK (${subs.size} sub, TR ${loadRes.cues.size} satır)" else "X (${subs.size} sub)"
-                    } else "Yok (0)"
-
-                    val finalStatus = if (mediaOk || probeMsg == "torrent, atlandı") "OK" else "X"
-                    val errorReason = if (finalStatus == "OK") "-" else if (playableStreams.isEmpty()) "Akış bulunamadı" else probeMsg
-
-                    results += NuvioJsDiagResult(
-                        name = plugin.name,
-                        target = "Film (tt0137523)",
-                        streamStatus = streamStatus,
-                        mediaStatus = mediaStatus,
-                        subSourceStatus = subSourceStatus,
-                        status = finalStatus,
-                        errorReason = errorReason,
-                    )
-                }
+            if (isAnime) {
+                // Anime eklentisi (AnimeCix, Anizium): bilinen anime hedefi (One Piece tt0388629 S1B1, tmdbId=37854)
+                val animeReq = PluginRequest(tmdbId = "37854", mediaType = "tv", season = 1, episode = 1)
+                results += testScraperTarget(container, plugin, code, savedSettings, animeReq, "Anime (tt0388629 S1B1)")
             } else {
-                results += NuvioJsDiagResult(
-                    name = plugin.name,
-                    target = "Film (tt0137523)",
-                    streamStatus = "atlandı",
-                    mediaStatus = "-",
-                    subSourceStatus = "-",
-                    status = "atlandı",
-                    errorReason = "Yalnızca dizi destekliyor",
-                )
-            }
+                val supportsMovie = types.isEmpty() || types.any { it.contains("movie", ignoreCase = true) }
+                val supportsTv = types.isEmpty() || types.any { it.contains("tv", ignoreCase = true) || it.contains("series", ignoreCase = true) }
 
-            // Test 2: Dizi (tt0903747 S1B1)
-            if (supportsTv) {
-                val tvReq = PluginRequest(tmdbId = testSeries.tmdbId.toString(), mediaType = "tv", season = 1, episode = 1)
-                val tvOutcome = withTimeoutOrNull(12_000L) {
-                    container.pluginRuntime.run(code, tvReq, plugin.pluginId, timeoutMs = 10_000L, savedSettings)
+                // Yalnızca desteklenen türler denenir; desteklenmeyen türler için 'atlandı' satırı eklenmez
+                if (supportsMovie) {
+                    val movieReq = PluginRequest(tmdbId = "550", mediaType = "movie", season = 1, episode = 1)
+                    results += testScraperTarget(container, plugin, code, savedSettings, movieReq, "Film (tt0137523)")
                 }
 
-                if (tvOutcome == null || tvOutcome !is PluginOutcome.Success) {
-                    val err = (tvOutcome as? PluginOutcome.Failure)?.message ?: "Zaman aşımı / hata"
-                    results += NuvioJsDiagResult(
-                        name = plugin.name,
-                        target = "Dizi (tt0903747 S1B1)",
-                        streamStatus = "X (Hata)",
-                        mediaStatus = "-",
-                        subSourceStatus = "-",
-                        status = "X",
-                        errorReason = err.take(40),
-                    )
-                } else {
-                    val source = StreamSource(-plugin.id, plugin.name)
-                    val playableStreams = tvOutcome.streams.map { it.toPlayable(source) }
-                    val streamStatus = if (playableStreams.isNotEmpty()) "OK (${playableStreams.size} akış)" else "X (0 akış)"
-
-                    var mediaOk = false
-                    var probeMsg = ""
-                    for (st in playableStreams.take(2)) {
-                        val (ok, msg) = probeMedia(container.httpClient, st)
-                        probeMsg = msg
-                        if (ok) {
-                            mediaOk = true
-                            break
-                        }
-                    }
-
-                    val mediaStatus = if (probeMsg == "torrent, atlandı") {
-                        "torrent, atlandı"
-                    } else if (mediaOk) {
-                        "OK ($probeMsg)"
-                    } else if (playableStreams.isNotEmpty()) {
-                        "X ($probeMsg)"
-                    } else {
-                        "-"
-                    }
-
-                    val subs = playableStreams.flatMap { it.subtitles }
-                    val subSourceStatus = if (subs.isNotEmpty()) {
-                        val candidate = subs.firstOrNull { it.language?.contains("tr", ignoreCase = true) == true } ?: subs.first()
-                        val loadRes = withTimeoutOrNull(6_000L) {
-                            container.subtitleLoader.load(SubtitleTrack(candidate.url, candidate.language, plugin.name, headers = candidate.headers))
-                        }
-                        if (loadRes is SubtitleLoad.Loaded) "OK (${subs.size} sub, TR ${loadRes.cues.size} satır)" else "X (${subs.size} sub)"
-                    } else "Yok (0)"
-
-                    val finalStatus = if (mediaOk || probeMsg == "torrent, atlandı") "OK" else "X"
-                    val errorReason = if (finalStatus == "OK") "-" else if (playableStreams.isEmpty()) "Akış bulunamadı" else probeMsg
-
-                    results += NuvioJsDiagResult(
-                        name = plugin.name,
-                        target = "Dizi (tt0903747 S1B1)",
-                        streamStatus = streamStatus,
-                        mediaStatus = mediaStatus,
-                        subSourceStatus = subSourceStatus,
-                        status = finalStatus,
-                        errorReason = errorReason,
-                    )
+                if (supportsTv) {
+                    val tvReq = PluginRequest(tmdbId = "1396", mediaType = "tv", season = 1, episode = 1)
+                    results += testScraperTarget(container, plugin, code, savedSettings, tvReq, "Dizi (tt0903747 S1B1)")
                 }
-            } else {
-                results += NuvioJsDiagResult(
-                    name = plugin.name,
-                    target = "Dizi (tt0903747 S1B1)",
-                    streamStatus = "atlandı",
-                    mediaStatus = "-",
-                    subSourceStatus = "-",
-                    status = "atlandı",
-                    errorReason = "Yalnızca film destekliyor",
-                )
             }
         }
 
         return results
+    }
+
+    private suspend fun testScraperTarget(
+        container: AppContainer,
+        plugin: com.kaan.play.data.plugin.InstalledPlugin,
+        code: String,
+        savedSettings: Map<String, kotlinx.serialization.json.JsonElement>,
+        req: PluginRequest,
+        targetLabel: String,
+    ): NuvioJsDiagResult {
+        val outcome = withTimeoutOrNull(15_000L) {
+            container.pluginRuntime.run(code, req, plugin.pluginId, timeoutMs = 12_000L, savedSettings)
+        }
+
+        if (outcome == null || outcome !is PluginOutcome.Success) {
+            val err = (outcome as? PluginOutcome.Failure)?.message ?: if (outcome == null) "Zaman aşımı (12 sn)" else "Hata"
+            val category = classifyJsFailure(outcome, emptyList(), "", err)
+            return NuvioJsDiagResult(
+                name = plugin.name,
+                target = targetLabel,
+                streamStatus = "X (Hata)",
+                mediaStatus = "-",
+                subSourceStatus = "-",
+                status = "X",
+                category = category,
+                errorReason = err.take(40),
+            )
+        }
+
+        val source = StreamSource(-plugin.id, plugin.name)
+        val playableStreams = outcome.streams.map { it.toPlayable(source) }
+        val streamStatus = if (playableStreams.isNotEmpty()) "OK (${playableStreams.size} akış)" else "X (0 akış)"
+
+        var mediaOk = false
+        var probeMsg = ""
+        for (st in playableStreams.take(2)) {
+            val (ok, msg) = probeMedia(container.httpClient, st)
+            probeMsg = msg
+            if (ok) {
+                mediaOk = true
+                break
+            }
+        }
+
+        val mediaStatus = if (probeMsg == "torrent, atlandı") {
+            "torrent, atlandı"
+        } else if (mediaOk) {
+            "OK ($probeMsg)"
+        } else if (playableStreams.isNotEmpty()) {
+            "X ($probeMsg)"
+        } else {
+            "-"
+        }
+
+        val subs = playableStreams.flatMap { it.subtitles }
+        val subSourceStatus = if (subs.isNotEmpty()) {
+            val candidate = subs.firstOrNull { it.language?.contains("tr", ignoreCase = true) == true } ?: subs.first()
+            val loadRes = withTimeoutOrNull(6_000L) {
+                container.subtitleLoader.load(SubtitleTrack(candidate.url, candidate.language, plugin.name, headers = candidate.headers))
+            }
+            if (loadRes is SubtitleLoad.Loaded) "OK (${subs.size} sub, TR ${loadRes.cues.size} satır)" else "X (${subs.size} sub)"
+        } else "Yok (0)"
+
+        val finalStatus = if (mediaOk || probeMsg == "torrent, atlandı") "OK" else "X"
+        val errorReason = if (finalStatus == "OK") "-" else if (playableStreams.isEmpty()) "Akış bulunamadı" else probeMsg
+        val category = if (finalStatus == "OK") "-" else classifyJsFailure(outcome, playableStreams, probeMsg, errorReason)
+
+        return NuvioJsDiagResult(
+            name = plugin.name,
+            target = targetLabel,
+            streamStatus = streamStatus,
+            mediaStatus = mediaStatus,
+            subSourceStatus = subSourceStatus,
+            status = finalStatus,
+            category = category,
+            errorReason = errorReason,
+        )
+    }
+
+    private fun classifyJsFailure(
+        outcome: PluginOutcome?,
+        playableStreams: List<PlayableStream>,
+        probeMsg: String,
+        errorReason: String,
+    ): String {
+        // 1. Akış bulundu ancak medya URL'si doğrulanamadı (HTTP 4xx/5xx, bağlantı hatası vb.)
+        if (playableStreams.isNotEmpty()) {
+            val lowerProbe = probeMsg.lowercase()
+            return if (lowerProbe.contains("40") || lowerProbe.contains("50") ||
+                lowerProbe.contains("connection") || lowerProbe.contains("closed") ||
+                lowerProbe.contains("reset") || lowerProbe.contains("timeout") ||
+                lowerProbe.contains("protocol") || lowerProbe.contains("refused")
+            ) {
+                "site"
+            } else {
+                "uygulama"
+            }
+        }
+
+        // 2. Zaman aşımı bizim belirlediğimiz süreden kaynaklanıyorsa -> uygulama
+        if (outcome == null || (outcome is PluginOutcome.Failure && outcome.reason == PluginOutcome.Reason.Timeout)) {
+            return "uygulama"
+        }
+
+        val notes = outcome.notes
+        val notesStr = notes.joinToString(" ").lowercase()
+        val err = errorReason.lowercase()
+        val msg = (outcome as? PluginOutcome.Failure)?.message?.lowercase().orEmpty()
+
+        // 3. Site taraflı hata: HTTP 4xx/5xx, Cloudflare engeli, DNS/ağ kopması, sunucu yanıt vermiyor
+        val siteKeywords = listOf(
+            "blocked", "cloudflare", "400", "401", "403", "404", "429", "500", "502", "503", "504",
+            "network error", "connect", "dns", "unknownhost", "reset", "refused", "closed by peer"
+        )
+        if (siteKeywords.any { notesStr.contains(it) || err.contains(it) || msg.contains(it) }) {
+            return "site"
+        }
+
+        // 4. Uygulama taraflı hata: JS motoru, eksik API (Buffer, crypto, window...), söz dizimi, JSON hatası
+        val appKeywords = listOf(
+            "referenceerror", "typeerror", "syntaxerror", "not defined", "is not a function",
+            "require", "buffer", "crypto", "window", "json", "bad result", "nullpointer"
+        )
+        if (appKeywords.any { notesStr.contains(it) || err.contains(it) || msg.contains(it) }) {
+            return "uygulama"
+        }
+
+        // 5. İçerik yok: Eklenti temiz çalıştı, ağ hatası veya JS hatası almadı ama bu içerik için akış yok
+        if (outcome is PluginOutcome.Success && outcome.streams.isEmpty()) {
+            return "içerik yok"
+        }
+
+        return "uygulama"
     }
 
     private suspend fun testSubtitles(container: AppContainer): List<SubtitleDiagResult> {
@@ -1404,6 +1387,7 @@ object PlayDiagRunner {
                         put("media", r.mediaStatus)
                         put("subtitle", r.subSourceStatus)
                         put("status", r.status)
+                        put("category", r.category)
                         put("reason", r.errorReason)
                     })
                 }
@@ -1505,10 +1489,10 @@ object PlayDiagRunner {
 
         // 3. Nuvio JS Eklentileri Tablosu
         appendLine("## 3. Nuvio JS Eklentileri (Scrapers)")
-        appendLine("| Eklenti | Hedef | Akış | Medya | Altyazı | Durum | Hata/Neden |")
-        appendLine("| --- | --- | --- | --- | --- | --- | --- |")
+        appendLine("| Eklenti | Hedef | Akış | Medya | Altyazı | Durum | Sınıf | Hata/Neden |")
+        appendLine("| --- | --- | --- | --- | --- | --- | --- | --- |")
         for (r in jsResults) {
-            appendLine("| ${r.name} | ${r.target} | ${r.streamStatus} | ${r.mediaStatus} | ${r.subSourceStatus} | ${r.status} | ${r.errorReason} |")
+            appendLine("| ${r.name} | ${r.target} | ${r.streamStatus} | ${r.mediaStatus} | ${r.subSourceStatus} | ${r.status} | ${r.category} | ${r.errorReason} |")
         }
         appendLine()
 

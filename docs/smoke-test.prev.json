@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-21 03:28:47",
+  "timestamp": "2026-10-21 04:25:10",
   "appVersion": "1.1.0",
   "cloudstream": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "name": "Anizm",
-      "catalog": "OK (10 satır, 246 içerik)",
+      "catalog": "OK (10 satır, 248 içerik)",
       "load": "OK (Anime ara)",
       "episode": "X (Bölüm yok)",
       "link": "-",
@@ -26,7 +26,7 @@
     },
     {
       "name": "BelgeselX",
-      "catalog": "OK (12 satır, 218 içerik)",
+      "catalog": "OK (13 satır, 238 içerik)",
       "load": "OK (Geleceğe Kalanlar)",
       "episode": "OK (S1E1)",
       "link": "OK (1 link, 480p)",
@@ -136,7 +136,7 @@
     },
     {
       "name": "FilmModu",
-      "catalog": "OK (13 satır, 249 içerik)",
+      "catalog": "OK (21 satır, 377 içerik)",
       "load": "OK (Beetlejuice Beetleju)",
       "episode": "OK (Film)",
       "link": "OK (8 link, 1080p)",
@@ -147,14 +147,14 @@
     },
     {
       "name": "FullHDFilm",
-      "catalog": "OK (3 satır, 75 içerik)",
-      "load": "OK (Uykucu (2025))",
-      "episode": "OK (Film)",
-      "link": "OK (1 link, 360p)",
-      "media": "X (Connection closed by peer)",
-      "subtitle": "X (zaman aşımı)",
+      "catalog": "X (Katalog boş ya da zaman aşımı)",
+      "load": "-",
+      "episode": "-",
+      "link": "-",
+      "media": "-",
+      "subtitle": "-",
       "status": "X",
-      "reason": "Medya doğrulanamadı: Connection closed by peer"
+      "reason": "Katalog boş ya da zaman aşımı"
     },
     {
       "name": "HDFilmCehennemi",
@@ -169,12 +169,12 @@
     },
     {
       "name": "HDFilmIzle",
-      "catalog": "OK (16 satır, 205 içerik)",
-      "load": "OK (Of-Pof Balık (2026) )",
+      "catalog": "OK (10 satır, 125 içerik)",
+      "load": "OK (Aile Planı (2023) Th)",
       "episode": "OK (Film)",
       "link": "OK (1 link, 360p)",
       "media": "X (Connection closed by peer)",
-      "subtitle": "Yok (0)",
+      "subtitle": "X (zaman aşımı)",
       "status": "X",
       "reason": "Medya doğrulanamadı: Connection closed by peer"
     },
@@ -187,7 +187,7 @@
       "media": "OK (M3U8 117KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
-      "reason": "2. denemede"
+      "reason": "-"
     },
     {
       "name": "JetFilmizle",
@@ -195,7 +195,7 @@
       "load": "OK (Düşler)",
       "episode": "OK (Film)",
       "link": "OK (6 link, 360p)",
-      "media": "OK (M3U8 1KB)",
+      "media": "OK (MP4 512KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
       "reason": "-"
@@ -242,7 +242,7 @@
       "media": "OK (M3U8 1KB)",
       "subtitle": "Yok (0)",
       "status": "OK",
-      "reason": "2. denemede"
+      "reason": "-"
     },
     {
       "name": "SinemaCX",
@@ -251,7 +251,7 @@
       "episode": "OK (Film)",
       "link": "OK (3 link, 360p)",
       "media": "OK (M3U8 2KB)",
-      "subtitle": "OK (1 sub, TURKISH 772 satır)",
+      "subtitle": "X (zaman aşımı)",
       "status": "OK",
       "reason": "-"
     },
@@ -301,7 +301,7 @@
     },
     {
       "name": "WebteIzle",
-      "catalog": "OK (10 satır, 157 içerik)",
+      "catalog": "OK (8 satır, 117 içerik)",
       "load": "OK (Nutcrackers)",
       "episode": "OK (Film)",
       "link": "OK (2 link, 360p)",
@@ -354,57 +354,33 @@
   "nuvio_js": [
     {
       "name": "AnimeCix",
-      "target": "Film (tt0137523)",
-      "stream": "atlandı",
-      "media": "-",
-      "subtitle": "-",
-      "status": "atlandı",
-      "reason": "Yalnızca dizi destekliyor"
+      "target": "Anime (tt0388629 S1B1)",
+      "stream": "OK (3 akış)",
+      "media": "OK (MP4 512KB)",
+      "subtitle": "Yok (0)",
+      "status": "OK",
+      "category": "-",
+      "reason": "-"
     },
     {
-      "name": "AnimeCix",
+      "name": "Anizium",
+      "target": "Anime (tt0388629 S1B1)",
+      "stream": "OK (5 akış)",
+      "media": "OK (MP4 512KB)",
+      "subtitle": "OK (35 sub, TR 355 satır)",
+      "status": "OK",
+      "category": "-",
+      "reason": "-"
+    },
+    {
+      "name": "Dizilla",
       "target": "Dizi (tt0903747 S1B1)",
       "stream": "X (0 akış)",
       "media": "-",
       "subtitle": "Yok (0)",
       "status": "X",
+      "category": "site",
       "reason": "Akış bulunamadı"
-    },
-    {
-      "name": "Anizium",
-      "target": "Film (tt0137523)",
-      "stream": "atlandı",
-      "media": "-",
-      "subtitle": "-",
-      "status": "atlandı",
-      "reason": "Yalnızca dizi destekliyor"
-    },
-    {
-      "name": "Anizium",
-      "target": "Dizi (tt0903747 S1B1)",
-      "stream": "X (0 akış)",
-      "media": "-",
-      "subtitle": "Yok (0)",
-      "status": "X",
-      "reason": "Akış bulunamadı"
-    },
-    {
-      "name": "Dizilla",
-      "target": "Film (tt0137523)",
-      "stream": "atlandı",
-      "media": "-",
-      "subtitle": "-",
-      "status": "atlandı",
-      "reason": "Yalnızca dizi destekliyor"
-    },
-    {
-      "name": "Dizilla",
-      "target": "Dizi (tt0903747 S1B1)",
-      "stream": "X (Hata)",
-      "media": "-",
-      "subtitle": "-",
-      "status": "X",
-      "reason": "Zaman aşımı / hata"
     },
     {
       "name": "FullHDFilmizlesene",
@@ -413,43 +389,38 @@
       "media": "OK (M3U8 3KB)",
       "subtitle": "OK (1 sub, TR 1733 satır)",
       "status": "OK",
+      "category": "-",
       "reason": "-"
     },
     {
-      "name": "FullHDFilmizlesene",
+      "name": "HDFilmCehennemi",
+      "target": "Film (tt0137523)",
+      "stream": "OK (1 akış)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "OK (6 sub, TR 1811 satır)",
+      "status": "OK",
+      "category": "-",
+      "reason": "-"
+    },
+    {
+      "name": "HDFilmCehennemi",
       "target": "Dizi (tt0903747 S1B1)",
-      "stream": "atlandı",
+      "stream": "OK (1 akış)",
+      "media": "OK (M3U8 1KB)",
+      "subtitle": "OK (5 sub, TR 593 satır)",
+      "status": "OK",
+      "category": "-",
+      "reason": "-"
+    },
+    {
+      "name": "SelcukFlix",
+      "target": "Film (tt0137523)",
+      "stream": "X (Hata)",
       "media": "-",
       "subtitle": "-",
-      "status": "atlandı",
-      "reason": "Yalnızca film destekliyor"
-    },
-    {
-      "name": "HDFilmCehennemi",
-      "target": "Film (tt0137523)",
-      "stream": "X (0 akış)",
-      "media": "-",
-      "subtitle": "Yok (0)",
       "status": "X",
-      "reason": "Akış bulunamadı"
-    },
-    {
-      "name": "HDFilmCehennemi",
-      "target": "Dizi (tt0903747 S1B1)",
-      "stream": "X (0 akış)",
-      "media": "-",
-      "subtitle": "Yok (0)",
-      "status": "X",
-      "reason": "Akış bulunamadı"
-    },
-    {
-      "name": "SelcukFlix",
-      "target": "Film (tt0137523)",
-      "stream": "X (0 akış)",
-      "media": "-",
-      "subtitle": "Yok (0)",
-      "status": "X",
-      "reason": "Akış bulunamadı"
+      "category": "uygulama",
+      "reason": "Hata"
     },
     {
       "name": "SelcukFlix",
@@ -458,6 +429,7 @@
       "media": "-",
       "subtitle": "Yok (0)",
       "status": "X",
+      "category": "site",
       "reason": "Akış bulunamadı"
     }
   ],
