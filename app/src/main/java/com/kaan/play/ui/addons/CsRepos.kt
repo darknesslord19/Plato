@@ -75,7 +75,7 @@ fun CsReposScreen(
 }
 
 @Composable
-private fun CsRepoRow(repo: CsRepo, onRemove: () -> Unit) {
+internal fun CsRepoRow(repo: CsRepo, onRemove: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
 
     androidx.compose.material3.Surface(

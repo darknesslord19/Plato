@@ -65,25 +65,35 @@ fun NuvioReposScreen(
     }
 
     toRemove?.let { addon ->
-        AlertDialog(
-            onDismissRequest = { toRemove = null },
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-            containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text(stringResource(R.string.addons_remove_title), style = MaterialTheme.typography.titleLarge) },
-            text = { Text(stringResource(R.string.addons_remove_message, addon.manifest.name)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    scope.launch { container.addons.remove(addon.id) }
-                    toRemove = null
-                }) {
-                    Text(stringResource(R.string.addons_remove), color = MaterialTheme.colorScheme.error)
-                }
+        AddonRemoveDialog(
+            addon = addon,
+            onConfirm = {
+                scope.launch { container.addons.remove(addon.id) }
+                toRemove = null
             },
-            dismissButton = {
-                TextButton(onClick = { toRemove = null }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
+            onDismiss = { toRemove = null },
         )
     }
+}
+
+/** Addon kaldırma onayı (Nuvio Depoları ve "Kurulu tüm depolar" ortak). */
+@Composable
+internal fun AddonRemoveDialog(addon: Addon, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.addons_remove_title), style = MaterialTheme.typography.titleLarge) },
+        text = { Text(stringResource(R.string.addons_remove_message, addon.manifest.name)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.addons_remove), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
 }

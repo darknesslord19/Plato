@@ -132,6 +132,8 @@
     <string name="addons_add">Add addon</string>
     <string name="addons_repos">All installed repositories</string>
     <string name="addons_repos_empty">No repositories installed.</string>
+    <string name="repos_section_nuvio">Nuvio</string>
+    <string name="repos_section_cloudstream">CloudStream</string>
     <string name="addons_installed">Installed addons</string>
     <string name="addons_enable_all">Enable all</string>
     <string name="addons_disable_all">Disable all</string>

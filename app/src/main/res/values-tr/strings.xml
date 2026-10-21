@@ -113,6 +113,8 @@
     <string name="addons_add">Eklenti ekle</string>
     <string name="addons_repos">Kurulu tüm depolar</string>
     <string name="addons_repos_empty">Kurulu depo yok.</string>
+    <string name="repos_section_nuvio">Nuvio</string>
+    <string name="repos_section_cloudstream">CloudStream</string>
     <string name="addons_installed">Yüklü eklentiler</string>
     <string name="addons_enable_all">Hepsini aç</string>
     <string name="addons_disable_all">Hepsini kapat</string>

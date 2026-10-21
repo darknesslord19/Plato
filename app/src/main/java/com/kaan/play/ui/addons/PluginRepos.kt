@@ -3,6 +3,7 @@ package com.kaan.play.ui.addons
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,8 +48,21 @@ import com.kaan.play.ui.components.IconButton
 import com.kaan.play.ui.components.ScreenHeader
 import com.kaan.play.ui.components.TextButton
 import com.kaan.play.ui.containerViewModel
+import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.tv.focusRing
+import kotlinx.coroutines.launch
+
+/** "Kurulu tüm depolar"da bölüm başlığı (Nuvio / CloudStream). Odak almaz; uzun metinde alt satıra geçer. */
+@Composable
+private fun RepoSectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp),
+    )
+}
 
 /** Üçüncü taraf bilgi notu: eklentileri Play yazmaz ve içerik sağlamaz. */
 @Composable
@@ -60,14 +75,26 @@ private fun ThirdPartyNote() {
     )
 }
 
-/** "Kurulu tüm depolar": depo adı + sürüm + eklenti sayısı; güncelleme denetimi ve kaldırma düğmeleri. */
+/**
+ * "Kurulu tüm depolar" (kullanıcı kararı 2026-10-21): üç ekranda görünen her şey tek listede, iki bölümde.
+ * - **Nuvio:** "Nuvio Depoları"ndaki addon'lar ([AddonRow]: aç/kapat + sil) ve "Nuvio Pluginler"deki depolar
+ *   ([RepoRow]: sürüm + eklenti sayısı, güncelleme denetimi + sil).
+ * - **CloudStream:** "CloudStream Depoları"ndaki depolar ([CsRepoRow]).
+ * Satırlar ve veri kaynakları o ekranlarınkiyle aynıdır; boş bölüm gösterilmez.
+ */
 @Composable
 fun RepositoriesScreen(onBack: () -> Unit) {
+    val container = rememberContainer()
     val vm = containerViewModel { RepositoriesViewModel(it.plugins) }
+    val csVm = containerViewModel { CsReposViewModel(it.csRepos) }
     val repos by vm.repos.collectAsStateWithLifecycle()
+    val addons by container.addons.addons.collectAsStateWithLifecycle(initialValue = null)
+    val csRepos by csVm.repos.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val plan by vm.plan.collectAsStateWithLifecycle()
     var toRemove by remember { mutableStateOf<PluginRepo?>(null) }
+    var addonToRemove by remember { mutableStateOf<Addon?>(null) }
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     // Bildirimler tek seferliktir (Toast): "güncel", "güncellendi", hata.
@@ -86,26 +113,61 @@ fun RepositoriesScreen(onBack: () -> Unit) {
         ScreenHeader(title = stringResource(R.string.addons_repos), onBack = onBack)
         ThirdPartyNote()
 
-        val list = repos
+        val pluginRepos = repos
+        val addonList = addons
+        val csList = csRepos
         when {
-            list == null -> Unit // yükleniyor
-            list.isEmpty() -> EmptyMessage(stringResource(R.string.addons_repos_empty))
+            pluginRepos == null || addonList == null || csList == null -> Unit // yükleniyor
+            pluginRepos.isEmpty() && addonList.isEmpty() && csList.isEmpty() ->
+                EmptyMessage(stringResource(R.string.addons_repos_empty))
             else -> LazyColumn(
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                // CloudStream satırı kendi yatay boşluğunu taşır; Nuvio satırlarına aynı boşluk aşağıda verilir.
+                contentPadding = PaddingValues(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(list, key = { it.id }) { repo ->
-                    RepoRow(
-                        repo = repo,
-                        busy = busy == repo.id,
-                        enabled = busy == null,
-                        onCheck = { vm.check(repo) },
-                        onRemove = { toRemove = repo },
-                    )
+                if (addonList.isNotEmpty() || pluginRepos.isNotEmpty()) {
+                    item(key = "section-nuvio") { RepoSectionTitle(stringResource(R.string.repos_section_nuvio)) }
+                    items(addonList, key = { "na-${it.id}" }) { addon ->
+                        Box(Modifier.padding(horizontal = 20.dp)) {
+                            AddonRow(
+                                addon = addon,
+                                onToggle = { scope.launch { container.addons.setEnabled(addon.id, it) } },
+                                onRemove = { addonToRemove = addon },
+                            )
+                        }
+                    }
+                    items(pluginRepos, key = { "pr-${it.id}" }) { repo ->
+                        Box(Modifier.padding(horizontal = 20.dp)) {
+                            RepoRow(
+                                repo = repo,
+                                busy = busy == repo.id,
+                                enabled = busy == null,
+                                onCheck = { vm.check(repo) },
+                                onRemove = { toRemove = repo },
+                            )
+                        }
+                    }
+                }
+                if (csList.isNotEmpty()) {
+                    item(key = "section-cs") { RepoSectionTitle(stringResource(R.string.repos_section_cloudstream)) }
+                    items(csList, key = { "cs-${it.id}" }) { repo ->
+                        CsRepoRow(repo = repo, onRemove = { csVm.remove(repo) })
+                    }
                 }
             }
         }
+    }
+
+    addonToRemove?.let { addon ->
+        AddonRemoveDialog(
+            addon = addon,
+            onConfirm = {
+                scope.launch { container.addons.remove(addon.id) }
+                addonToRemove = null
+            },
+            onDismiss = { addonToRemove = null },
+        )
     }
 
     plan?.let { (repo, found) ->
