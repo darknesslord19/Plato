@@ -24,7 +24,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 
-private class TestAddonDao : AddonDao {
+internal class TestAddonDao : AddonDao {
     private val rows = MutableStateFlow<List<AddonEntity>>(emptyList())
     private var nextId = 1L
 

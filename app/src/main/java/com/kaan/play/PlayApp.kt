@@ -22,8 +22,8 @@ class PlayApp : Application(), SingletonImageLoader.Factory {
         container = AppContainer(this)
         // İndirme yöneticisi açılışta kurulur: yarım kalan indirmeler (uygulama öldürüldükten sonra) kendiliğinden devam eder.
         container.downloads
-        // Varsayılan altyazı addon'ları ilk açılışta bir kez tohumlanır (kullanıcı kararı 2026-10-20; ağa çıkmaz, gecikme yapmaz).
-        container.seedDefaultSubtitleAddons()
+        // Varsayılan altyazı ve katalog addon'ları ilk açılışta bir kez tohumlanır (kullanıcı kararları 2026-10-20/21; ağa çıkmaz).
+        container.seedDefaultAddons()
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {

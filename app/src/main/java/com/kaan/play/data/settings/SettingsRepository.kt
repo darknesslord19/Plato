@@ -203,6 +203,8 @@ class SettingsRepository(val store: DataStore<Preferences>) {
         private val SUB_BACKGROUND = stringPreferencesKey("subtitle_background")
         private val SUB_LANGUAGE = stringPreferencesKey("subtitle_language")
         val DEFAULT_SUBTITLE_ADDONS_SEEDED = booleanPreferencesKey("default_subtitle_addons_seeded")
+        /** Play Özel Kataloglar addon'unun ilk kurulumda eklendiğini gösteren ayrı bayrak (kullanıcı kararı, 2026-10-21). */
+        val DEFAULT_CATALOG_ADDON_SEEDED = booleanPreferencesKey("default_catalog_addon_seeded")
         val SEEN_ANNOUNCEMENT_IDS = stringSetPreferencesKey("seen_announcement_ids")
     }
 }

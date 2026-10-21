@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.kaan.play.data.addon.AddonRepository
+import com.kaan.play.data.addon.DefaultCatalogAddons
 import com.kaan.play.data.addon.DefaultSubtitleAddons
 import com.kaan.play.data.addon.OkHttpManifestFetcher
 import com.kaan.play.data.db.PlayDatabase
@@ -256,9 +257,13 @@ class AppContainer(context: Context) {
         AddonRepository(database.addonDao(), OkHttpManifestFetcher(httpClient))
     }
 
-    /** İlk açılışta varsayılan altyazı addon'larını (AltyazıDB, AltyazıTR) ekler (kullanıcı kararı, 2026-10-20). */
-    fun seedDefaultSubtitleAddons(): Job = appScope.launch {
+    /**
+     * İlk açılışta varsayılan addon'ları ekler: altyazı (AltyazıDB, AltyazıTR; kullanıcı kararı 2026-10-20) ve
+     * Play Özel Kataloglar (kullanıcı kararı 2026-10-21). Her grubun kendi bayrağı var; ağa çıkılmaz.
+     */
+    fun seedDefaultAddons(): Job = appScope.launch {
         DefaultSubtitleAddons.seedIfNeeded(database.addonDao(), settings.store)
+        DefaultCatalogAddons.seedIfNeeded(database.addonDao(), settings.store)
     }
 
     /** Eklenti ayarları (`onSettings` ile bildirilen değerler), eklenti başına; ayrı bir DataStore dosyasında. */
