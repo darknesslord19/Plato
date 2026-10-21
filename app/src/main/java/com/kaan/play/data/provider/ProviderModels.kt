@@ -19,6 +19,8 @@ data class ProviderItem(
     val subtitle: String,
     val kind: ProviderKind,
     val isPinned: Boolean = false,
+    /** Nuvio addon'larında manifest kimliği (ör. `com.play.custom.catalogs`); diğerlerinde null. */
+    val addonId: String? = null,
 )
 
 /**

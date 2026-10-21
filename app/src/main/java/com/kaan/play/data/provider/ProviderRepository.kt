@@ -70,7 +70,7 @@ class ProviderRepository(
             manifest != null && manifest.catalogs.isNotEmpty()
         }.map { a ->
             val id = "nuvio_addon:${a.id}"
-            ProviderItem(id = id, name = a.name, subtitle = "Nuvio · ${a.name}", kind = ProviderKind.NuvioAddon)
+            ProviderItem(id = id, name = a.name, subtitle = "Nuvio · ${a.name}", kind = ProviderKind.NuvioAddon, addonId = a.addonId)
         }
     }
 
@@ -89,7 +89,7 @@ class ProviderRepository(
 
     /**
      * Varsayılan ana sayfada ("Tüm sağlayıcılar") görünecek sağlayıcıların sıralı listesi:
-     * 1) Kurulu ve açık Nuvio katalog addon'ları (eklenme sırasıyla)
+     * 1) Kurulu ve açık Nuvio katalog addon'ları (Play Özel Kataloglar en önde, diğerleri eklenme sırasıyla)
      * 2) İğnelenmiş (pinned) CloudStream eklentileri (kendi aralarında alfabetik)
      */
     val homeProviders: Flow<List<ProviderItem>> = combine(

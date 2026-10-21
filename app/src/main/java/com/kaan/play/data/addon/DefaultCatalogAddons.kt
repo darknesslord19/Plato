@@ -19,6 +19,7 @@ import com.kaan.play.data.settings.SettingsRepository
  */
 object DefaultCatalogAddons {
 
+    const val PLAY_CATALOGS_ID = "com.play.custom.catalogs"
     const val PLAY_CATALOGS_URL = "https://play-nuvio-zel-katalog-st-dyosu.ai.studio/manifest.json"
 
     private const val DESCRIPTION =
@@ -31,7 +32,7 @@ object DefaultCatalogAddons {
             description = DESCRIPTION,
             logoUrl = null,
             manifest = AddonManifest(
-                id = "com.play.custom.catalogs",
+                id = PLAY_CATALOGS_ID,
                 name = "Play Özel Kataloglar",
                 version = "1.1.0",
                 description = DESCRIPTION,

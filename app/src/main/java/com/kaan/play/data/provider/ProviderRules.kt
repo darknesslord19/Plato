@@ -1,5 +1,6 @@
 package com.kaan.play.data.provider
 
+import com.kaan.play.data.addon.DefaultCatalogAddons
 import java.util.Locale
 
 /**
@@ -71,7 +72,8 @@ object ProviderRules {
 
     /**
      * Varsayılan ana sayfa ("Tüm sağlayıcılar") için sağlayıcı sırası:
-     * 1. Kurulu ve açık Nuvio katalog eklentileri (eklenme sırasıyla)
+     * 1. Kurulu ve açık Nuvio katalog eklentileri: Play Özel Kataloglar her zaman en önde (kullanıcı kararı
+     *    2026-10-21, eklenme sırasından bağımsız), diğerleri eklenme sırasıyla
      * 2. Sabitlenmiş (iğnelenmiş) CloudStream eklentileri (kendi aralarında alfabetik)
      */
     fun buildHomeProviders(
@@ -85,7 +87,9 @@ object ProviderRules {
                 compareBy<ProviderItem, String>(String.CASE_INSENSITIVE_ORDER) { it.name }
                     .thenBy { it.id },
             )
-        return nuvioProviders + pinnedCs
+        // sortedBy kararlıdır: Play Özel Kataloglar öne geçer, diğerlerinin sırası korunur.
+        val nuvio = nuvioProviders.sortedBy { it.addonId != DefaultCatalogAddons.PLAY_CATALOGS_ID }
+        return nuvio + pinnedCs
     }
 
     /**

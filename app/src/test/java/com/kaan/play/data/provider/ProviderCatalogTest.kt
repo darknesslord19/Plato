@@ -313,6 +313,25 @@ class ProviderCatalogTest {
     }
 
     @Test
+    fun buildHomeProvidersPutsPlayCatalogsFirstRegardlessOfAddedOrder() {
+        // Eklenme sırası: Jasoelys, İzlemeli, Play Özel Kataloglar (en son eklendi).
+        val nuvioAddons = listOf(
+            ProviderItem(id = "nuvio_addon:8", name = "Jasoelys", subtitle = "Nuvio · Jasoelys", kind = ProviderKind.NuvioAddon, addonId = "jasoelys"),
+            ProviderItem(id = "nuvio_addon:11", name = "İzlemeli.com Katalog", subtitle = "Nuvio · İzlemeli", kind = ProviderKind.NuvioAddon, addonId = "izlemeli"),
+            ProviderItem(
+                id = "nuvio_addon:23", name = "Play Özel Kataloglar", subtitle = "Nuvio · Play Özel Kataloglar",
+                kind = ProviderKind.NuvioAddon, addonId = "com.play.custom.catalogs",
+            ),
+        )
+        val csPlugins = listOf(ProviderItem(id = "cs:10", name = "DiziBox", subtitle = "CloudStream", kind = ProviderKind.CloudStream))
+
+        val result = ProviderRules.buildHomeProviders(nuvioAddons, csPlugins, setOf("cs:10"))
+
+        // Play Özel Kataloglar önde, diğer addon'lar eklenme sırasıyla, sonra iğnelenmiş CloudStream.
+        assertEquals(listOf("nuvio_addon:23", "nuvio_addon:8", "nuvio_addon:11", "cs:10"), result.map { it.id })
+    }
+
+    @Test
     fun buildHomeProvidersOrdersNuvioFirstThenPinnedCsAlphabetically() {
         val nuvioAddons = listOf(
             ProviderItem(id = "nuvio_addon:1", name = "Jasoelys", subtitle = "Nuvio · Jasoelys", kind = ProviderKind.NuvioAddon),
