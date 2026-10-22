@@ -80,7 +80,6 @@
 # R8 bunları Play kullanmıyor diye kırpar ya da yeniden adlandırırsa eklenti yalnızca release'te bozulur.
 -keep class kotlinx.serialization.** { *; }
 -keep class io.ktor.http.** { *; }
--keep class io.ktor.util.** { *; }
 -keep class com.fleeksoft.ksoup.** { *; }
 -keep class org.mozilla.javascript.** { *; }
 -keep class org.schabi.newpipe.** { *; }
@@ -95,6 +94,13 @@
 -keep class androidx.lifecycle.** { *; }
 -dontwarn com.google.android.material.**
 -dontwarn me.xdrop.fuzzywuzzy.**
+# Tutulan kütüphanelerin yalnızca masaüstü JVM'de bulunan sınıflara başvuruları (Android'de o kod yolu çalışmaz).
+-dontwarn io.ktor.**
+-dontwarn java.lang.management.**
+-dontwarn javax.naming.**
+-dontwarn org.slf4j.**
+-dontwarn sun.misc.**
+-dontwarn com.google.errorprone.annotations.**
 # ── CloudStream Library Ek Bağımlılıkları ──────────────────────────────────────
 -dontwarn javax.script.**
 -dontwarn org.mozilla.javascript.**
