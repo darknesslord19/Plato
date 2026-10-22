@@ -1,6 +1,5 @@
 package com.kaan.play.data.cloudstream
 
-import android.os.Build
 import android.util.Log
 import com.kaan.play.data.addon.AddonException
 import com.kaan.play.data.addon.AddonException.Kind
@@ -31,11 +30,31 @@ class CsDexStore(private val dir: File) {
     fun dexFile(id: Long): File = File(dir, "$id.dex")
     fun manifestFile(id: Long): File = File(dir, "$id.manifest")
 
-    fun exists(id: Long): Boolean = dexFile(id).exists()
+    /**
+     * İndirilen `.cs3` dosyasının tamamı (gerçek CloudStream onu doğrudan yükler). Eklentinin Android kaynakları
+     * (`requiresResources`) ve paket içi dosyaları yalnızca bundan okunabilir. Eski kurulumlarda yoktur; o zaman
+     * [dexFile] kullanılır.
+     */
+    fun cs3File(id: Long): File = File(dir, "$id.cs3")
+
+    /** Yüklenecek dosya: varsa tam `.cs3`, yoksa çıkarılmış `classes.dex`. */
+    fun loadFile(id: Long): File = cs3File(id).takeIf { it.exists() } ?: dexFile(id)
+
+    fun exists(id: Long): Boolean = dexFile(id).exists() || cs3File(id).exists()
 
     fun delete(id: Long) {
         dexFile(id).delete()
         manifestFile(id).delete()
+        cs3File(id).delete()
+    }
+
+    /** Geçici kimlikle indirilen dosyaları veritabanı satırının gerçek kimliğine taşır. */
+    fun moveTo(fromId: Long, toId: Long) {
+        listOf(::dexFile, ::manifestFile, ::cs3File).forEach { f ->
+            val src = f(fromId)
+            if (src.exists()) src.renameTo(f(toId))
+        }
+        setReadOnly(toId)
     }
 
     fun readManifest(id: Long): String? = manifestFile(id).takeIf { it.exists() }?.readText()
@@ -45,12 +64,9 @@ class CsDexStore(private val dir: File) {
      * Hata olursa sessizce geçer — eski Android'lerde `setReadOnly()` yeterlidir.
      */
     fun setReadOnly(id: Long) {
-        val f = dexFile(id)
-        if (!f.exists()) return
-        try { f.setReadOnly() } catch (_: Exception) {}
-        if (Build.VERSION.SDK_INT >= 34) {
-            // Android 14 (API 34): DEX'in read-only olması için OS-düzeyinde izin gerekliyse
-            // PathClassLoader zaten hata verir; bu çağrı yeterlidir.
+        // Android 14 (API 34)+: yazılabilir dex/zip yüklenmez (PathClassLoader SecurityException verir).
+        for (f in listOf(dexFile(id), cs3File(id))) {
+            if (!f.exists()) continue
             try { f.setReadOnly() } catch (_: Exception) {}
         }
     }
@@ -159,10 +175,11 @@ private fun extractCs3(bytes: ByteArray, store: CsDexStore, id: Long, host: Stri
     }
     val manifest = manifestText ?: "{}"
 
-    // DEX dosyasına yaz
+    // DEX dosyasına yaz; ayrıca .cs3'ün tamamını sakla (kaynak kullanan eklentiler için, CloudStream'deki gibi)
     val dexFile = store.dexFile(id)
     dexFile.parentFile?.mkdirs()
     FileOutputStream(dexFile).use { it.write(dex) }
+    FileOutputStream(store.cs3File(id)).use { it.write(bytes) }
     store.setReadOnly(id)
     store.manifestFile(id).writeText(manifest)
 

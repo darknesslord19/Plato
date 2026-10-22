@@ -38,4 +38,13 @@ class CsDexLoaderTest {
         val manifest = """{"pluginClassName":""}"""
         assertEquals("X", resolveMainClassName(manifest, "X"))
     }
+
+    @Test
+    fun `requiresResources manifestten okunur`() {
+        org.junit.Assert.assertTrue(manifestRequiresResources("""{"pluginClassName":"a.B","requiresResources":true}"""))
+        org.junit.Assert.assertFalse(manifestRequiresResources("""{"pluginClassName":"a.B","requiresResources":false}"""))
+        org.junit.Assert.assertFalse(manifestRequiresResources("""{"pluginClassName":"a.B"}"""))
+        org.junit.Assert.assertFalse(manifestRequiresResources(null))
+        org.junit.Assert.assertFalse(manifestRequiresResources("{bozuk"))
+    }
 }

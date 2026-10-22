@@ -26,7 +26,7 @@ Değişmez kurallar: main'e birleştirme ve release yalnızca kullanıcı onayı
 - "Sorun bildir" düğmesi (teşhis bilgisi Telegram/e-posta).
 - GitHub'da her gönderimde otomatik derleme + test (bozuk kod ana dala girmesin).
 - Beta kanalı (Telegram gönüllüleri; ileride destekçilere "erken erişim").
-- Açık hatalar: (a) TV kutusunda "Eklenti API'si bulunamadı" (CsDexLoader.loadApis boş; hata metni koda Türkçe gömülü, string resource olmalı); (b) arkadaşın sağlayıcı seçimi sorunu, 1.1.4'te yeniden denenecek; (c) bir sonraki duyuruya Telegram adresi: https://t.me/+o-RFlV4U3UY5NGU8
+- Açık hatalar: (a) TV kutusunda "Eklenti API'si bulunamadı" (CsDexLoader.loadApis boş; hata metni koda Türkçe gömülü, string resource olmalı) — 2026-10-22: olası nedenler giderildi (yanlış `CloudStreamApp`/`DataStore` köprüleri, Android 8 altında çöken Jackson 2.17 → 2.13.1); TV kutusunda yeniden denenecek; (b) arkadaşın sağlayıcı seçimi sorunu, 1.1.4'te yeniden denenecek; (c) bir sonraki duyuruya Telegram adresi: https://t.me/+o-RFlV4U3UY5NGU8
 
 ### Aşama 1 — Yeni bölüm bilgisi (ücretsiz)
 - "İzlemeye devam et" kartında turkuaz **"Yeni bölüm"** rozeti; karta basınca o bölüm oynar.

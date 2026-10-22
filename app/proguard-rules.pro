@@ -75,6 +75,26 @@
 -keepclasseswithmembernames class * { native <methods>; }
 -dontwarn com.google.mlkit.**
 
+# ── CloudStream eklentilerinin bağlandığı diğer kütüphaneler ─────────────────────
+# Gerçek depolardaki 227 eklentinin dex başvurularından çıkarıldı (tools/cs_plugin_abi_check.py, CI raporu).
+# R8 bunları Play kullanmıyor diye kırpar ya da yeniden adlandırırsa eklenti yalnızca release'te bozulur.
+-keep class kotlinx.serialization.** { *; }
+-keep class io.ktor.http.** { *; }
+-keep class io.ktor.util.** { *; }
+-keep class com.fleeksoft.ksoup.** { *; }
+-keep class org.mozilla.javascript.** { *; }
+-keep class org.schabi.newpipe.** { *; }
+-keep class dev.whyoleg.cryptography.** { *; }
+-keep class com.google.gson.** { *; }
+-keep class me.xdrop.fuzzywuzzy.** { *; }
+-keep class com.google.android.material.** { *; }
+-keep class androidx.appcompat.** { *; }
+-keep class androidx.fragment.** { *; }
+-keep class androidx.core.** { *; }
+-keep class androidx.recyclerview.** { *; }
+-keep class androidx.lifecycle.** { *; }
+-dontwarn com.google.android.material.**
+-dontwarn me.xdrop.fuzzywuzzy.**
 # ── CloudStream Library Ek Bağımlılıkları ──────────────────────────────────────
 -dontwarn javax.script.**
 -dontwarn org.mozilla.javascript.**

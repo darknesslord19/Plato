@@ -2,40 +2,45 @@ package com.lagradost.cloudstream3
 
 import android.app.Application
 import android.content.Context
-import com.lagradost.api.setContext
-import java.lang.ref.WeakReference
+import com.lagradost.cloudstream3.utils.DataStore.getKey
+import com.lagradost.cloudstream3.utils.DataStore.removeKey
+import com.lagradost.cloudstream3.utils.DataStore.setKey
 
+/**
+ * CloudStream'in eski uygulama sınıfı (bugünkü adı [CloudStreamApp]). Eski derlenmiş eklentiler hâlâ
+ * `AcraApplication.Companion` üzerinden bağlam ve ayar okur; bu köprü hepsini [CloudStreamApp]'e yönlendirir.
+ */
 open class AcraApplication : Application() {
     companion object {
-        private var _context: WeakReference<Context>? = null
-        @JvmStatic
         var context: Context?
-            get() = _context?.get()
+            get() = CloudStreamApp.context
             set(value) {
-                _context = value?.let { WeakReference(it) }
-                try {
-                    setContext(value)
-                } catch (_: Throwable) {}
+                CloudStreamApp.context = value
             }
-    }
-}
 
-object CloudStreamApp {
-    private var _context: WeakReference<Context>? = null
-    @JvmStatic
-    var context: Context?
-        get() = _context?.get()
-        set(value) {
-            _context = value?.let { WeakReference(it) }
-            try {
-                setContext(value)
-            } catch (_: Throwable) {}
+        fun <T> setKey(path: String, value: T) {
+            context?.setKey(path, value)
         }
 
-    fun <T> setKey(path: String, value: T) = DataStore.setKey(path, value)
-    fun <T> setKey(folder: String, path: String, value: T) = DataStore.setKey(DataStore.getFolderName(folder, path), value)
-    fun <T> getKey(path: String, defVal: T? = null): T? = DataStore.getKey(path, defVal)
-    fun <T> getKey(folder: String, path: String, defVal: T? = null): T? = DataStore.getKey(DataStore.getFolderName(folder, path), defVal)
-    fun removeKey(path: String) = DataStore.removeKey(path)
-    fun removeKey(folder: String, path: String) = DataStore.removeKey(DataStore.getFolderName(folder, path))
+        fun <T> setKey(folder: String, path: String, value: T) {
+            context?.setKey(folder, path, value)
+        }
+
+        inline fun <reified T : Any> getKey(path: String, defVal: T?): T? = context?.getKey(path, defVal)
+
+        inline fun <reified T : Any> getKey(path: String): T? = context?.getKey(path)
+
+        inline fun <reified T : Any> getKey(folder: String, path: String): T? = context?.getKey(folder, path)
+
+        inline fun <reified T : Any> getKey(folder: String, path: String, defVal: T?): T? =
+            context?.getKey(folder, path, defVal)
+
+        fun removeKey(folder: String, path: String) {
+            context?.removeKey(folder, path)
+        }
+
+        fun removeKey(path: String) {
+            context?.removeKey(path)
+        }
+    }
 }

@@ -149,6 +149,12 @@ dependencies {
     // CloudStream resmi kütüphanesi (GPL-3.0) ve NiceHttp
     implementation(libs.cloudstream.library)
     implementation(libs.nicehttp)
+    // Gerçek CloudStream uygulamasının eklentilere sağladığı kütüphaneler. Eklentiler bunlara adla bağlanır;
+    // eksik olursa eklenti yüklenirken NoClassDefFoundError alır (ör. Phisher deposundaki eklentilerin
+    // çoğu Material penceresi sınıfını açılışta yükler). Bkz. tools/cs_plugin_abi_check.py.
+    implementation(libs.material)
+    implementation(libs.gson)
+    implementation(libs.fuzzywuzzy)
 
 
     // Yerleşik torrent motoru: Java API + işlemci başına yerel kütüphane (.so).

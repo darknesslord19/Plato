@@ -17,6 +17,7 @@ import com.kaan.play.data.stream.StreamRequest
 import com.kaan.play.data.stream.StreamSource
 import com.kaan.play.data.stream.StreamSubtitle
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * CloudStream eklentisi çalıştırıcısı. Yüklenmiş [MainAPI] örnekleriyle şu akışı izler:
@@ -105,32 +106,13 @@ class CsRuntime {
         source: StreamSource,
         timeoutMs: Long,
     ): List<PlayableStream> {
-        val extApis = com.lagradost.cloudstream3.utils.extractorApis
-        extApis.removeAll {
-            it.mainUrl.contains("hotlinger", ignoreCase = true) ||
-            it.mainUrl.contains("pichive", ignoreCase = true) ||
-            it.mainUrl.contains("dplayer", ignoreCase = true) ||
-            it.mainUrl.contains("japierdolevid", ignoreCase = true) ||
-            it.mainUrl.contains("bysejikuar", ignoreCase = true)
-        }
-        val customExts = listOf(
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Pichive", "https://four.pichive.online"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Pichive", "https://pichive.online"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Hotlinger", "https://sn.hotlinger.com"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Hotlinger", "https://hotlinger.com"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://four.dplayer82.site"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://sn.dplayer82.site"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://dplayer82.site"),
-            com.kaan.play.data.cloudstream.extractors.JapierdoleExtractor("Japierdole", "https://japierdolevid.com"),
-            com.kaan.play.data.cloudstream.extractors.ByseJikuar(),
-        )
-        for (ext in customExts) {
-            extApis.add(0, ext)
-        }
 
-        val links = mutableListOf<ExtractorLink>()
-        val subs = mutableListOf<SubtitleFile>()
-        withTimeout(timeoutMs) {
+        // Eklentiler bağlantıları paralel iş parçacıklarından (amap) bildirir: listeler eşzamanlı yazmaya dayanıklı.
+        val links = java.util.concurrent.CopyOnWriteArrayList<ExtractorLink>()
+        val subs = java.util.concurrent.CopyOnWriteArrayList<SubtitleFile>()
+        // Süre dolsa da o ana kadar gelen bağlantılar kullanılır (CloudStream de bağlantıları geldikçe gösterir);
+        // eskiden zaman aşımı bütün sonucu atıyordu ve yavaş bir çıkarıcı eklentinin tamamını boşa çıkarıyordu.
+        val finished = withTimeoutOrNull(timeoutMs) {
             try {
                 api.loadLinks(
                     data = data,
@@ -141,14 +123,18 @@ class CsRuntime {
                         links += link
                     },
                 )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (t: Throwable) {
                 Log.d(TAG, "${api.name}: loadLinks hata ${t.javaClass.simpleName}: ${t.message}", t)
             }
+            true
         }
+        if (finished == null) Log.d(TAG, "${api.name}: loadLinks süre doldu, gelen ${links.size} bağlantı kullanılıyor")
         Log.d(TAG, "${api.name}: loadLinks ${links.size} ExtractorLink, ${subs.size} SubtitleFile " +
             links.map { "${it.name}/${it.type}/${it.quality}@${runCatching { java.net.URI(it.url).host }.getOrNull()}" })
 
-        return links.map { link ->
+        return links.distinctBy { it.url }.map { link ->
             PlayableStream(
                 source = source,
                 url = link.url,

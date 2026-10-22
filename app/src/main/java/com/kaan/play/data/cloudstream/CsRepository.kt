@@ -207,11 +207,7 @@ class CsRepository(
             throw AddonException(Kind.AlreadyAdded)
         }
 
-        val tmpDex = store.dexFile(tempId)
-        val tmpMf = store.manifestFile(tempId)
-        if (tmpDex.exists()) tmpDex.renameTo(store.dexFile(rowId))
-        if (tmpMf.exists()) tmpMf.renameTo(store.manifestFile(rowId))
-        store.setReadOnly(rowId)
+        store.moveTo(tempId, rowId)
 
         return CsRepoAdded(
             repo = repoEntity.copy(id = repoId).toCsRepo(1),
@@ -225,7 +221,11 @@ class CsRepository(
     // ---------------------------------------------------------------------------
 
     suspend fun remove(repoId: Long) {
-        pluginDao.ofRepo(repoId).forEach { store.delete(it.id) }
+        pluginDao.ofRepo(repoId).forEach {
+            loader.evict(store.loadFile(it.id))
+            loader.evict(store.dexFile(it.id))
+            store.delete(it.id)
+        }
         addonDao.delete(repoId)
     }
 
@@ -245,27 +245,33 @@ class CsRepository(
      * Açık eklentiler için [MainAPI] listesini döner.
      * Her çağrıda DEX'i [PathClassLoader] ile yükler (Android sınıf yükleyici önbelleği bunu ucuzlatır).
      */
-    suspend fun loadApis(pluginRowId: Long, applyDomainOverride: Boolean = true): List<MainAPI> {
+    suspend fun loadApis(pluginRowId: Long): List<MainAPI> {
         val row = pluginDao.byId(pluginRowId) ?: return emptyList()
-        val dexFile = store.dexFile(pluginRowId)
-        if (!dexFile.exists()) return emptyList()
+        val file = store.loadFile(pluginRowId)
+        if (!file.exists()) return emptyList()
         // row.pluginId = depo düzeyindeki internalName; gerçek sınıf adı manifest.json'daki
         // pluginClassName'dir ve genelde farklıdır (bkz. resolveMainClassName).
-        val className = resolveMainClassName(store.readManifest(pluginRowId), row.pluginId)
-        val apis = loader.loadPlugin(dexFile, className)
-        if (applyDomainOverride) applyDomain(row.pluginId, apis)
+        val manifest = store.readManifest(pluginRowId)
+        val className = resolveMainClassName(manifest, row.pluginId)
+        val apis = loader.loadPlugin(file, className, manifest)
+        applyDomain(row.pluginId, apis)
         return apis
     }
 
+    /** Eklentinin kendi adresi (kullanıcı değiştirmeden önceki); yükleyici örnekleri sakladığı için bir kez kaydedilir. */
+    private val originalMainUrls = java.util.WeakHashMap<MainAPI, String>()
+
     /**
-     * Kullanıcı bu eklenti için yeni bir site adresi girdiyse her [MainAPI]'nin `mainUrl`'si onunla değiştirilir.
-     * Her yüklemede yeni örnekler geldiği için her seferinde uygulanır; hata olursa eklentinin kendi adresi kalır.
+     * Kullanıcı bu eklenti için yeni bir site adresi girdiyse her [MainAPI]'nin `mainUrl`'si onunla değiştirilir;
+     * girdi silindiyse eklentinin kendi adresine geri dönülür. Hata olursa eklentinin adresi olduğu gibi kalır.
      */
     private suspend fun applyDomain(internalName: String, apis: List<MainAPI>) {
-        val override = runCatching { domains?.get(internalName) }.getOrNull() ?: return
+        val override = runCatching { domains?.get(internalName) }.getOrNull()
         apis.forEach { api ->
             try {
-                api.mainUrl = override
+                val original = synchronized(originalMainUrls) { originalMainUrls.getOrPut(api) { api.mainUrl } }
+                val wanted = override ?: original
+                if (api.mainUrl != wanted) api.mainUrl = wanted
             } catch (t: Throwable) {
                 Log.d(TAG, "applyDomain: ${api.name} adresi değiştirilemedi ${t.javaClass.simpleName}")
             }
@@ -274,9 +280,9 @@ class CsRepository(
 
     /** Eklentinin kendi (geçersiz kılınmamış) site adresi; yüklenemezse null. */
     suspend fun defaultMainUrl(pluginRowId: Long): String? =
-        runCatching { loadApis(pluginRowId, applyDomainOverride = false).firstOrNull()?.mainUrl }
-            .getOrNull()
-            ?.takeIf { it.startsWith("http", ignoreCase = true) }
+        runCatching {
+            loadApis(pluginRowId).firstOrNull()?.let { api -> synchronized(originalMainUrls) { originalMainUrls[api] } ?: api.mainUrl }
+        }.getOrNull()?.takeIf { it.startsWith("http", ignoreCase = true) }
 
     suspend fun enabledPlugins(): List<InstalledCsPlugin> =
         pluginDao.enabledOfType(AddonType.CLOUDSTREAM_REPO).map { it.toInstalled() }
@@ -343,11 +349,7 @@ class CsRepository(
                 return Dl(entry, false, "db")
             }
             // Geçici dosyaları gerçek id ile yeniden adlandır
-            val tmpDex = store.dexFile(tempId)
-            val tmpMf = store.manifestFile(tempId)
-            if (tmpDex.exists()) tmpDex.renameTo(store.dexFile(rowId))
-            if (tmpMf.exists()) tmpMf.renameTo(store.manifestFile(rowId))
-            store.setReadOnly(rowId)
+            store.moveTo(tempId, rowId)
 
             Dl(entry, true)
         } catch (e: AddonException) {

@@ -158,30 +158,11 @@ class AppContainer(context: Context) {
     init {
         // CloudStream eklentileri app.get()/post() ve depolama için ilklendirilir
         com.lagradost.cloudstream3.initApp(httpClient)
-        com.lagradost.cloudstream3.DataStore.init(appContext)
-        com.lagradost.cloudstream3.AcraApplication.context = appContext
         com.lagradost.cloudstream3.CloudStreamApp.context = appContext
         com.lagradost.cloudstream3.CommonActivity.context = appContext
 
-        // Pichive / Hotlinger / DPlayer çıkarıcılarını ekle (önceden tanımlı eski versiyonları temizleyip en başa ekle)
-        val extApis = com.lagradost.cloudstream3.utils.extractorApis
-        extApis.removeAll {
-            it.mainUrl.contains("hotlinger", ignoreCase = true) ||
-            it.mainUrl.contains("pichive", ignoreCase = true) ||
-            it.mainUrl.contains("dplayer", ignoreCase = true)
-        }
-        val pichiveExts = listOf(
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Pichive", "https://four.pichive.online"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Pichive", "https://pichive.online"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Hotlinger", "https://sn.hotlinger.com"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("Hotlinger", "https://hotlinger.com"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://four.dplayer82.site"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://sn.dplayer82.site"),
-            com.kaan.play.data.cloudstream.extractors.PichiveExtractor("DPlayer", "https://dplayer82.site"),
-        )
-        for (ext in pichiveExts) {
-            extApis.add(0, ext)
-        }
+        // Play'in düzelttiği çıkarıcılar genel listenin başına bir kez konur (bkz. PlayExtractors).
+        com.kaan.play.data.cloudstream.PlayExtractors.install()
     }
 
 
