@@ -18,7 +18,7 @@ import com.kaan.play.data.subtitle.DebugEndpoints
 import com.kaan.play.data.update.UpdateNotifications
 import com.kaan.play.ui.components.SplashOverlay
 import com.kaan.play.ui.nav.PlayRoot
-import com.kaan.play.ui.theme.PlayTheme
+import com.kaan.play.ui.theme.PlayAppTheme
 import com.kaan.play.ui.addons.DeepLinkHost
 import com.kaan.play.ui.update.UpdateDialog
 import com.kaan.play.ui.announcement.AnnouncementDialog
@@ -59,7 +59,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         // Açılışta tek seferlik okuma (milisaniyeler): kayıtlı tema ilk karede doğru çıksın, yanıp sönmesin.
-        val initialTheme = runBlocking { settings.themeMode.first() }
+        val initialAppearance = runBlocking { settings.appearance.first() }
 
         // Yalnızca ilk açılışta: dil değişimi gibi yeniden oluşturmalarda aynı bağlantı tekrar işlenmesin.
         if (savedInstanceState == null) {
@@ -68,23 +68,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContent {
-            val mode by settings.themeMode.collectAsStateWithLifecycle(initialValue = initialTheme)
-            val dark = when (mode) {
-                ThemeMode.Dark -> true
-                ThemeMode.Light -> false
-                ThemeMode.System -> isSystemInDarkTheme()
-            }
-            // Durum/gezinme çubuğu ikonları temaya uysun.
-            DisposableEffect(dark) {
-                val style = if (dark) {
-                    SystemBarStyle.dark(Color.TRANSPARENT)
-                } else {
-                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-                }
-                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-                onDispose { }
-            }
-            PlayTheme(darkTheme = dark) {
+            PlayAppTheme(settings, initialAppearance) {
                 Box {
                     PlayRoot()
                     SplashOverlay()

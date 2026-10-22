@@ -3,6 +3,8 @@
 ## Yayınlanmamış / Unreleased
 
 ### Türkçe
+- **Ana sayfa kategorileri:** Ana sayfanın altındaki "Ana sayfayı düzenle" (ya da Ayarlar › Görünüm › Ana sayfa kategorileri) ile bölümler yukarı/aşağı taşınır, gösterilir/gizlenir ve kaldırılır. "Kategori ekle" ile 60'a yakın hazır kategori (en beğenilenler, vizyondakiler, film/dizi türleri, Türk filmleri/dizileri, Kore, anime, Netflix/Disney+/HBO/Prime/Apple dizileri…), "Kendin yaz" ile kendi kategorin (ad + aranacak kelime + film/dizi/hepsi). Kapak karuseli, "İzlemeye devam et" ve eklenti rafları da sıralanıp gizlenebilir.
+- **40 renk paleti ve parlaklık:** Ayarlar › Tema artık **Görünüm**: Açık, Orta karanlık, Koyu, Simsiyah ve Sistem parlaklığı; Kömür, Deve tüyü, Grafit, Bej, Zümrüt, Lacivert, Bordo… 40 Monet tarzı palet (tonlar tek renkten otomatik üretilir, her paletin okunurluğu test edilir). Varsayılan Play camgöbeği aynen korunur.
 - **Daha hızlı eklentiler:** CloudStream eklentileri artık paralel yükleniyor; depo eklerken dosyalar daha çok paralel iniyor (CloudStream 6, Nuvio 8).
 - **Telegram:** Hakkında ve duyurular https://t.me/darknes_lord kanalına yönlendirir.
 - **TMDB anahtarı uygulamadan girilebilir:** Ayarlar › Eklentiler › TMDB API anahtarı (ya da "TMDB anahtarı yok" ekranındaki "TMDB anahtarı ekle" düğmesi). Ana sayfa, arama, detay ve Nuvio eklentileri bu anahtarı hemen kullanır.
@@ -12,6 +14,8 @@
 - **Otomatik derleme:** GitHub Actions her gönderimde testleri çalıştırır ve imzalı APK'yı Releases'e koyar.
 
 ### English
+- **Home categories:** "Edit home" at the bottom of Home (or Settings › Appearance › Home categories) lets you move sections up/down, show/hide and remove them. "Add category" offers about 60 ready-made categories (top rated, in theaters, movie/series genres, Turkish, Korean, anime, Netflix/Disney+/HBO/Prime/Apple series…); "Write your own" adds a category from a name + search text + movies/series/all. The featured carousel, Continue watching and addon shelves can be reordered and hidden too.
+- **40 color palettes and brightness:** Settings › Theme is now **Appearance**: Light, Medium dark, Dark, Pure black and System brightness, with 40 Monet-style palettes (Charcoal, Camel, Graphite, Beige, Emerald, Navy, Burgundy…). Tones are generated from a single seed color and every palette is contrast-tested. The default Play cyan is unchanged.
 - **Faster addons:** CloudStream addons now load in parallel; installing a repository downloads more files at once (CloudStream 6, Nuvio 8).
 - **Telegram:** About and announcements link to https://t.me/darknes_lord.
 - **TMDB key in the app:** Settings › Addons › TMDB API key (or the "Add TMDB key" button on the missing-key screen). Home, search, details and Nuvio addons use it right away.

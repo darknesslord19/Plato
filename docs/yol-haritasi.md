@@ -64,3 +64,4 @@ Değişmez kurallar: main'e birleştirme ve release yalnızca kullanıcı onayı
 - 2026-10-21: Yeni bölüm için hem rozet hem "Yeni bölümler" rafı. Ödeme sitesi kullanıcı araştırınca seçilecek.
 - 2026-10-21: Watch List, Play'e karıştırılmaz; ayrı bir oluşum olarak kalır.
 - 2026-10-21: Gelir için bağış/destekçi modeli ile başlanır; hesap + bulut sonraya. Çalışma sistemi (yukarıdaki 7 adım) ve bu dosya oluşturuldu.
+- 2026-10-23: Kullanıcının isteğiyle ana sayfa kategorileri (sırala/göster-gizle/hazır + kendi kategorisi) ve Görünüm (5 parlaklık, 40 Monet tarzı palet) eklendi; Ayarlar'daki "Tema" kalemi "Görünüm" oldu (kalem sayısı 5).

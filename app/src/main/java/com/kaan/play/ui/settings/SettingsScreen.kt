@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaan.play.BuildConfig
 import com.kaan.play.R
+import com.kaan.play.data.settings.SettingsRepository
 import com.kaan.play.data.settings.ThemeMode
 import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.i18n.LanguageChoice
@@ -48,19 +49,19 @@ import com.kaan.play.ui.tv.focusRing
 import com.kaan.play.ui.tv.rememberFocusMemory
 import kotlinx.coroutines.launch
 
-private enum class OpenDialog { Theme, Language }
+private enum class OpenDialog { Language }
 
 /**
  * Ayarlar: tam beş kalem (Eklentiler, Oynatıcı, Tema, Dil, Hakkında), kart düzeninde
  * (koyu mavi yarı saydam kartlar, sol ikon, sağ ok).
  */
 @Composable
-fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbout: () -> Unit) {
+fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbout: () -> Unit, onOpenAppearance: () -> Unit) {
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
     val addonCount by container.installedSourcesCount
         .collectAsStateWithLifecycle(initialValue = null)
-    val theme by container.settings.themeMode.collectAsStateWithLifecycle(initialValue = ThemeMode.Dark)
+    val palette by container.settings.themePalette.collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_PALETTE)
     var language by remember { mutableStateOf(AppLanguage.choice()) }
     var dialog by remember { mutableStateOf<OpenDialog?>(null) }
     val focus = rememberFocusMemory()
@@ -94,12 +95,12 @@ fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbo
             onClick = onOpenPlayer,
         )
         com.kaan.play.ui.components.PlayCardRow(
-            title = stringResource(R.string.settings_theme),
-            value = stringResource(theme.labelRes()),
+            title = stringResource(R.string.settings_appearance),
+            value = stringResource(com.kaan.play.ui.theme.Palettes.get(palette).nameRes),
             icon = PlayIcons.Palette,
             iconTint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.focusMemory(focus, "theme"),
-            onClick = { dialog = OpenDialog.Theme },
+            onClick = onOpenAppearance,
         )
         com.kaan.play.ui.components.PlayCardRow(
             title = stringResource(R.string.settings_language),
@@ -120,14 +121,6 @@ fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbo
     }
 
     when (dialog) {
-        OpenDialog.Theme -> ChoiceDialog(
-            title = stringResource(R.string.settings_theme),
-            options = ThemeMode.entries,
-            selected = theme,
-            label = { stringResource(it.labelRes()) },
-            onSelect = { scope.launch { container.settings.setThemeMode(it) }; dialog = null },
-            onDismiss = { dialog = null },
-        )
         OpenDialog.Language -> ChoiceDialog(
             title = stringResource(R.string.settings_language),
             options = LanguageChoice.entries,
@@ -144,8 +137,10 @@ fun SettingsScreen(onOpenAddons: () -> Unit, onOpenPlayer: () -> Unit, onOpenAbo
     }
 }
 
-private fun ThemeMode.labelRes(): Int = when (this) {
+internal fun ThemeMode.labelRes(): Int = when (this) {
     ThemeMode.Dark -> R.string.theme_dark
+    ThemeMode.Medium -> R.string.theme_medium
+    ThemeMode.Black -> R.string.theme_black
     ThemeMode.Light -> R.string.theme_light
     ThemeMode.System -> R.string.common_system
 }

@@ -64,7 +64,7 @@ import com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver
 import com.kaan.play.data.settings.ThemeMode
 import com.kaan.play.ui.components.IconButton
 import com.kaan.play.ui.nav.PlayIcons
-import com.kaan.play.ui.theme.PlayTheme
+import com.kaan.play.ui.theme.PlayAppTheme
 import com.kaan.play.ui.tv.focusRing
 import com.lagradost.cloudstream3.PlayNetworkGuard
 import kotlinx.coroutines.flow.first
@@ -112,7 +112,7 @@ class CloudflareVerifyActivity : AppCompatActivity() {
         }
 
         val appSettings = (application as PlayApp).container.settings
-        val initialTheme = runBlocking { appSettings.themeMode.first() }
+        val initialAppearance = runBlocking { appSettings.appearance.first() }
 
         val view = WebView(this).apply {
             this.settings.apply {
@@ -197,18 +197,7 @@ class CloudflareVerifyActivity : AppCompatActivity() {
         root.addView(
             ComposeView(this).apply {
                 setContent {
-                    val mode by appSettings.themeMode.collectAsStateWithLifecycle(initialValue = initialTheme)
-                    val dark = when (mode) {
-                        ThemeMode.Dark -> true
-                        ThemeMode.Light -> false
-                        ThemeMode.System -> isSystemInDarkTheme()
-                    }
-                    DisposableEffect(dark) {
-                        val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-                        enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-                        onDispose { }
-                    }
-                    PlayTheme(darkTheme = dark) {
+                    PlayAppTheme(appSettings, initialAppearance) {
                         CloudflareVerifyScreen(
                             providerName = providerName.ifEmpty { targetHost },
                             host = targetHost,

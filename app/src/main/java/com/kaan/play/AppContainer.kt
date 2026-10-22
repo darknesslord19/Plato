@@ -191,6 +191,9 @@ class AppContainer(context: Context) {
         SettingsRepository(PreferenceDataStoreFactory.create { appContext.preferencesDataStoreFile("settings") })
     }
 
+    /** Ana sayfa kategorileri: sıra, görünürlük, hazır ve kullanıcının yazdığı kategoriler. Ayarlarla aynı DataStore. */
+    val homeLayout: com.kaan.play.data.home.HomeLayoutStore by lazy { com.kaan.play.data.home.HomeLayoutStore(settings.store) }
+
     /** Elle seçilen kaynak (film/dizi başına): sonraki açılışta ve dizinin sonraki bölümünde önce denenir. Ayarlarla aynı DataStore. */
     val sourceMemory: SourceMemory by lazy { SourceMemory(settings.store) }
 

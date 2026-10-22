@@ -90,7 +90,6 @@ import com.kaan.play.data.plugin.DeepLinkEvent
 import com.kaan.play.ui.detail.DetailScreen
 import com.kaan.play.ui.detail.ProviderDetailScreen
 import com.kaan.play.ui.home.CategoryScreen
-import com.kaan.play.ui.home.HomeRow
 import com.kaan.play.ui.home.HomeScreen
 import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.search.SearchScreen
@@ -112,6 +111,8 @@ private const val NUVIO_PLUGINS_ROUTE = "settings/addons/nuvioplugins"
 private const val PLUGIN_ROUTE = "settings/addons/plugin/{id}"
 private const val PLAYER_SETTINGS_ROUTE = "settings/player"
 private const val ABOUT_ROUTE = "settings/about"
+private const val APPEARANCE_ROUTE = "settings/appearance"
+private const val HOME_EDIT_ROUTE = "home/edit"
 private const val DETAIL_ROUTE = "detail/{type}/{id}"
 private const val PROVIDER_DETAIL_ROUTE = "provider_detail/{providerId}/{encodedUrl}"
 private const val CATEGORY_ROUTE = "home/category/{row}"
@@ -124,7 +125,7 @@ private data class ResumeAsk(val target: PlayTarget, val positionMs: Long, val d
 
 private fun addonsRoute(startAdding: Boolean) = "settings/addons?add=$startAdding"
 private fun detailRoute(type: MediaType, id: Int) = "detail/${type.tmdbPath}/$id"
-private fun categoryRoute(row: HomeRow) = "home/category/${row.name}"
+private fun categoryRoute(sectionId: String) = "home/category/${android.net.Uri.encode(sectionId)}"
 private fun providerDetailRoute(providerId: String, url: String): String {
     val b64 = android.util.Base64.encodeToString(url.toByteArray(Charsets.UTF_8), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
     val safePid = providerId.replace(':', '_')
@@ -472,6 +473,7 @@ fun PlayRoot() {
                     onOpenDetail = ::openDetail,
                     onOpenProviderDetail = ::openProviderDetail,
                     onOpenCategory = { navController.navigate(categoryRoute(it)) },
+                    onEditHome = { navController.navigate(HOME_EDIT_ROUTE) },
                     onContinue = ::continueWatching,
                     onAddAddon = { openAddons(startAdding = true) },
                     onOpenSearch = { query ->
@@ -486,9 +488,9 @@ fun PlayRoot() {
                 route = CATEGORY_ROUTE,
                 arguments = listOf(navArgument("row") { type = NavType.StringType }),
             ) { entry ->
-                val row = HomeRow.entries.firstOrNull { it.name == entry.arguments?.getString("row") } ?: HomeRow.TrendingMovies
+                val sectionId = entry.arguments?.getString("row").orEmpty()
                 ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) {
-                    CategoryScreen(row = row, onBack = { navController.popBackStack() }, onOpenDetail = ::openDetail)
+                    CategoryScreen(sectionId = sectionId, onBack = { navController.popBackStack() }, onOpenDetail = ::openDetail)
                 }
             }
             composable(
@@ -506,6 +508,7 @@ fun PlayRoot() {
                     SettingsScreen(
                         onOpenAddons = { navController.navigate(addonsRoute(false)) },
                         onOpenPlayer = { navController.navigate(PLAYER_SETTINGS_ROUTE) },
+                        onOpenAppearance = { navController.navigate(APPEARANCE_ROUTE) },
                         onOpenAbout = { navController.navigate(ABOUT_ROUTE) },
                     )
                 }
@@ -551,6 +554,17 @@ fun PlayRoot() {
                 ReadableWidth {
                     PluginSettingsScreen(pluginId = entry.arguments?.getLong("id") ?: 0L, onBack = { navController.popBackStack() })
                 }
+            }
+            composable(APPEARANCE_ROUTE) {
+                ReadableWidth {
+                    com.kaan.play.ui.settings.AppearanceScreen(
+                        onBack = { navController.popBackStack() },
+                        onEditHome = { navController.navigate(HOME_EDIT_ROUTE) },
+                    )
+                }
+            }
+            composable(HOME_EDIT_ROUTE) {
+                ReadableWidth { com.kaan.play.ui.home.HomeLayoutScreen(onBack = { navController.popBackStack() }) }
             }
             composable(ABOUT_ROUTE) { ReadableWidth { AboutScreen(onBack = { navController.popBackStack() }) } }
             composable(

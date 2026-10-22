@@ -88,6 +88,15 @@ class TmdbRepository(
     /** `tr,en,null`: arayüz dili, İngilizce, dilsiz logolar (sırayla tercih edilir, bkz. [pickLogo]). */
     private fun imageLanguages(): String = imageLanguagesFor(language())
 
+    /**
+     * Ana sayfa kategorisi ([TmdbQuery]): hazır listeler, tür/dil/platform keşfi ya da kullanıcının yazdığı arama.
+     * Arama sorgusu boşsa ağa gitmeden boş sonuç verir.
+     */
+    suspend fun list(query: TmdbQuery, page: Int = 1): Page<MediaSummary> {
+        if (query.path.startsWith("search/") && query.params["query"].isNullOrBlank()) return Page(emptyList(), 1, 1)
+        return service.list(query.path, lang(), page, query.params).toPage(defaultType = query.type)
+    }
+
     /** Boş sorgu ağa gitmeden boş sonuç verir. Kişi sonuçları ayıklanır. */
     suspend fun search(query: String, page: Int = 1): Page<MediaSummary> {
         val q = query.trim()
