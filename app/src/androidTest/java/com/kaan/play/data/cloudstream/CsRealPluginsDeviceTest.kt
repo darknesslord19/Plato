@@ -89,7 +89,7 @@ class CsRealPluginsDeviceTest {
     private fun err(t: Throwable?): String? = t?.let { "${it.javaClass.name}: ${it.message?.lineSequence()?.firstOrNull()?.take(160)}" }
 
     @Test
-    fun loadsRealPluginsAndReports() = runBlocking {
+    fun loadsRealPluginsAndReports(): Unit = runBlocking {
         val repos = args.getString("cs_repos")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
         assumeTrue("cs_repos verilmedi; gerçek eklenti denemesi atlandı", repos.isNotEmpty())
         val limit = args.getString("cs_limit")?.toIntOrNull() ?: 15

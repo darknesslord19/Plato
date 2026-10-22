@@ -27,6 +27,11 @@ on:
       - "**.md"
       - "docs/**"
       - "announcements.json"
+      # Yalnızca cihaz denemesini (device-test.yml) ilgilendiren değişiklikler yeni sürüm çıkarmaz.
+      - "app/src/androidTest/**"
+      - ".github/workflows/device-test.yml"
+      - ".github/scripts/cs-device-*"
+      - "tools/cs_repos_device.list"
   pull_request:
   workflow_dispatch:
 
