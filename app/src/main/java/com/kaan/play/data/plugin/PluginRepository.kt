@@ -80,7 +80,7 @@ class PluginRepository(
     private val codeFetcher: PluginCodeFetcher,
     private val store: PluginCodeStore,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val parallelDownloads: Int = 4,
+    private val parallelDownloads: Int = 8,
     /** Bir kazıyıcı silinince çağrılır (kayıtlı ayarlarını temizlemek için). */
     private val onPluginRemoved: suspend (Long) -> Unit = {},
 ) {

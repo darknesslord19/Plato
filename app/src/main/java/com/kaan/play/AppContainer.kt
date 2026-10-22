@@ -531,7 +531,11 @@ class AppContainer(context: Context) {
 
     /** Uygulama içi duyuru kontrolü (GitHub raw announcements.json); oturumda bir kez, arka planda. */
     val announcementChecker: AnnouncementChecker by lazy {
-        AnnouncementChecker(httpClient, json, BuildConfig.VERSION_NAME, settings)
+        // Duyurular derlendiği deponun announcements.json dosyasından okunur (fork kendi kanalına yönlendirir).
+        AnnouncementChecker(
+            httpClient, json, BuildConfig.VERSION_NAME, settings,
+            endpoint = "https://raw.githubusercontent.com/${BuildConfig.UPDATE_REPO}/main/announcements.json",
+        )
     }
 
     /** Uygulama içi güncelleme kontrolü (GitHub releases/latest); oturumda bir kez, etkinlik yeniden oluşsa da tekrarlanmaz. */

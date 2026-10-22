@@ -3,6 +3,8 @@
 ## Yayınlanmamış / Unreleased
 
 ### Türkçe
+- **Daha hızlı eklentiler:** CloudStream eklentileri artık paralel yükleniyor; depo eklerken dosyalar daha çok paralel iniyor (CloudStream 6, Nuvio 8).
+- **Telegram:** Hakkında ve duyurular https://t.me/darknes_lord kanalına yönlendirir.
 - **TMDB anahtarı uygulamadan girilebilir:** Ayarlar › Eklentiler › TMDB API anahtarı (ya da "TMDB anahtarı yok" ekranındaki "TMDB anahtarı ekle" düğmesi). Ana sayfa, arama, detay ve Nuvio eklentileri bu anahtarı hemen kullanır.
 - **Güncelleme bildirimi:** güncellemeler artık bir JSON bildiriminden (Firebase) denetlenir; ulaşılamazsa GitHub Releases. Bildirimdeki sürüm notları güncelleme penceresinde gösterilir.
 - **CloudStream eklentileri düzeltmesi:** CloudStream'de çalışıp Play'de açılmayan eklentilerin büyük kısmı artık yükleniyor. Gerçek depolardaki 227 eklenti incelendi: eklentilerin kullandığı CloudStream uygulama sınıfları (`CloudStreamApp`, `DataStore`, `MainActivity` olayları vb.) Play'de yanlış biçimdeydi ve eklenti açılırken çöküyordu; düzeltildi. Gerçek CloudStream'in eklentilere sunduğu Material, Gson ve FuzzyWuzzy kütüphaneleri eklendi. Jackson, Android 8 altındaki TV kutularında çökmesin diye CloudStream ile aynı sürüme (2.13.1) alındı. Eklentiler artık oturumda bir kez yükleniyor (daha hızlı, daha az bellek); yavaş bir kaynak, o ana kadar bulunan bağlantıları kaybettirmiyor.
@@ -10,6 +12,8 @@
 - **Otomatik derleme:** GitHub Actions her gönderimde testleri çalıştırır ve imzalı APK'yı Releases'e koyar.
 
 ### English
+- **Faster addons:** CloudStream addons now load in parallel; installing a repository downloads more files at once (CloudStream 6, Nuvio 8).
+- **Telegram:** About and announcements link to https://t.me/darknes_lord.
 - **TMDB key in the app:** Settings › Addons › TMDB API key (or the "Add TMDB key" button on the missing-key screen). Home, search, details and Nuvio addons use it right away.
 - **Update manifest:** updates are now checked from a JSON manifest (Firebase), falling back to GitHub Releases. Release notes from the manifest are shown in the update dialog.
 - **CloudStream addon fix:** Most addons that work in CloudStream but failed in Play now load. 227 real addons were analysed: the CloudStream app classes they use (`CloudStreamApp`, `DataStore`, `MainActivity` events etc.) had the wrong shape in Play and the addon crashed while loading; fixed. Added Material, Gson and FuzzyWuzzy, which CloudStream provides to addons. Jackson is pinned to CloudStream's version (2.13.1) so it no longer crashes on Android 7 TV boxes. Addons are now loaded once per session (faster, less memory), and a slow source no longer discards links already found.

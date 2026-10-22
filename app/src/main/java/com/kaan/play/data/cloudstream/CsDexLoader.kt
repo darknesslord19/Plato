@@ -65,7 +65,12 @@ interface PluginDexLoader {
  */
 class CsDexLoader(private val context: Context) : PluginDexLoader {
 
-    private val loadLock = Mutex()
+    /**
+     * Dosya başına kilit: farklı eklentiler **paralel** yüklenir (eskiden tek genel kilit vardı; açılışta ağa çıkan
+     * eklentiler birbirini bekliyor, depo eklendikten sonra ilk açılış dakikalar sürebiliyordu). Kaydedilen
+     * sağlayıcılar `sourcePlugin` (= dosya yolu) ile eklentisine bağlanır, böylece eşzamanlı yüklemeler karışmaz.
+     */
+    private val loadLocks = ConcurrentHashMap<String, Mutex>()
 
     private class Loaded(val stamp: String, val apis: List<MainAPI>)
     private val cache = ConcurrentHashMap<String, Loaded>()
@@ -88,7 +93,7 @@ class CsDexLoader(private val context: Context) : PluginDexLoader {
         cache[key]?.takeIf { it.stamp == stamp }?.let { return it.apis }
         failures[key]?.let { (_, at) -> if (System.currentTimeMillis() - at < FAILURE_RETRY_MS) return emptyList() }
 
-        return loadLock.withLock {
+        return loadLocks.getOrPut(key) { Mutex() }.withLock {
             cache[key]?.takeIf { it.stamp == stamp }?.let { return@withLock it.apis }
             val apis = loadUncached(file, className, manifestJson)
             if (apis.isNotEmpty()) {
@@ -137,7 +142,10 @@ class CsDexLoader(private val context: Context) : PluginDexLoader {
                     } else {
                         plugin.load()
                     }
-                    APIHolder.allProviders.filter { it !in before }.distinctBy { it.name }
+                    val mine = APIHolder.allProviders.filter { it.sourcePlugin == file.absolutePath }
+                    // registerMainAPI kullanmayıp listeye doğrudan ekleyen eski eklentiler için yedek: yeni gelenler.
+                    (mine.ifEmpty { APIHolder.allProviders.filter { it !in before && it.sourcePlugin == null } })
+                        .distinctBy { it.name }
                 }
                 MainAPI::class.java.isAssignableFrom(clazz) -> {
                     val api = clazz.getDeclaredConstructor().newInstance() as MainAPI

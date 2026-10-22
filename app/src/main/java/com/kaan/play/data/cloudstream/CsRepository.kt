@@ -66,7 +66,7 @@ class CsRepository(
     private val store: CsDexStore,
     private val loader: PluginDexLoader,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val parallelDownloads: Int = 2,
+    private val parallelDownloads: Int = 6,
     /** Kullanıcının eklenti başına girdiği site adresleri; null ise (testler) geçersiz kılma yok. */
     val domains: CsDomainOverrides? = null,
 ) {

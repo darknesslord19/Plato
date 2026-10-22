@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Android%207.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white&labelColor=0B0C10" alt="Android 7.0 ve üzeri" />
   <img src="https://img.shields.io/badge/Telefon%20%C2%B7%20Tablet%20%C2%B7%20TV-0F9B8E?style=flat-square&labelColor=0B0C10" alt="Telefon, tablet ve TV" />
   <img src="https://img.shields.io/badge/Kotlin%20%C2%B7%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white&labelColor=0B0C10" alt="Kotlin ve Jetpack Compose" />
-  <a href="https://t.me/+o-RFlV4U3UY5NGU8"><img src="https://img.shields.io/badge/Telegram-229ED9?style=flat-square&logo=telegram&logoColor=white&labelColor=0B0C10" alt="Telegram" /></a>
+  <a href="https://t.me/darknes_lord"><img src="https://img.shields.io/badge/Telegram-229ED9?style=flat-square&logo=telegram&logoColor=white&labelColor=0B0C10" alt="Telegram" /></a>
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 <p align="center">
   <a href="https://github.com/liberta09/Play/releases/download/v1.1.4/Play-1.1.4.apk"><img src="https://img.shields.io/badge/APK%20%C4%B0ND%C4%B0R-Play%20(son%20s%C3%BCr%C3%BCm)-2DD4BF?style=for-the-badge&logo=android&logoColor=0B0C10&labelColor=0B0C10&color=2DD4BF" alt="APK İndir" height="52" /></a>
   &nbsp;
-  <a href="https://t.me/+o-RFlV4U3UY5NGU8"><img src="https://img.shields.io/badge/TELEGRAM-Kanala%20Kat%C4%B1l-229ED9?style=for-the-badge&logo=telegram&logoColor=white&labelColor=0B0C10" alt="Telegram Kanalına Katıl" height="52" /></a>
+  <a href="https://t.me/darknes_lord"><img src="https://img.shields.io/badge/TELEGRAM-Kanala%20Kat%C4%B1l-229ED9?style=for-the-badge&logo=telegram&logoColor=white&labelColor=0B0C10" alt="Telegram Kanalına Katıl" height="52" /></a>
 </p>
 
 <p align="center">
@@ -75,7 +75,7 @@
 Yeni sürümler, duyurular ve hata bildirimleri için Telegram kanalına katıl.
 
 <p align="center">
-  <a href="https://t.me/+o-RFlV4U3UY5NGU8"><img src="https://img.shields.io/badge/Telegram-Kanala%20Kat%C4%B1l-229ED9?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Kanalına Katıl" height="44" /></a>
+  <a href="https://t.me/darknes_lord"><img src="https://img.shields.io/badge/Telegram-Kanala%20Kat%C4%B1l-229ED9?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Kanalına Katıl" height="44" /></a>
 </p>
 
 <details>
