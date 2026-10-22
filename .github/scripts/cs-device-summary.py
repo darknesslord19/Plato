@@ -5,7 +5,17 @@ path = sys.argv[1]
 try:
     data = json.load(open(path, encoding="utf-8"))
 except Exception as e:  # noqa: BLE001
+    d = os.path.dirname(path)
+    def tail(name, n=25):
+        try:
+            lines = open(os.path.join(d, name), encoding="utf-8", errors="replace").read().splitlines()
+            return "%0A".join(l.replace("%", "%25")[:200] for l in lines[-n:])
+        except OSError:
+            return "(yok)"
     print(f"::error title=Cihaz denemesi::Rapor okunamadı: {e}")
+    print(f"::error title=Cihaz: am instrument çıktısı::{tail('instrument.txt')}")
+    print(f"::error title=Cihaz: adb::{tail('run.txt', 30)}")
+    print(f"::error title=Cihaz: logcat::{tail('logcat.txt', 40)}")
     sys.exit(0)
 plugins = data.get("plugins", [])
 c = collections.Counter(p.get("stage") for p in plugins)
