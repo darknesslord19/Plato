@@ -219,6 +219,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NAME: ${{ steps.version.outputs.name }}
           SIGNING: ${{ steps.signing.outputs.kind }}
+          UPDATE_NOTES: ${{ vars.UPDATE_NOTES }}
         run: |
           dir=app/build/outputs/apk/release
           notes="Otomatik derleme: ${GITHUB_SHA::7}"
@@ -227,8 +228,15 @@ jobs:
 
           ⚠️ Geçici anahtarla imzalandı: önceki sürümün üzerine kurulamaz, önce kaldırman gerekir. Depo ayarlarına KEYSTORE_BASE64 ve KEYSTORE_PASSWORD ekleyince bu sorun kalkar."
           fi
+          # Uygulamanın güncelleme bildirimi (data/update/UpdateManifest.kt biçimi); Firebase'e yazılacak JSON.
+          sha=$(cut -d' ' -f1 "$dir/Play-$NAME-SHA256.txt")
+          size=$(stat -c %s "$dir/Play-$NAME.apk")
+          base="https://github.com/$GITHUB_REPOSITORY/releases"
+          python3 -c "import json,sys;print(json.dumps({'version':sys.argv[1],'apkUrl':sys.argv[2],'sha256':sys.argv[3],'size':int(sys.argv[4]),'pageUrl':sys.argv[5],'notes':sys.argv[6]},ensure_ascii=False,indent=1))" \
+            "$NAME" "$base/download/v$NAME/Play-$NAME.apk" "$sha" "$size" "$base/tag/v$NAME" "${UPDATE_NOTES:-}" > "$dir/Playupdate.json"
+          cat "$dir/Playupdate.json"
           if ! gh release create "v$NAME" \
-            "$dir/Play-$NAME.apk" "$dir/Play-$NAME-SHA256.txt" \
+            "$dir/Play-$NAME.apk" "$dir/Play-$NAME-SHA256.txt" "$dir/Playupdate.json" \
             --target "$GITHUB_SHA" --title "Play $NAME" --notes "$notes" --latest > /tmp/release.txt 2>&1; then
             cat /tmp/release.txt
             msg=$(tail -5 /tmp/release.txt | sed -e ':a;N;$!ba;s/\n/%0A/g')
@@ -236,3 +244,23 @@ jobs:
             exit 1
           fi
           cat /tmp/release.txt
+
+      - name: Güncelleme bildirimini Firebase'e yaz
+        # İsteğe bağlı: depo ayarlarında FIREBASE_UPDATE_WRITE_URL tanımlıysa (yazma yetkili tam adres, ör. ...json?auth=...)
+        # yeni sürüm uygulamalara hemen bildirilir. Tanımlı değilse Playupdate.json release'e eklenir, elle yapıştırılır.
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          WRITE_URL: ${{ secrets.FIREBASE_UPDATE_WRITE_URL }}
+          NAME: ${{ steps.version.outputs.name }}
+        run: |
+          if [ -z "$WRITE_URL" ]; then
+            echo "::notice title=Güncelleme bildirimi::FIREBASE_UPDATE_WRITE_URL tanımlı değil; Playupdate.json release'te, elle Firebase'e yapıştır."
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/fb.txt -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
+            --data-binary "@app/build/outputs/apk/release/Playupdate.json" "$WRITE_URL")
+          if [ "$code" != "200" ]; then
+            echo "::warning title=Firebase::Bildirim yazılamadı (HTTP $code): $(head -c 200 /tmp/fb.txt)"
+          else
+            echo "::notice title=Firebase::Güncelleme bildirimi yazıldı: v$NAME"
+          fi

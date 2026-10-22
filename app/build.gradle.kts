@@ -31,6 +31,10 @@ val playVersionCode: Int = System.getenv("PLAY_VERSION_CODE")?.toIntOrNull() ?: 
 val playUpdateRepo: String = (localProps.getProperty("PLAY_UPDATE_REPO") ?: System.getenv("PLAY_UPDATE_REPO"))
     ?.takeIf { Regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$").matches(it) }
     ?: "liberta09/Play"
+// PLAY_UPDATE_URL: güncelleme bildirimi (JSON, biçim: data/update/UpdateManifest.kt). Önce buna bakılır, olmazsa GitHub.
+val playUpdateUrl: String = (localProps.getProperty("PLAY_UPDATE_URL") ?: System.getenv("PLAY_UPDATE_URL"))
+    ?.takeIf { it.startsWith("https://") && !it.contains('"') && !it.contains('\\') }
+    ?: "https://darknes-lord-paste-default-rtdb.firebaseio.com/pastes/Playupdate.json"
 
 android {
     namespace = "com.kaan.play"
@@ -51,6 +55,7 @@ android {
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         buildConfigField("String", "SUBDL_API_KEY", "\"$subdlApiKey\"")
         buildConfigField("String", "UPDATE_REPO", "\"$playUpdateRepo\"")
+        buildConfigField("String", "UPDATE_URL", "\"$playUpdateUrl\"")
     }
 
     // Yayın imzası: keystore yolu repoda, şifreler yalnızca local.properties'te (ya da ortam değişkeninde).

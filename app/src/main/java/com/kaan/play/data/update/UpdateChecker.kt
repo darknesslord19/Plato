@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * [apk]: bu cihazın işlemci türüne uyan, SHA-256 dosyası da olan APK; yoksa (eşleşme yok) eski tarayıcı yöntemi kullanılır.
  */
 @Serializable
-data class UpdateInfo(val tag: String, val pageUrl: String, val apk: UpdateApk? = null)
+data class UpdateInfo(val tag: String, val pageUrl: String, val apk: UpdateApk? = null, val notes: String? = null)
 
 /**
  * Uygulama içi güncelleme kontrolü: GitHub `releases/latest` API'sinden son sürüm etiketi alınır, yüklü sürümle
@@ -39,6 +39,13 @@ class UpdateChecker(
     private val timeoutSeconds: Long = 8,
     /** Cihazın işlemci türleri, tercih sırasıyla (`Build.SUPPORTED_ABIS`). */
     private val abis: List<String> = emptyList(),
+    /**
+     * Play'in kendi güncelleme bildirimi (ör. Firebase JSON; biçim [UpdateManifestJson]). Verilirse önce buna bakılır;
+     * okunamaz ya da geçersizse GitHub `releases/latest`e ([endpoint]) geri düşülür.
+     */
+    private val manifestUrl: String? = null,
+    /** APK'nın inebileceği tek GitHub deposu ("sahip/depo"). */
+    private val repo: String = "liberta09/Play",
 ) {
     private val started = AtomicBoolean(false)
     private val _completed = MutableStateFlow(false)
@@ -85,6 +92,39 @@ class UpdateChecker(
 
     /** Son sürüm yüklüden yeniyse bilgisini, aksi halde (ya da herhangi bir sorunda) null döner. */
     internal suspend fun fetch(): UpdateInfo? {
+        val manifest = manifestUrl?.takeIf { endpointOverride == null }?.toHttpUrlOrNull()
+        if (manifest != null) {
+            val result = try {
+                val text = getText(manifest.toString(), "application/json")
+                if (text == null) null else UpdateManifestRules.evaluate(text, installedVersion, repo, json)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            if (result is UpdateManifestRules.Result.Valid) return result.info
+            // Bildirim yok/bozuk: GitHub'a geri düş.
+        }
+        return fetchGitHub()
+    }
+
+    private suspend fun getText(url: String, accept: String): String? {
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", accept)
+            .header("User-Agent", "Play-Android-UpdateCheck")
+            .build()
+        val call = client.newBuilder().callTimeout(timeoutSeconds, TimeUnit.SECONDS).build().newCall(request)
+        return call.await().use { response ->
+            if (!response.isSuccessful) return null
+            val source = response.body.source()
+            source.request(MAX_BODY_BYTES + 1)
+            if (source.buffer.size > MAX_BODY_BYTES) return null
+            source.readUtf8()
+        }
+    }
+
+    private suspend fun fetchGitHub(): UpdateInfo? {
         val request = Request.Builder()
             .url((endpointOverride ?: endpoint).toHttpUrlOrNull() ?: return null)
             .header("Accept", "application/vnd.github+json")

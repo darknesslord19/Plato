@@ -9,7 +9,15 @@ data class ReleaseAsset(val name: String, val url: String, val size: Long)
 
 /** Seçilen APK: indirme adresi, beklenen boyut ve SHA-256 dosyasının adresi. */
 @Serializable
-data class UpdateApk(val name: String, val url: String, val size: Long, val sha256Url: String)
+data class UpdateApk(
+    val name: String,
+    val url: String,
+    val size: Long,
+    /** SHA-256 dosyasının adresi (GitHub release'i); [sha256] verilmişse kullanılmaz. */
+    val sha256Url: String,
+    /** Bildirimde doğrudan verilen SHA-256 (64 onaltılık); varsa dosya indirilmez. */
+    val sha256: String? = null,
+)
 
 /** Android'den bağımsız APK seçimi ve adres/özet kuralları (birim testli). */
 object UpdateApkRules {

@@ -97,7 +97,7 @@
     <string name="quality_4k" translatable="false">4K</string>
 
     <!-- TMDB hataları -->
-    <string name="tmdb_error_missing_key">The TMDB key is missing from this build.</string>
+    <string name="tmdb_error_missing_key">No TMDB key. Add one for home rows and search.</string>
     <string name="tmdb_error_invalid_key">TMDB rejected the API key.</string>
     <string name="tmdb_error_network">Couldn\'t load. Check your connection.</string>
     <string name="tmdb_error_rate_limited">Too many requests. Try again in a moment.</string>
@@ -493,4 +493,14 @@
     <string name="cs_domain_save">Save</string>
     <string name="cs_domain_reset">Use addon\'s address</string>
     <string name="cs_domain_current">Address: %1$s</string>
+    <!-- TMDB API anahtarı (uygulama içinden) -->
+    <string name="tmdb_key_title">TMDB API key</string>
+    <string name="tmdb_key_message">Home rows, search and details come from TMDB. Get a free v3 API key at themoviedb.org → Settings → API and paste it here.</string>
+    <string name="tmdb_key_label">API key (32 characters)</string>
+    <string name="tmdb_key_invalid">This doesn\'t look like a TMDB v3 API key (32 letters and digits).</string>
+    <string name="tmdb_key_remove">Remove my key</string>
+    <string name="tmdb_key_add">Add TMDB key</string>
+    <string name="tmdb_key_source_user">Your key: %1$s</string>
+    <string name="tmdb_key_source_builtin">Using the key built into this version</string>
+    <string name="tmdb_key_source_none">No key: TMDB rows and search are empty</string>
 </resources>

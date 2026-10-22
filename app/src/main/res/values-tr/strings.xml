@@ -84,7 +84,7 @@
     <string name="player_resuming">Kaldığın yerden devam ediliyor</string>
 
     <!-- TMDB hataları -->
-    <string name="tmdb_error_missing_key">Bu derlemede TMDB anahtarı yok.</string>
+    <string name="tmdb_error_missing_key">TMDB anahtarı yok. Ana sayfa ve arama için bir anahtar ekle.</string>
     <string name="tmdb_error_invalid_key">TMDB, API anahtarını reddetti.</string>
     <string name="tmdb_error_network">Yüklenemedi. Bağlantını kontrol et.</string>
     <string name="tmdb_error_rate_limited">Çok fazla istek var. Biraz sonra tekrar dene.</string>
@@ -475,4 +475,14 @@
     <string name="cs_domain_save">Kaydet</string>
     <string name="cs_domain_reset">Eklentinin adresine dön</string>
     <string name="cs_domain_current">Adres: %1$s</string>
+    <!-- TMDB API anahtarı (uygulama içinden) -->
+    <string name="tmdb_key_title">TMDB API anahtarı</string>
+    <string name="tmdb_key_message">Ana sayfa rafları, arama ve detaylar TMDB\'den gelir. themoviedb.org → Ayarlar → API sayfasından ücretsiz v3 anahtarı alıp buraya yapıştır.</string>
+    <string name="tmdb_key_label">API anahtarı (32 karakter)</string>
+    <string name="tmdb_key_invalid">Bu bir TMDB v3 API anahtarına benzemiyor (32 harf ve rakam).</string>
+    <string name="tmdb_key_remove">Anahtarımı kaldır</string>
+    <string name="tmdb_key_add">TMDB anahtarı ekle</string>
+    <string name="tmdb_key_source_user">Senin anahtarın: %1$s</string>
+    <string name="tmdb_key_source_builtin">Bu sürümdeki yerleşik anahtar kullanılıyor</string>
+    <string name="tmdb_key_source_none">Anahtar yok: TMDB rafları ve arama boş</string>
 </resources>

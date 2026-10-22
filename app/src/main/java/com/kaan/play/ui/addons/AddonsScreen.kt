@@ -107,6 +107,7 @@ fun AddonsScreen(
     var showTimeout by remember { mutableStateOf(false) }
     val torrentServer by container.settings.torrentServer.collectAsStateWithLifecycle(initialValue = null)
     var showTorrentServer by remember { mutableStateOf(false) }
+    var showTmdbKey by remember { mutableStateOf(false) }
     val focus = rememberFocusMemory()
 
     // Başarılı ekleme bildirimi ve otomatik doğru ekrana yönlendirme
@@ -257,6 +258,17 @@ fun AddonsScreen(
                     )
                 }
             }
+            item {
+                // TMDB anahtarı: ana sayfa/arama/detay ve Nuvio eklentilerinin TMDB istekleri bununla çalışır.
+                com.kaan.play.ui.components.PlayCardRow(
+                    title = stringResource(R.string.tmdb_key_title),
+                    subtitle = com.kaan.play.ui.components.tmdbKeySummary(),
+                    icon = PlayIcons.Database,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.focusMemory(focus, "tmdbkey"),
+                    onClick = { showTmdbKey = true },
+                )
+            }
             sites?.takeIf { it.isNotEmpty() }?.let { list ->
                 item {
                     Text(
@@ -317,6 +329,10 @@ fun AddonsScreen(
             },
             onDismiss = { showTorrentServer = false },
         )
+    }
+
+    if (showTmdbKey) {
+        com.kaan.play.ui.components.TmdbKeyDialog(onDismiss = { showTmdbKey = false })
     }
 
     if (showTimeout) {

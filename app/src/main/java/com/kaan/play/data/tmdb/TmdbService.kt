@@ -19,9 +19,12 @@ import java.io.IOException
 internal class TmdbService(
     private val client: OkHttpClient,
     private val json: Json,
-    private val apiKey: String,
+    /** Her istekte yeniden okunur: kullanıcı anahtarı uygulama içinden değiştirince hemen geçerli olur. */
+    private val apiKeyProvider: () -> String,
     private val baseUrl: HttpUrl = DEFAULT_BASE_URL.toHttpUrl(),
 ) {
+    constructor(client: OkHttpClient, json: Json, apiKey: String, baseUrl: HttpUrl = DEFAULT_BASE_URL.toHttpUrl()) :
+        this(client, json, { apiKey }, baseUrl)
 
     suspend fun trending(language: String, page: Int): ListDto =
         get("trending/all/week", ListDto.serializer(), language, "page" to page.toString())
@@ -71,6 +74,7 @@ internal class TmdbService(
         language: String,
         vararg params: Pair<String, String>,
     ): T {
+        val apiKey = apiKeyProvider()
         if (apiKey.isBlank()) throw TmdbException(TmdbException.Kind.MissingApiKey, path = path)
 
         val url = baseUrl.newBuilder().apply {

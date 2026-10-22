@@ -168,7 +168,7 @@ class AppContainer(context: Context) {
 
     /** Dil her istekte [AppLanguage.effective] ile okunur: Ayarlar'da dil değişince yeni istekler yeni dilde gider. */
     val tmdb: TmdbRepository by lazy {
-        TmdbRepository(httpClient, json, BuildConfig.TMDB_API_KEY, language = AppLanguage::effective)
+        TmdbRepository(httpClient, json, apiKeyProvider = tmdbKeys::current, language = AppLanguage::effective)
     }
 
     val database: PlayDatabase by lazy {
@@ -180,6 +180,11 @@ class AppContainer(context: Context) {
                 PlayDatabase.MIGRATION_4_5,
             )
             .build()
+    }
+
+    /** TMDB anahtarı: kullanıcının uygulama içinden girdiği, yoksa derlemedeki (Ayarlar > Eklentiler). */
+    val tmdbKeys: com.kaan.play.data.tmdb.TmdbKeyStore by lazy {
+        com.kaan.play.data.tmdb.TmdbKeyStore(settings.store, BuildConfig.TMDB_API_KEY, appScope)
     }
 
     val settings: SettingsRepository by lazy {
@@ -318,7 +323,7 @@ class AppContainer(context: Context) {
      */
     val pluginRuntime: PluginRuntime by lazy {
         PluginRuntime(
-            httpClient, BuildConfig.TMDB_API_KEY,
+            httpClient, tmdbKeys::current,
             maxConcurrent = PluginStreamProvider.MAX_PARALLEL,
             log = { level, message -> Log.d("PlayPlugin", "[$level] $message") },
         )
@@ -537,6 +542,8 @@ class AppContainer(context: Context) {
             BuildConfig.VERSION_NAME,
             endpoint = UpdateChecker.endpointFor(BuildConfig.UPDATE_REPO),
             abis = Build.SUPPORTED_ABIS.toList(),
+            manifestUrl = BuildConfig.UPDATE_URL.ifBlank { null },
+            repo = BuildConfig.UPDATE_REPO,
         )
     }
 

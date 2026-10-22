@@ -29,11 +29,19 @@ import okhttp3.OkHttpClient
 class TmdbRepository(
     client: OkHttpClient,
     json: Json,
-    apiKey: String,
+    apiKeyProvider: () -> String,
     private val language: () -> UiLanguage,
     baseUrl: HttpUrl = TmdbService.DEFAULT_BASE_URL.toHttpUrl(),
 ) {
-    private val service = TmdbService(client, json, apiKey, baseUrl)
+    constructor(
+        client: OkHttpClient,
+        json: Json,
+        apiKey: String,
+        language: () -> UiLanguage,
+        baseUrl: HttpUrl = TmdbService.DEFAULT_BASE_URL.toHttpUrl(),
+    ) : this(client, json, { apiKey }, language, baseUrl)
+
+    private val service = TmdbService(client, json, apiKeyProvider, baseUrl)
 
     suspend fun trending(page: Int = 1): Page<MediaSummary> =
         service.trending(lang(), page).toPage()

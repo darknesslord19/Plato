@@ -80,7 +80,8 @@ internal fun PluginOutcome.withNotes(notes: List<String>): PluginOutcome = when 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PluginRuntime(
     private val client: OkHttpClient,
-    private val tmdbApiKey: String,
+    /** Her çağrıda yeniden okunur (kullanıcı anahtarı uygulama içinden değiştirebilir). */
+    private val tmdbApiKeyProvider: () -> String,
     private val policy: NetworkPolicy = NetworkPolicy(),
     private val limits: PluginLimits = PluginLimits(),
     maxConcurrent: Int = 4,
@@ -90,6 +91,18 @@ class PluginRuntime(
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(maxConcurrent),
     private val log: (level: String, message: String) -> Unit = { _, _ -> },
 ) {
+    constructor(
+        client: OkHttpClient,
+        tmdbApiKey: String,
+        policy: NetworkPolicy = NetworkPolicy(),
+        limits: PluginLimits = PluginLimits(),
+        maxConcurrent: Int = 4,
+        tmdbHost: String = PluginHttp.TMDB_HOST,
+        tmdbHttpsOnly: Boolean = true,
+        dispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(maxConcurrent),
+        log: (level: String, message: String) -> Unit = { _, _ -> },
+    ) : this(client, { tmdbApiKey }, policy, limits, maxConcurrent, tmdbHost, tmdbHttpsOnly, dispatcher, log)
+
     private val gate = Semaphore(maxConcurrent)
 
     /** Bir çağrının ham sonucu: ya JS'in döndürdüğü JSON ya da hazır bir hata. */
@@ -170,6 +183,7 @@ class PluginRuntime(
         callScript: String,
         notes: Notes,
     ): Raw {
+        val tmdbApiKey = tmdbApiKeyProvider()
         val http = PluginHttp(client, policy, tmdbApiKey, limits, tmdbHost, tmdbHttpsOnly, notes.http)
         val dom = DomBridge(limits)
         val captured = CompletableDeferred<String>()
@@ -219,7 +233,7 @@ class PluginRuntime(
 
     private fun bind(qjs: QuickJs, http: PluginHttp, dom: DomBridge, args: String, captured: CompletableDeferred<String>, notes: Notes) {
         qjs.function("__host_log") { a ->
-            val message = LogMasker.mask(a.s(1), tmdbApiKey)
+            val message = LogMasker.mask(a.s(1), tmdbApiKeyProvider())
             log(a.s(0), message)
             if (a.s(0) == "error" && notes.console.size < 4) notes.console += "console: " + message.take(120)
             null

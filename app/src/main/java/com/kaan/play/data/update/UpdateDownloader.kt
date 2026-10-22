@@ -172,6 +172,7 @@ class UpdateDownloader(client: OkHttpClient, private val debugHost: () -> String
     }
 
     private fun fetchExpectedHash(apk: UpdateApk): String {
+        apk.sha256?.trim()?.lowercase()?.takeIf { Regex("^[0-9a-f]{64}$").matches(it) }?.let { return it }
         val request = Request.Builder().url(apk.sha256Url).header("User-Agent", USER_AGENT).build()
         val text = client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
