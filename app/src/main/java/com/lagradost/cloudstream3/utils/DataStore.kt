@@ -1,3 +1,5 @@
+@file:OptIn(com.lagradost.cloudstream3.InternalAPI::class)
+
 package com.lagradost.cloudstream3.utils
 
 import android.content.Context
