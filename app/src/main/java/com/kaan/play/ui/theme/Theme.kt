@@ -68,6 +68,19 @@ private val PlayShapes = Shapes(
     extraLarge = RoundedCornerShape(28.dp),
 )
 
+/** Temanın köşe yapısı (Yuvarlak = Play'in kendi biçimi). */
+fun paletteShapes(shape: PaletteShape): Shapes = if (shape == PaletteShape.Rounded) {
+    PlayShapes
+} else {
+    Shapes(
+        extraSmall = RoundedCornerShape((shape.small / 2).dp),
+        small = RoundedCornerShape(shape.small.dp),
+        medium = RoundedCornerShape(shape.medium.dp),
+        large = RoundedCornerShape(shape.large.dp),
+        extraLarge = RoundedCornerShape((shape.large + 8).dp),
+    )
+}
+
 @Composable
 fun PlayTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
     PlayTheme(
@@ -81,7 +94,8 @@ fun PlayTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
 @Composable
 fun PlayTheme(brightness: PaletteGen.Brightness, palette: String, content: @Composable () -> Unit) {
     val scheme = remember(brightness, palette) { playColorScheme(brightness, palette) }
-    MaterialTheme(colorScheme = scheme, shapes = PlayShapes, typography = PlayTypography) {
+    val shapes = remember(palette) { paletteShapes(Palettes.get(palette).shape) }
+    MaterialTheme(colorScheme = scheme, shapes = shapes, typography = PlayTypography) {
         // Odaktaki her tıklanabilir öğe vurgu renginde halka alır (TV/kumanda/klavye); dokunmatikte görünüm aynı kalır.
         val indication = remember(scheme.primary) { PlayIndication(scheme.primary) }
         CompositionLocalProvider(LocalIndication provides indication, content = content)
@@ -109,7 +123,7 @@ fun playColorScheme(brightness: PaletteGen.Brightness, paletteKey: String): Colo
         }
     }
     return schemeCache.getOrPut(brightness to palette.key) {
-        val c = PaletteGen.scheme(palette.seed, brightness)
+        val c = PaletteGen.scheme(palette.background, palette.accent, brightness)
         // Play paletinde vurgu her modda özgün camgöbeği kalır.
         val primary = if (palette.key == Palettes.DEFAULT) PlayColors.Accent else Color(c.primary)
         if (brightness == PaletteGen.Brightness.Light) {

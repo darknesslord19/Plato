@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -75,7 +77,7 @@ fun AppearanceScreen(onBack: () -> Unit, onEditHome: () -> Unit) {
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenHeader(title = stringResource(R.string.settings_appearance), onBack = onBack)
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 84.dp),
+            columns = GridCells.Adaptive(minSize = 96.dp),
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -151,23 +153,36 @@ fun AppearanceScreen(onBack: () -> Unit, onEditHome: () -> Unit) {
                         }
                         .padding(vertical = 6.dp),
                 ) {
-                    // Önizleme: zemin halkası + yüzey + vurgu; seçiliyse onay işareti.
+                    // Önizleme: temanın kendi zemini, kartı, düğmesi ve köşe yapısıyla küçük bir ekran.
+                    val pShape = com.kaan.play.ui.theme.paletteShapes(palette.shape)
+                    val frame = pShape.medium
                     Box(
                         Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp)
+                            .aspectRatio(0.78f)
+                            .clip(frame)
                             .background(scheme.background)
                             .border(
                                 if (selected) 3.dp else 1.dp,
-                                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                                CircleShape,
-                            ),
-                        contentAlignment = Alignment.Center,
+                                if (selected) MaterialTheme.colorScheme.primary else scheme.outline,
+                                frame,
+                            )
+                            .padding(8.dp),
                     ) {
-                        Box(Modifier.size(38.dp).clip(CircleShape).background(scheme.surfaceContainer))
-                        Box(Modifier.size(22.dp).clip(CircleShape).background(scheme.primary), contentAlignment = Alignment.Center) {
-                            if (selected) {
-                                Icon(PlayIcons.Check, contentDescription = null, tint = scheme.onPrimary, modifier = Modifier.size(14.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Box(Modifier.fillMaxWidth().height(26.dp).clip(pShape.small).background(scheme.surfaceVariant))
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Box(Modifier.weight(1f).height(18.dp).clip(pShape.small).background(scheme.surfaceContainer))
+                                Box(Modifier.weight(1f).height(18.dp).clip(pShape.small).background(scheme.surface))
+                            }
+                            Box(
+                                Modifier.fillMaxWidth(0.7f).height(16.dp).clip(pShape.small).background(scheme.primary),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (selected) {
+                                    Icon(PlayIcons.Check, contentDescription = null, tint = scheme.onPrimary, modifier = Modifier.size(12.dp))
+                                }
                             }
                         }
                     }

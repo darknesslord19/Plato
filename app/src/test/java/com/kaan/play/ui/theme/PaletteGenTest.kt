@@ -20,7 +20,7 @@ class PaletteGenTest {
     fun everyPaletteIsReadableInEveryBrightness() {
         Palettes.ALL.forEach { palette ->
             PaletteGen.Brightness.entries.forEach { b ->
-                val s = PaletteGen.scheme(palette.seed, b)
+                val s = PaletteGen.scheme(palette.background, palette.accent, b)
                 val where = "${palette.key}/$b"
                 assertTrue("vurgu/zemin $where", PaletteGen.contrast(s.primary, s.background) >= 4.5)
                 assertTrue("vurgu üstü yazı $where", PaletteGen.contrast(s.onPrimary, s.primary) >= 4.5)
@@ -31,10 +31,21 @@ class PaletteGenTest {
     }
 
     @Test
+    fun everyPaletteLooksDifferent() {
+        // Her tema kendi zemini ve vurgusuyla ayrışır (aynı görünen iki tema olmasın).
+        listOf(PaletteGen.Brightness.Dark, PaletteGen.Brightness.Medium, PaletteGen.Brightness.Light).forEach { b ->
+            val schemes = Palettes.ALL.map { PaletteGen.scheme(it.background, it.accent, b) }
+            assertEquals("zemin $b", 40, schemes.map { it.background }.toSet().size)
+            assertEquals("vurgu $b", 40, schemes.map { it.primary }.toSet().size)
+        }
+        assertTrue(Palettes.ALL.map { it.shape }.toSet().size == PaletteShape.entries.size)
+    }
+
+    @Test
     fun brightnessLevelsOrderBackgrounds() {
-        val seed = Palettes.get("deve_tuyu").seed
-        fun l(b: PaletteGen.Brightness) = PaletteGen.toLch(PaletteGen.scheme(seed, b).background).first
-        assertEquals(0xFF000000.toInt(), PaletteGen.scheme(seed, PaletteGen.Brightness.Black).background)
+        val p = Palettes.get("deve_tuyu")
+        fun l(b: PaletteGen.Brightness) = PaletteGen.toLch(PaletteGen.scheme(p.background, p.accent, b).background).first
+        assertEquals(0xFF000000.toInt(), PaletteGen.scheme(p.background, p.accent, PaletteGen.Brightness.Black).background)
         assertTrue(l(PaletteGen.Brightness.Black) < l(PaletteGen.Brightness.Dark))
         assertTrue(l(PaletteGen.Brightness.Dark) < l(PaletteGen.Brightness.Medium))
         assertTrue(l(PaletteGen.Brightness.Medium) < l(PaletteGen.Brightness.Light))

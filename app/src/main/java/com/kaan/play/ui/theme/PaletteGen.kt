@@ -10,10 +10,10 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 /**
- * Tek bir "tohum" renkten Material You (Monet) tarzı tonal renk şeması üretir. Compose'dan bağımsızdır (ARGB Int),
- * bu yüzden birim testlidir. Renkler CIELAB/LCh uzayında üretilir: aynı ton (hue), istenen açıklık (L*) ve ekranın
- * gösterebildiği en yüksek doygunluk (gamut dışına çıkarsa doygunluk düşürülür). Yüzeyler tohumun tonuyla hafifçe
- * renklendirilir (Monet'deki gibi), vurgu doygun kalır.
+ * İki tohum renkten (baskın zemin + vurgu) tonal renk şeması üretir. Compose'dan bağımsızdır (ARGB Int), bu yüzden
+ * birim testlidir. Renkler CIELAB/LCh uzayında üretilir: ton sabit, istenen açıklık (L*), gamut dışına çıkarsa yalnızca
+ * doygunluk düşer. Zemin, yüzeyler ve çerçeveler zemin tohumunun renginde (her tema kendi renginde görünür), seçili
+ * dolgular ve düğmeler vurgunun renginde.
  */
 object PaletteGen {
 
@@ -35,56 +35,84 @@ object PaletteGen {
         val outline: Int,
     )
 
-    fun scheme(seed: Int, brightness: Brightness): SchemeColors {
-        val (_, seedC, hue) = toLch(seed)
-        val neutralSeed = seedC < 14.0
-        // Nötr tohumlar (kömür, grafit, gümüş) gri kalır; renkli tohumlar doygun bir vurgu alır.
-        val accentC = if (neutralSeed) seedC.coerceAtMost(10.0) else max(seedC, 42.0)
-        val tint = if (neutralSeed) seedC.coerceAtMost(4.0) else min(seedC * 0.16, 9.0)
+    /**
+     * İki tohumdan tema: [background] temanın baskın zemin rengi (ton ve doygunluğu zemine, yüzeylere ve çerçevelere
+     * taşınır; böylece her tema kendi renginde görünür), [accent] vurgu (düğme, seçili öğe, odak halkası).
+     * Vurgu, zemin üzerinde en az 4.6:1 karşıtlık kalana kadar açılır (koyu) ya da koyulaşır (açık); ton korunur.
+     */
+    fun scheme(background: Int, accent: Int, brightness: Brightness): SchemeColors {
+        val (_, bgSeedC, bgHue) = toLch(background)
+        val (accL, accC, accHue) = toLch(accent)
+        fun bgc(l: Double, chroma: Double) = fromLch(l, chroma, bgHue)
+        fun acc(l: Double, chroma: Double) = fromLch(l, chroma, accHue)
+        // Neredeyse gri tohum (kömür, gümüş) gri kalır; renkli tohumun doygunluğu korunur.
+        val neutralBg = bgSeedC < 4.0
 
-        fun c(l: Double, chroma: Double) = fromLch(l, chroma, hue)
-
-        return when (brightness) {
-            Brightness.Light -> SchemeColors(
-                primary = c(40.0, accentC),
-                onPrimary = 0xFFFFFFFF.toInt(),
-                primaryContainer = c(90.0, min(accentC, 22.0)),
-                onPrimaryContainer = c(24.0, accentC),
-                background = c(96.0, tint * 0.7),
-                onBackground = c(10.0, tint),
-                surface = c(99.0, tint * 0.4),
-                surfaceVariant = c(91.0, tint + 2),
-                onSurfaceVariant = c(40.0, tint + 4),
-                surfaceContainer = c(90.0, min(accentC, 18.0)),
-                surfaceContainerHigh = c(91.0, tint + 2),
-                outline = c(76.0, tint + 4),
-            )
-            else -> {
-                // Arka plan açıklığı (L*): simsiyah 0, koyu 5, orta 15.
-                val bg = when (brightness) {
-                    Brightness.Black -> 0.0
-                    Brightness.Dark -> 5.0
-                    else -> 15.0
-                }
-                val step = if (brightness == Brightness.Medium) 4.0 else 3.5
-                val primaryL = if (neutralSeed) 82.0 else toLch(seed).first.coerceIn(72.0, 84.0)
-                SchemeColors(
-                    primary = c(primaryL, accentC),
-                    onPrimary = c(12.0, min(accentC, 28.0)),
-                    primaryContainer = c(bg + 3 * step, min(accentC * 0.55, 26.0)),
-                    onPrimaryContainer = c(primaryL, accentC),
-                    background = if (brightness == Brightness.Black) 0xFF000000.toInt() else c(bg, tint),
-                    onBackground = c(98.0, min(tint, 2.0)),
-                    surface = c(bg + step, tint),
-                    surfaceVariant = c(bg + 2 * step, tint + 2),
-                    onSurfaceVariant = c(70.0, tint + 5),
-                    surfaceContainer = c(bg + 3 * step, min(accentC * 0.55, 26.0)),
-                    surfaceContainerHigh = c(bg + 2 * step, tint + 2),
-                    outline = c(bg + 6 * step, tint + 8),
-                )
+        if (brightness == Brightness.Light) {
+            val c = if (neutralBg) bgSeedC else (bgSeedC * 0.55).coerceIn(4.0, 14.0)
+            val bg = bgc(95.0, c)
+            val pc = max(accC, 30.0)
+            var pl = min(accL, 45.0)
+            var primary = acc(pl, pc)
+            while (contrast(primary, bg) < MIN_ACCENT && pl > 15.0) {
+                pl -= 2.0
+                primary = acc(pl, pc)
             }
+            return SchemeColors(
+                primary = primary,
+                onPrimary = 0xFFFFFFFF.toInt(),
+                primaryContainer = acc(88.0, min(accC, 30.0)),
+                onPrimaryContainer = acc(min(pl, 30.0), pc),
+                background = bg,
+                onBackground = bgc(12.0, min(c, 10.0)),
+                surface = bgc(98.0, c * 0.5),
+                surfaceVariant = bgc(89.0, c + 4),
+                onSurfaceVariant = bgc(36.0, c + 4),
+                surfaceContainer = acc(88.0, min(accC, 30.0)),
+                surfaceContainerHigh = bgc(89.0, c + 4),
+                outline = bgc(74.0, c + 6),
+            )
         }
+
+        // Zemin açıklığı (L*): orta karanlık 20, koyu 9, simsiyah 0 (yüzeyler yine temanın renginde).
+        val l = when (brightness) {
+            Brightness.Medium -> 20.0
+            Brightness.Dark -> 9.0
+            else -> 0.0
+        }
+        val k = when (brightness) {
+            Brightness.Medium -> 1.1
+            Brightness.Dark -> 1.0
+            else -> 0.9
+        }
+        val c = if (neutralBg) bgSeedC else (bgSeedC * k).coerceIn(3.0, 30.0)
+        val bg = if (brightness == Brightness.Black) 0xFF000000.toInt() else bgc(l, c)
+        val base = if (brightness == Brightness.Black) 3.0 else l
+        var pl = if (accC > 12.0) max(accL, 70.0) else max(accL, 78.0)
+        var primary = acc(pl, accC)
+        while (contrast(primary, bg) < MIN_ACCENT && pl < 95.0) {
+            pl += 2.0
+            primary = acc(pl, accC)
+        }
+        val onPrimary = if (pl >= 60.0) acc(12.0, min(accC, 20.0)) else 0xFFFFFFFF.toInt()
+        return SchemeColors(
+            primary = primary,
+            onPrimary = onPrimary,
+            primaryContainer = acc(base + 12, min(accC * 0.5, 30.0)),
+            onPrimaryContainer = primary,
+            background = bg,
+            onBackground = bgc(97.0, min(c, 4.0)),
+            surface = bgc(base + 4, c),
+            surfaceVariant = bgc(base + 9, c + 2),
+            onSurfaceVariant = bgc(74.0, min(c, 10.0) + 4),
+            surfaceContainer = acc(base + 12, min(accC * 0.5, 30.0)),
+            surfaceContainerHigh = bgc(base + 9, c + 2),
+            outline = bgc(base + 22, c + 4),
+        )
     }
+
+    /** Vurgunun zemine karşı en düşük karşıtlığı. */
+    private const val MIN_ACCENT = 4.6
 
     // ── Renk uzayı dönüşümleri (sRGB ↔ CIELAB, D65) ─────────────────────────────
 
