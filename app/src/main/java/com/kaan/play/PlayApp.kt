@@ -52,6 +52,8 @@ class PlayApp : Application(), SingletonImageLoader.Factory {
             container.downloads
             // Varsayılan altyazı ve katalog addon'ları ilk açılışta bir kez tohumlanır (kullanıcı kararları 2026-10-20/21; ağa çıkmaz).
             container.seedDefaultAddons()
+            // Yeni bölüm bildirimi: günde bir arka plan denetimi (ayar kapalıysa iş hiçbir şey yapmadan biter).
+            com.kaan.play.data.schedule.NewEpisodeWorker.schedule(this)
         } catch (t: Throwable) {
             Log.e("PlayApp", "PlayApp.onCreate başlatma hatası: ${t.message}", t)
         }

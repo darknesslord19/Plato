@@ -54,6 +54,13 @@ class SettingsRepository(val store: DataStore<Preferences>) {
         ThemeMode.entries.firstOrNull { it.name == prefs[THEME] } ?: DEFAULT_THEME
     }
 
+    /** Takip edilen dizilerin yeni bölümü yayınlanınca bildirim (günde bir denetim). Varsayılan açık. */
+    val episodeAlerts: Flow<Boolean> = store.data.map { it[EPISODE_ALERTS] ?: true }.distinctUntilChanged()
+
+    suspend fun setEpisodeAlerts(enabled: Boolean) {
+        store.edit { it[EPISODE_ALERTS] = enabled }
+    }
+
     /** Renk paleti anahtarı; bilinmeyen anahtar arayüzde varsayılan palete düşer. */
     val themePalette: Flow<String> = store.data.map { it[PALETTE] ?: DEFAULT_PALETTE }.distinctUntilChanged()
 
@@ -307,6 +314,7 @@ class SettingsRepository(val store: DataStore<Preferences>) {
         private val THEME = stringPreferencesKey("theme_mode")
         private val POSTER_URL_TEMPLATE = stringPreferencesKey("poster_url_template")
         private val PALETTE = stringPreferencesKey("theme_palette")
+        private val EPISODE_ALERTS = booleanPreferencesKey("episode_alerts")
         private val TIMEOUT = intPreferencesKey("source_timeout_seconds")
         private val ALWAYS_RESUME = booleanPreferencesKey("always_resume")
         private val REMEMBER_LAST_PROFILE = booleanPreferencesKey("remember_last_profile")

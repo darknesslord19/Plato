@@ -454,6 +454,24 @@ class AppContainer(context: Context) {
         )
     }
 
+    /** "Sonra izleyeceğim" listesi (profil başına). Ayarlarla aynı DataStore. */
+    val watchlist: com.kaan.play.data.watchlist.WatchlistStore by lazy {
+        com.kaan.play.data.watchlist.WatchlistStore(settings.store, localProfile.id)
+    }
+
+    /** Takip edilen dizilerin (favoriler + izleme listesi) son/sıradaki bölümleri: takvim ve yeni bölüm bildirimi. */
+    val episodeSchedule: com.kaan.play.data.schedule.EpisodeSchedule by lazy {
+        com.kaan.play.data.schedule.EpisodeSchedule(tmdb, library, watchlist)
+    }
+
+    /** Bildirimden açılacak dizi detayı (TMDB kimliği); gezinme bunu bir kez tüketir. */
+    val pendingTvDetail = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
+
+    /** Ayarlar > Eklentiler > Eklenti sağlığı: açık kaynakların yanıt verip vermediği. */
+    val sourceHealth: com.kaan.play.data.health.SourceHealthChecker by lazy {
+        com.kaan.play.data.health.SourceHealthChecker(database.addonDao(), csRepos, httpClient)
+    }
+
     /** Kullanıcının CloudStream eklentileri için girdiği yeni site adresleri (alan adı değişince). */
     val csDomains: com.kaan.play.data.cloudstream.CsDomainOverrides by lazy {
         com.kaan.play.data.cloudstream.CsDomainOverrides(

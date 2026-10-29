@@ -17,7 +17,16 @@ class LibraryViewModel(
     private val library: LibraryRepository,
     private val downloadCenter: DownloadCenter,
     settings: SettingsRepository,
+    private val watchlistStore: com.kaan.play.data.watchlist.WatchlistStore,
 ) : ViewModel() {
+
+    /** İzleme listesi ("sonra izleyeceğim"); null = henüz yüklenmedi. */
+    val watchlist: StateFlow<List<com.kaan.play.data.watchlist.WatchlistItem>?> =
+        watchlistStore.items.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun removeFromWatchlist(item: com.kaan.play.data.watchlist.WatchlistItem) {
+        viewModelScope.launch { watchlistStore.set(item.mediaType, item.tmdbId, item.title, item.posterPath, false) }
+    }
 
     /** null = henüz yüklenmedi (boş durum mesajı yanıp sönmesin). */
     val favorites: StateFlow<List<FavoriteEntity>?> =

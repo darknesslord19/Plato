@@ -137,6 +137,8 @@ configurations.all {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    // Yeni bölüm bildirimi: günde bir arka plan denetimi.
+    implementation(libs.androidx.work)
     implementation(libs.androidx.appcompat)
     implementation("androidx.fragment:fragment-ktx:1.8.5")
     implementation(libs.androidx.webkit)

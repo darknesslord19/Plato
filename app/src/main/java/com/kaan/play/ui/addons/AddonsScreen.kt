@@ -100,6 +100,7 @@ fun AddonsScreen(
     onOpenNuvioRepos: () -> Unit,
     onOpenNuvioPlugins: () -> Unit,
     onOpenCatalog: () -> Unit = {},
+    onOpenHealth: () -> Unit = {},
 ) {
     val vm = containerViewModel { AddonsViewModel(it.sourceInstaller, it.addons, it.pendingAddonUrl) }
     val dialog by vm.dialog.collectAsStateWithLifecycle()
@@ -189,6 +190,16 @@ fun AddonsScreen(
                     iconTint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.focusMemory(focus, "installed"),
                     onClick = onOpenInstalled,
+                )
+            }
+            item {
+                com.kaan.play.ui.components.PlayCardRow(
+                    title = stringResource(R.string.health_title),
+                    subtitle = stringResource(R.string.health_subtitle),
+                    icon = PlayIcons.InfoCircle,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.focusMemory(focus, "health"),
+                    onClick = onOpenHealth,
                 )
             }
             item {

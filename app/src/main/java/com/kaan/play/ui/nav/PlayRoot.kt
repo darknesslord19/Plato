@@ -137,6 +137,8 @@ private const val PLAYER_SETTINGS_ROUTE = "settings/player"
 private const val ABOUT_ROUTE = "settings/about"
 private const val APPEARANCE_ROUTE = "settings/appearance"
 private const val HOME_EDIT_ROUTE = "home/edit"
+private const val HEALTH_ROUTE = "settings/addons/health"
+private const val CALENDAR_ROUTE = "library/calendar"
 private const val DETAIL_ROUTE = "detail/{type}/{id}"
 private const val PROVIDER_DETAIL_ROUTE = "provider_detail/{providerId}/{encodedUrl}"
 private const val CATEGORY_ROUTE = "home/category/{row}"
@@ -276,6 +278,14 @@ fun PlayRoot() {
 
     fun openDetail(type: MediaType, id: Int) = navController.navigate(detailRoute(type, id))
     fun openProviderDetail(providerId: String, url: String) = navController.navigate(providerDetailRoute(providerId, url))
+
+    // Yeni bölüm bildirimi: dokunulan dizinin detayı bir kez açılır.
+    val pendingTv by container.pendingTvDetail.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingTv) {
+        val id = pendingTv ?: return@LaunchedEffect
+        container.pendingTvDetail.value = null
+        runCatching { openDetail(MediaType.Tv, id) }
+    }
 
     // Eklentiler ekranı Ayarlar sekmesine aittir: nereden gelinirse gelinsin önce o sekmeye geçilir,
     // yoksa ekran çağıran sekmenin yığınına girer ve o sekme hep onu açar.
@@ -554,7 +564,7 @@ fun PlayRoot() {
                 ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { SearchScreen(initialQuery = q, onOpenDetail = ::openDetail) }
             }
             composable(Tab.Library.route) {
-                ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { LibraryScreen(onOpenDetail = ::openDetail, onPlayEntry = ::playHistory, onPlayDownload = ::playDownload) }
+                ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) { LibraryScreen(onOpenDetail = ::openDetail, onPlayEntry = ::playHistory, onPlayDownload = ::playDownload, onOpenCalendar = { navController.navigate(CALENDAR_ROUTE) }) }
             }
             composable(Tab.Settings.route) {
                 ReadableWidth {
@@ -584,6 +594,7 @@ fun PlayRoot() {
                         onOpenNuvioRepos = { navController.navigate(NUVIO_REPOS_ROUTE) },
                         onOpenNuvioPlugins = { navController.navigate(NUVIO_PLUGINS_ROUTE) },
                         onOpenCatalog = { navController.navigate(REPO_MANAGER_CATALOG_ROUTE) },
+                        onOpenHealth = { navController.navigate(HEALTH_ROUTE) },
                     )
                 }
             }
@@ -650,6 +661,12 @@ fun PlayRoot() {
                         onEditHome = { navController.navigate(HOME_EDIT_ROUTE) },
                     )
                 }
+            }
+            composable(CALENDAR_ROUTE) {
+                ReadableWidth { com.kaan.play.ui.library.CalendarScreen(onBack = { navController.popBackStack() }, onOpenDetail = ::openDetail) }
+            }
+            composable(HEALTH_ROUTE) {
+                ReadableWidth { com.kaan.play.ui.addons.SourceHealthScreen(onBack = { navController.popBackStack() }) }
             }
             composable(HOME_EDIT_ROUTE) {
                 ReadableWidth { com.kaan.play.ui.home.HomeLayoutScreen(onBack = { navController.popBackStack() }) }

@@ -182,3 +182,21 @@ internal data class EpisodeDto(
     val runtime: Int? = null,
     @SerialName("air_date") val airDate: String? = null,
 )
+
+/** Dizi yayın durumu (`tv/{id}`): yeni bölüm bildirimi ve dizi takvimi için yalnızca gereken alanlar. */
+@Serializable
+internal data class TvAirDto(
+    val id: Int = 0,
+    val name: String? = null,
+    @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("last_episode_to_air") val lastEpisode: AirEpisodeDto? = null,
+    @SerialName("next_episode_to_air") val nextEpisode: AirEpisodeDto? = null,
+)
+
+@Serializable
+internal data class AirEpisodeDto(
+    @SerialName("air_date") val airDate: String? = null,
+    @SerialName("season_number") val season: Int = 0,
+    @SerialName("episode_number") val episode: Int = 0,
+    val name: String? = null,
+)

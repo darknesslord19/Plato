@@ -80,6 +80,21 @@ class TmdbRepository(
     /** `tr,en,null`: arayüz dili, İngilizce, dilsiz logolar (sırayla tercih edilir, bkz. [pickLogo]). */
     private fun imageLanguages(): String = imageLanguagesFor(language())
 
+    /** Dizinin son yayınlanan ve sıradaki bölümü; tarih yoksa o bölüm null. */
+    suspend fun airInfo(tvId: Int): com.kaan.play.data.schedule.ShowAirInfo {
+        val dto = service.tvAir(tvId, lang())
+        fun AirEpisodeDto.toAir() = airDate?.takeIf { it.length >= 10 }?.let {
+            com.kaan.play.data.schedule.AirEpisode(season, episode, name.orEmpty(), it.take(10))
+        }
+        return com.kaan.play.data.schedule.ShowAirInfo(
+            tvId = tvId,
+            title = dto.name.orEmpty(),
+            posterPath = dto.posterPath,
+            last = dto.lastEpisode?.toAir(),
+            next = dto.nextEpisode?.toAir(),
+        )
+    }
+
     /**
      * Ana sayfa kategorisi ([TmdbQuery]): hazır listeler, tür/dil/platform keşfi ya da kullanıcının yazdığı arama.
      * Arama sorgusu boşsa ağa gitmeden boş sonuç verir.

@@ -1,5 +1,8 @@
 package com.kaan.play.ui.detail
 
+import com.kaan.play.data.model.MediaSummary
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -227,6 +230,8 @@ internal fun DetailContent(
     /** Verilmezse (ör. sağlayıcı detayı) indir düğmeleri görünmez. */
     onDownload: ((Int?, Int?) -> Unit)? = null,
     listState: LazyListState = rememberLazyListState(),
+    /** TMDB içeriği değilse (sağlayıcı detayı) izleme listesi seçeneği gösterilmez. */
+    canWatchlist: Boolean = true,
 ) {
     val media = detail.summary
     val posterTemplate by rememberContainer().settings.posterUrlTemplate.collectAsStateWithLifecycle(initialValue = PosterUrlTemplate.DEFAULT)
@@ -240,7 +245,7 @@ internal fun DetailContent(
         DownloadAction(DownloadRules.contentBadge(entry), entry) { download(null, null) }
     }
     val header: @Composable (Dp) -> Unit = { padding ->
-        HeaderBlock(detail, isFavorite, selectedSeason, primaryFocus, padding, isSeries, onToggleFavorite, onSelectSeason, onPlay, movieDownload)
+        HeaderBlock(detail, isFavorite, selectedSeason, primaryFocus, padding, isSeries, onToggleFavorite, onSelectSeason, onPlay, movieDownload, canWatchlist)
     }
 
     if (twoPane) {
@@ -322,6 +327,7 @@ private fun HeaderBlock(
     onSelectSeason: (Int) -> Unit,
     onPlay: (Int?, Int?) -> Unit,
     movieDownload: DownloadAction? = null,
+    canWatchlist: Boolean = true,
 ) {
     val media = detail.summary
     Column(Modifier.padding(horizontal = horizontalPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -348,7 +354,7 @@ private fun HeaderBlock(
                 }
                 movieDownload?.let { DetailDownloadButton(it, Modifier.size(52.dp)) }
             }
-            MoreButton(isFavorite, onToggleFavorite)
+            MoreButton(isFavorite, onToggleFavorite, media.takeIf { canWatchlist })
         }
     }
 }
@@ -604,10 +610,15 @@ private fun formatRuntime(minutes: Int): String =
     if (minutes >= 60) stringResource(R.string.runtime_hours_minutes, minutes / 60, minutes % 60)
     else stringResource(R.string.runtime_minutes, minutes)
 
-/** Yuvarlak "daha fazla" düğmesi; menüde favori ekle/çıkar (durum kalp simgesinde görünür). */
+/** Yuvarlak "daha fazla" düğmesi; menüde favori ve izleme listesi ekle/çıkar (durum simgelerde görünür). */
 @Composable
-private fun MoreButton(isFavorite: Boolean, onToggleFavorite: () -> Unit) {
+private fun MoreButton(isFavorite: Boolean, onToggleFavorite: () -> Unit, watchlistMedia: MediaSummary? = null) {
     var open by remember { mutableStateOf(false) }
+    val container = rememberContainer()
+    val scope = rememberCoroutineScope()
+    val inWatchlist by remember(watchlistMedia?.type, watchlistMedia?.id) {
+        watchlistMedia?.let { container.watchlist.contains(it.type, it.id) } ?: kotlinx.coroutines.flow.flowOf(false)
+    }.collectAsStateWithLifecycle(initialValue = false)
     Box {
         OutlinedIconButton(onClick = { open = true }, modifier = Modifier.size(52.dp)) {
             Icon(PlayIcons.More, contentDescription = stringResource(R.string.detail_more))
@@ -624,6 +635,23 @@ private fun MoreButton(isFavorite: Boolean, onToggleFavorite: () -> Unit) {
                 },
                 onClick = { open = false; onToggleFavorite() },
             )
+            if (watchlistMedia != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (inWatchlist) R.string.watchlist_remove else R.string.watchlist_add)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = if (inWatchlist) PlayIcons.Check else PlayIcons.Plus,
+                            contentDescription = null,
+                            tint = if (inWatchlist) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        )
+                    },
+                    onClick = {
+                        open = false
+                        val m = watchlistMedia
+                        scope.launch { container.watchlist.set(m.type, m.id, m.title, m.posterPath, !inWatchlist) }
+                    },
+                )
+            }
         }
     }
 }

@@ -72,9 +72,11 @@ fun LibraryScreen(
     onOpenDetail: (MediaType, Int) -> Unit,
     onPlayEntry: (WatchHistoryEntity) -> Unit,
     onPlayDownload: (DownloadEntity) -> Unit,
+    onOpenCalendar: () -> Unit = {},
 ) {
-    val vm = containerViewModel { LibraryViewModel(it.library, it.downloads, it.settings) }
+    val vm = containerViewModel { LibraryViewModel(it.library, it.downloads, it.settings, it.watchlist) }
     val favorites by vm.favorites.collectAsStateWithLifecycle()
+    val watchlist by vm.watchlist.collectAsStateWithLifecycle()
     val history by vm.history.collectAsStateWithLifecycle()
     var confirmClear by remember { mutableStateOf(false) }
     val downloads by vm.downloads.collectAsStateWithLifecycle()
@@ -94,11 +96,24 @@ fun LibraryScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         fullWidth {
-            Text(
-                text = stringResource(R.string.tab_library),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(top = 16.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.tab_library),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                // Dizi takvimi: takip edilen dizilerin (favoriler + izleme listesi) yeni ve yaklaşan bölümleri.
+                com.kaan.play.ui.components.OutlinedButton(
+                    onClick = onOpenCalendar,
+                    modifier = Modifier.focusMemory(focus, "calendar"),
+                ) {
+                    Icon(PlayIcons.Clock, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.calendar_title), modifier = Modifier.padding(start = 8.dp))
+                }
+            }
         }
 
         // Yüklenirken (null) boş durum mesajı yanıp sönmesin.
@@ -127,6 +142,35 @@ fun LibraryScreen(
                                 .background(Color.Black.copy(alpha = 0.45f), CircleShape),
                         ) {
                             Icon(PlayIcons.HeartFilled, contentDescription = removeLabel, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    },
+                )
+            }
+        }
+
+        val wl = watchlist
+        if (!wl.isNullOrEmpty()) {
+            fullWidth { SectionTitle(stringResource(R.string.watchlist_title), Modifier.padding(top = 12.dp)) }
+            items(wl, key = { "wl-${it.type}-${it.tmdbId}" }) { item ->
+                val removeLabel = stringResource(R.string.watchlist_remove)
+                PosterCard(
+                    title = item.title,
+                    subtitle = stringResource(if (item.mediaType == MediaType.Movie) R.string.type_movie else R.string.type_series),
+                    imageUrl = TmdbImages.url(item.posterPath, TmdbImages.Size.Poster),
+                    tmdbId = item.tmdbId,
+                    mediaType = item.mediaType,
+                    onClick = { onOpenDetail(item.mediaType, item.tmdbId) },
+                    modifier = Modifier.focusMemory(focus, "wl-${item.type}-${item.tmdbId}"),
+                    overlay = {
+                        IconButton(
+                            onClick = { vm.removeFromWatchlist(item) },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .size(36.dp)
+                                .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                        ) {
+                            Icon(PlayIcons.Close, contentDescription = removeLabel, tint = MaterialTheme.colorScheme.primary)
                         }
                     },
                 )

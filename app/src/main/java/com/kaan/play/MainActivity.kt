@@ -216,6 +216,7 @@ class MainActivity : AppCompatActivity() {
             handleUpdateIntent(intent)
 
             handlePlayIntent(intent)
+            handleOpenTv(intent)
 
         }
 
@@ -336,6 +337,7 @@ class MainActivity : AppCompatActivity() {
         handleUpdateIntent(intent)
 
         handlePlayIntent(intent)
+        handleOpenTv(intent)
 
         if (BuildConfig.DEBUG) {
 
@@ -491,7 +493,14 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    /** Yeni bölüm bildirimine dokunuldu: o dizinin detayı açılır (PlayRoot tüketir). */
+    private fun handleOpenTv(intent: Intent?) {
+        val id = intent?.getIntExtra(EXTRA_OPEN_TV_ID, 0) ?: 0
+        if (id > 0) (application as PlayApp).container.pendingTvDetail.value = id
+    }
+
     companion object {
+        const val EXTRA_OPEN_TV_ID = "open_tv_id"
 
         var testManyProviders: Boolean = false
 
