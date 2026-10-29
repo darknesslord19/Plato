@@ -30,9 +30,21 @@
 # yeniden adlandırırsa eklenti NoClassDefFoundError/NoSuchMethodError verir. Kökler, gerçek
 # eklentilerin dex başvurularının release APK ile karşılaştırılmasından çıkarıldı (README, Faz 3).
 -keep class com.lagradost.** { *; }
+-keep interface com.lagradost.** { *; }
+-keep class com.lagradost.cloudstream3.** { *; }
+-keep interface com.lagradost.cloudstream3.** { *; }
+-keep class com.lagradost.api.** { *; }
+-keep interface com.lagradost.api.** { *; }
+-keep class com.lagradost.cloudstream3.CloudStreamApp { *; }
+-keep class com.lagradost.cloudstream3.CloudStreamApp$Companion { *; }
+-keepclassmembers class com.lagradost.** { *; }
+-keep class androidx.appcompat.** { *; }
+-keep class androidx.fragment.** { *; }
+-keep class kotlin.Metadata { *; }
 -keep class kotlin.** { *; }
 -keep class kotlinx.coroutines.** { *; }
 -keep class com.fasterxml.jackson.** { *; }
+-keep interface com.fasterxml.jackson.** { *; }
 -keep class org.jsoup.** { *; }
 -keep class okhttp3.** { *; }
 -keep class okio.** { *; }
@@ -46,9 +58,13 @@
 -dontwarn com.fasterxml.jackson.**
 -dontwarn java.beans.**
 
-# ── QuickJS (JNI sembolleri) ────────────────────────────────────────────────────
+# ── QuickJS (JNI sembolleri) & Plugin Runtime ──────────────────────────────────
+-keep class com.dokar.quickjs.** { *; }
+-dontwarn com.dokar.quickjs.**
 -keep class app.cash.quickjs.** { *; }
 -dontwarn app.cash.quickjs.**
+-keep class com.kaan.play.data.plugin.** { *; }
+-dontwarn com.kaan.play.data.plugin.**
 
 # ── Kotlin coroutines ───────────────────────────────────────────────────────────
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
@@ -75,32 +91,6 @@
 -keepclasseswithmembernames class * { native <methods>; }
 -dontwarn com.google.mlkit.**
 
-# ── CloudStream eklentilerinin bağlandığı diğer kütüphaneler ─────────────────────
-# Gerçek depolardaki 227 eklentinin dex başvurularından çıkarıldı (tools/cs_plugin_abi_check.py, CI raporu).
-# R8 bunları Play kullanmıyor diye kırpar ya da yeniden adlandırırsa eklenti yalnızca release'te bozulur.
--keep class kotlinx.serialization.** { *; }
--keep class io.ktor.http.** { *; }
--keep class com.fleeksoft.ksoup.** { *; }
--keep class org.mozilla.javascript.** { *; }
--keep class org.schabi.newpipe.** { *; }
--keep class dev.whyoleg.cryptography.** { *; }
--keep class com.google.gson.** { *; }
--keep class me.xdrop.fuzzywuzzy.** { *; }
--keep class com.google.android.material.** { *; }
--keep class androidx.appcompat.** { *; }
--keep class androidx.fragment.** { *; }
--keep class androidx.core.** { *; }
--keep class androidx.recyclerview.** { *; }
--keep class androidx.lifecycle.** { *; }
--dontwarn com.google.android.material.**
--dontwarn me.xdrop.fuzzywuzzy.**
-# Tutulan kütüphanelerin yalnızca masaüstü JVM'de bulunan sınıflara başvuruları (Android'de o kod yolu çalışmaz).
--dontwarn io.ktor.**
--dontwarn java.lang.management.**
--dontwarn javax.naming.**
--dontwarn org.slf4j.**
--dontwarn sun.misc.**
--dontwarn com.google.errorprone.annotations.**
 # ── CloudStream Library Ek Bağımlılıkları ──────────────────────────────────────
 -dontwarn javax.script.**
 -dontwarn org.mozilla.javascript.**
@@ -108,3 +98,12 @@
 -dontwarn com.fleeksoft.ksoup.**
 -dontwarn dev.whyoleg.cryptography.**
 
+
+# ── CloudStream DataStore & Trakt Güvenlik Kuralları ──────────────────────────
+-keep class com.lagradost.cloudstream3.utils.DataStore { *; }
+-keep class com.lagradost.cloudstream3.utils.DataStore$* { *; }
+-keep class com.lagradost.cloudstream3.utils.DataStoreHelperKt { *; }
+-keep class com.lagradost.cloudstream3.DataStore { *; }
+-keep class com.lagradost.cloudstream3.DataStore$* { *; }
+-dontwarn com.pltmustafa.traktsync.**
+-dontwarn com.pltmustafa.**

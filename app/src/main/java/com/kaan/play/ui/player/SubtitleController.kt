@@ -92,6 +92,7 @@ class SubtitleController(
     private val translationStore: TranslatedSubtitleStore? = null,
     /** Önbellek dosyalarının okunup yazıldığı dispatcher (testlerde sanal zamanlı olanı verilir). */
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val computation: CoroutineDispatcher = io,
 ) {
 
     /** Menüde gösterilen tüm seçenekler (aynı adresler ayıklanmış). */
@@ -197,10 +198,23 @@ class SubtitleController(
                 .collect { result ->
                     when (result) {
                         is SubtitleResult.Found -> {
-                            addonTracks = addonTracks + result.tracks
+                            val reqEpisode = request.episode
+                            val reqSeason = request.season
+                            val updatedTracks = if (reqSeason != null || reqEpisode != null) {
+                                result.tracks.map {
+                                    if (it.season == null && it.episode == null) it.copy(season = reqSeason, episode = reqEpisode) else it
+                                }
+                            } else {
+                                result.tracks
+                            }
+                            addonTracks = addonTracks + updatedTracks
                             rebuild()
                         }
-                        is SubtitleResult.Failed -> failedSources = failedSources + result.source
+                        is SubtitleResult.Failed -> {
+                            if (failedSources.none { it.addonId == result.source.addonId }) {
+                                failedSources = failedSources + result.source
+                            }
+                        }
                     }
                 }
         }
@@ -226,13 +240,13 @@ class SubtitleController(
      * "İlk kullanılabiliri yükle": [language] için çevrimiçi sonuçları sırayla indirip ayrıştırarak denemeyi; ilk çalışanı döner
      * (indirilmiş olduğundan sonradan seçmek ağa gitmez). Hiçbiri çalışmazsa null.
      */
-    suspend fun firstUsableOnline(language: String): SubtitleItem.External? {
+    suspend fun firstUsableOnline(language: String): SubtitleItem.External? = withContext(io) {
         for (item in onlineItems().filter { it.language == language }) {
             if (item.track.url in badUrls) continue
-            if (loader.load(item.track) is SubtitleLoad.Loaded) return item
+            if (loader.load(item.track) is SubtitleLoad.Loaded) return@withContext item
             badUrls += item.track.url
         }
-        return null
+        return@withContext null
     }
 
     /**
@@ -253,8 +267,10 @@ class SubtitleController(
 
     /** Akış (yeniden) yüklendi: akışın kendi altyazıları listeye girer. */
     fun setStream(stream: PlayableStream) {
+        val reqEpisode = request.episode
+        val reqSeason = request.season
         streamTracks = stream.subtitles.map {
-            SubtitleTrack(it.url, SubtitleLanguages.normalize(it.language), stream.source.addonName, headers = it.headers)
+            SubtitleTrack(it.url, SubtitleLanguages.normalize(it.language), stream.source.addonName, headers = it.headers, season = reqSeason, episode = reqEpisode)
         }
         rebuild()
     }
@@ -325,12 +341,17 @@ class SubtitleController(
         // Çevrimiçi sonuçlarda sağlayıcı sırası sabit: önce SubDL, sonra OpenSubtitles (cevap geliş sırası değil).
         val onlineOrdered = online.sortedBy { onlineRank(it.origin) }
         val all = embedded + (streamTracks + localTracks + fromAddons + onlineOrdered + translatedTracks).map(SubtitleItem::External)
-        items = SubtitleSelection.dedupe(all)
+        items = SubtitleSelection.dedupeAndDisambiguate(all)
         // Açık videonun-içi parça artık yoksa (kaynak değişti), seçim düşer ve otomatik seçim yeniden değerlendirilir.
         val current = selected
         if (current is SubtitleItem.Embedded && current !in items) {
             selected = null
             userChose = false
+            autoRank = null
+        }
+        // Eski akışın kendi altyazısı (ör. içeriğe uymadığı için elenen kaynağınki) yeni kaynağın videosunda kalmaz: senkron tutmaz.
+        if (current is SubtitleItem.External && current.track.kind == SubtitleKind.Source && current !in items && !userChose) {
+            apply(null)
             autoRank = null
         }
         autoSelect()
@@ -451,11 +472,13 @@ class SubtitleController(
     }
 
     private suspend fun loadExternal(item: SubtitleItem.External) {
-        val savedOffset = memory.offset(request, item.track.url)
+        val savedOffset = withContext(io) { memory.offset(request, item.track.url) }
         when (val result = loader.load(item.track)) {
             is SubtitleLoad.Loaded -> {
                 if (selected != item) return
-                timeline = SubtitleTimeline(result.cues)
+                val newTimeline = withContext(computation) { SubtitleTimeline(result.cues) }
+                if (selected != item) return
+                timeline = newTimeline
                 offsetMs = savedOffset
                 status = SubtitleStatus.Idle
                 if (userChose) remember(item.language)

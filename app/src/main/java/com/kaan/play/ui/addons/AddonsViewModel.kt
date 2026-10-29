@@ -152,32 +152,9 @@ class InstalledAddonsViewModel(
     private val repo: AddonRepository,
     plugins: PluginRepository,
     private val csRepos: CsRepository,
-    /** Bir eklentinin site adresi değişince (ör. katalog önbelleğini boşaltmak için) çağrılır. */
-    private val onDomainChanged: () -> Unit = {},
 ) : ViewModel() {
 
     private val pluginRepo = plugins
-
-    /** CloudStream eklentileri için kullanıcının girdiği site adresleri (internalName → adres). */
-    val csDomains: StateFlow<Map<String, String>> =
-        (csRepos.domains?.all ?: kotlinx.coroutines.flow.flowOf(emptyMap()))
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
-
-    /** Eklentinin kendi site adresi (geçersiz kılınmamış); yüklenemezse null. */
-    suspend fun csDefaultUrl(plugin: InstalledCsPlugin): String? = csRepos.defaultMainUrl(plugin.id)
-
-    /**
-     * Site adresini kaydeder ya da ([url] null/boş) eklentinin kendi adresine döner.
-     * Adres geçersizse [onResult] false alır ve hiçbir şey değişmez.
-     */
-    fun setCsDomain(plugin: InstalledCsPlugin, url: String?, onResult: (Boolean) -> Unit) {
-        val domains = csRepos.domains ?: return onResult(false)
-        viewModelScope.launch {
-            val ok = domains.set(plugin.pluginId, url)
-            if (ok) onDomainChanged()
-            onResult(ok)
-        }
-    }
 
     /** null = henüz yüklenmedi (boş liste mesajı yanıp sönmesin). */
     val addons: StateFlow<List<Addon>?> =

@@ -9,6 +9,7 @@ import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.stream.PlayTarget
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamResult
+import com.kaan.play.data.stream.StreamLog
 import com.kaan.play.data.stream.TorrentLinks
 import com.kaan.play.data.stream.ranked
 import com.kaan.play.data.stream.recommended
@@ -58,11 +59,38 @@ object AutoNextRules {
 
     fun leftCardWindow(positionMs: Long, durationMs: Long): Boolean =
         remaining(positionMs, durationMs) > WINDOW_MS + SEEK_BACK_MARGIN_MS
+    /**
+     * Oynatıcı alt çubuğundaki "Sonraki bölüm" düğmesinin görünüp görünmeyeceğini belirler.
+     * Yalnızca dizi bölümlerinde (sezon ve bölüm numarası olan, canlı tv/channel olmayan ve
+     * süresi bilinen pozitif akışlar) görünür. Canlı yayında ve filmlerde gizlenir.
+     */
+    fun canShowNextEpisodeButton(
+        type: MediaType?,
+        season: Int?,
+        episode: Int?,
+        addonType: String? = null,
+        durationMs: Long = 1L,
+    ): Boolean {
+        if (addonType?.lowercase() in listOf("tv", "channel")) return false
+        if (type != MediaType.Tv) return false
+        if (season == null || episode == null) return false
+        if (durationMs <= 0L) return false
+        return true
+    }
 
     /**
      * Sonraki bölüm için deneme sırası. Önce kullanıcının izlediği eklentinin kaynakları (aynı sunucu, aynı tür, en yakın kalite
      * önde), sonra diğerleri (önerilen önde, sonra kaliteye göre). Aynı adres bir kez. En çok [MAX_CANDIDATES].
      */
+    private data class DecoratedAutoNextSame(
+        val stream: PlayableStream,
+        val dubbedDiff: Int,
+        val hostDiff: Int,
+        val magnetDiff: Int,
+        val resGap: Int,
+        val rankIdx: Int,
+    )
+
     fun order(streams: List<PlayableStream>, current: PlayableStream): List<PlayableStream> {
         val ranked = streams.distinctBy { it.url }.ranked()
         val index = ranked.withIndex().associate { it.value.url to it.index }
@@ -75,15 +103,27 @@ object AutoNextRules {
             return abs(have - want)
         }
 
-        val same = ranked.filter { it.source.addonId == current.source.addonId }.sortedWith(
-            compareBy<PlayableStream>(
-                { it.dubbed != current.dubbed },
-                { currentHost != null && hostOf(it.url) != currentHost },
-                { TorrentLinks.isMagnet(it.url) != currentMagnet },
-                { resolutionGap(it) },
-                { index.getValue(it.url) },
-            ),
-        )
+        val sameRaw = ranked.filter { it.source.addonId == current.source.addonId }
+        val same = if (sameRaw.size <= 1) sameRaw else {
+            sameRaw.map { s ->
+                DecoratedAutoNextSame(
+                    stream = s,
+                    dubbedDiff = if (s.dubbed != current.dubbed) 1 else 0,
+                    hostDiff = if (currentHost != null && hostOf(s.url) != currentHost) 1 else 0,
+                    magnetDiff = if (TorrentLinks.isMagnet(s.url) != currentMagnet) 1 else 0,
+                    resGap = resolutionGap(s),
+                    rankIdx = index.getValue(s.url),
+                )
+            }.sortedWith(
+                compareBy(
+                    { it.dubbedDiff },
+                    { it.hostDiff },
+                    { it.magnetDiff },
+                    { it.resGap },
+                    { it.rankIdx },
+                )
+            ).map { it.stream }
+        }
         val sameUrls = same.mapTo(HashSet()) { it.url }
         // Başka eklentilerde de izlenen türe (dublajlı/altyazılı) uyanlar öne alınır (sıralama kendi içinde korunur).
         val others = ranked.filter { it.url !in sameUrls }.sortedBy { it.dubbed != current.dubbed }
@@ -92,7 +132,7 @@ object AutoNextRules {
         return (same + orderedOthers).take(MAX_CANDIDATES)
     }
 
-    private fun hostOf(url: String): String? = url.toHttpUrlOrNull()?.host
+    private fun hostOf(url: String): String? = StreamLog.hostOf(url).takeIf { it != "?" }
 
     /**
      * Kaynakları toplar. Tercih edilen eklenti ([preferredAddonId]; null: herhangi biri) kaynak verince ya da hepsi bitince döner;
@@ -204,7 +244,7 @@ class AutoNextController(
     private var lastTickMs = -1L
 
     private val isSeries: Boolean
-        get() = target.request.type == MediaType.Tv && target.request.season != null && target.request.episode != null
+        get() = AutoNextRules.canShowNextEpisodeButton(target.request.type, target.request.season, target.request.episode, target.request.addonType, 1L)
 
     /** Ayarı okur ve sonraki bölümü arar. Bir kez çağrılır. */
     fun start() {

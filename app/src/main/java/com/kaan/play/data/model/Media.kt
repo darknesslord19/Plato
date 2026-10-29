@@ -22,6 +22,8 @@ data class MediaSummary(
     val rating: Double?,
     /** TMDB tür kimlikleri (listelerde gelir); adlara [com.kaan.play.data.tmdb.TmdbRepository] çevirir. */
     val genreIds: List<Int> = emptyList(),
+    /** TMDB popülerliği; içerik ilgisinden sonra yalnızca yakın skorlarda kullanılır. */
+    val popularity: Double? = null,
 )
 
 /** Ana sayfa kapak karuselinin bir sayfası: arka plan görseli olan içerik + tür adları + (varsa) başlık logosu. */
@@ -57,6 +59,12 @@ data class MediaDetail(
     /** Yalnızca diziler: yaratıcılar. */
     val creators: List<String> = emptyList(),
     val cast: List<CastMember> = emptyList(),
+    /** TMDB özgün başlığı (örn. İngilizce); eklenti eşleştirmesi için. Arayüzde gösterilmez. */
+    val originalTitle: String? = null,
+    /** TMDB alternatif başlıkları (ülke/dil farkları); eklenti eşleştirmesi için. Arayüzde gösterilmez. */
+    val alternativeTitles: List<String> = emptyList(),
+    val similar: List<MediaSummary> = emptyList(),
+    val trailerKey: String? = null,
 )
 
 data class SeasonInfo(

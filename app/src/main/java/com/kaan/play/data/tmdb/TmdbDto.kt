@@ -30,6 +30,7 @@ internal data class ItemDto(
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("first_air_date") val firstAirDate: String? = null,
     @SerialName("vote_average") val voteAverage: Double? = null,
+    val popularity: Double? = null,
     @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
 )
 
@@ -38,6 +39,8 @@ internal data class DetailDto(
     val id: Int,
     val title: String? = null,
     val name: String? = null,
+    @SerialName("original_title") val originalTitle: String? = null,
+    @SerialName("original_name") val originalName: String? = null,
     val overview: String? = null,
     val tagline: String? = null,
     @SerialName("poster_path") val posterPath: String? = null,
@@ -56,6 +59,46 @@ internal data class DetailDto(
     @SerialName("release_dates") val releaseDates: ReleaseDatesDto? = null,
     @SerialName("content_ratings") val contentRatings: ContentRatingsDto? = null,
     @SerialName("created_by") val createdBy: List<PersonDto> = emptyList(),
+    @SerialName("alternative_titles") val alternativeTitles: AlternativeTitlesDto? = null,
+    val similar: ListDto? = null,
+    val recommendations: ListDto? = null,
+    val keywords: KeywordsDto? = null,
+    val videos: VideosDto? = null,
+)
+
+@Serializable
+internal data class KeywordsDto(
+    val keywords: List<KeywordDto> = emptyList(),
+    val results: List<KeywordDto> = emptyList(),
+) {
+    fun all(): List<KeywordDto> = keywords + results
+}
+
+@Serializable
+internal data class KeywordDto(val id: Int = 0, val name: String = "")
+
+@Serializable
+internal data class VideosDto(val results: List<VideoDto> = emptyList())
+
+@Serializable
+internal data class VideoDto(
+    val key: String? = null,
+    val site: String? = null,
+    val type: String? = null,
+    val official: Boolean? = null,
+)
+
+/** Film: `titles`; dizi: `results`. Yalnızca eşleştirme için (arayüzde gösterilmez). */
+@Serializable
+internal data class AlternativeTitlesDto(
+    val titles: List<AlternativeTitleDto> = emptyList(),
+    val results: List<AlternativeTitleDto> = emptyList(),
+)
+
+@Serializable
+internal data class AlternativeTitleDto(
+    @SerialName("iso_3166_1") val country: String? = null,
+    val title: String? = null,
 )
 
 @Serializable
@@ -111,7 +154,7 @@ internal data class GenreListDto(val genres: List<GenreIdDto> = emptyList())
 internal data class GenreIdDto(val id: Int = 0, val name: String = "")
 
 @Serializable
-internal data class GenreDto(val name: String = "")
+internal data class GenreDto(val id: Int = 0, val name: String = "")
 
 @Serializable
 internal data class ExternalIdsDto(@SerialName("imdb_id") val imdbId: String? = null)

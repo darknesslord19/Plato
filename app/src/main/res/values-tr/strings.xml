@@ -2,6 +2,7 @@
 <resources>
     <string name="tab_home">Ana sayfa</string>
     <string name="tab_search">Ara</string>
+    <string name="tab_tv">TV</string>
     <string name="tab_library">Kütüphane</string>
     <string name="tab_settings">Ayarlar</string>
 
@@ -12,6 +13,8 @@
 
     <string name="type_movie">Film</string>
     <string name="type_series">Dizi</string>
+    <string name="tag_live">Canlı</string>
+    <string name="season_number_format">Sezon %1$d</string>
 
     <!-- Ana sayfa -->
     <string name="home_empty_message">Henüz hiçbir eklenti yok.</string>
@@ -42,6 +45,11 @@
     <string name="detail_writer">Yazar</string>
     <string name="detail_creator">Yaratıcı</string>
     <string name="detail_cast">Oyuncular</string>
+    <string name="detail_trailer_title">Fragman</string>
+    <string name="detail_trailer_play">Fragmanı uygulama içinde oynat</string>
+    <string name="detail_trailer_close">Kapat</string>
+    <string name="detail_similar_movies">Benzer filmler</string>
+    <string name="detail_similar_series">Benzer diziler</string>
     <string name="detail_favorite_add">Favorilere ekle</string>
     <string name="detail_favorite_remove">Favorilerden çıkar</string>
     <string name="detail_season">%1$d. Sezon</string>
@@ -75,6 +83,23 @@
     <string name="player_error_network">Bu kaynağa ulaşılamadı. Bağlantını kontrol et.</string>
     <string name="player_error_unavailable">Bu kaynak şu an kullanılamıyor.</string>
     <string name="player_error_format">Bu kaynak bu cihazda oynatılamıyor.</string>
+    <string name="live_channel_unavailable">Bu kanal şu an oynatılamıyor.</string>
+    <string name="tv_title">Canlı TV</string>
+    <string name="tv_empty">Etkin eklentilerinizde canlı kanal bulunamadı.</string>
+    <string name="tv_refresh">Yenile</string>
+    <string name="tv_loading">Canlı kanallar yükleniyor…</string>
+    <string name="tv_channel_subtitle">Canlı kanal · %1$s</string>
+    <string name="tv_live_badge">CANLI</string>
+    <string name="tv_search_hint">Kanal ara</string>
+    <string name="tv_results_count">%1$d canlı kanal</string>
+    <string name="tv_filter_all">Tümü (%1$d)</string>
+    <string name="tv_filter_nuvio">Nuvio (%1$d)</string>
+    <string name="tv_filter_cloudstream">CloudStream (%1$d)</string>
+    <string name="tv_no_results">“%1$s” ile eşleşen kanal bulunamadı.</string>
+    <string name="tv_filtered_empty">Seçilen kaynakta kanal bulunamadı.</string>
+    <string name="tv_load_error">Canlı kanallar yüklenemedi. Bağlantınızı kontrol edip yeniden deneyin.</string>
+    <string name="tv_source_options">Yayın kaynağını seç</string>
+    <string name="tv_sources_count">%1$d kaynak</string>
     <string name="player_error_pick">Başka kaynak seç</string>
 
     <!-- Kaldığın yerden devam -->
@@ -84,7 +109,7 @@
     <string name="player_resuming">Kaldığın yerden devam ediliyor</string>
 
     <!-- TMDB hataları -->
-    <string name="tmdb_error_missing_key">TMDB anahtarı yok. Ana sayfa ve arama için bir anahtar ekle.</string>
+    <string name="tmdb_error_missing_key">Bu derlemede TMDB anahtarı yok.</string>
     <string name="tmdb_error_invalid_key">TMDB, API anahtarını reddetti.</string>
     <string name="tmdb_error_network">Yüklenemedi. Bağlantını kontrol et.</string>
     <string name="tmdb_error_rate_limited">Çok fazla istek var. Biraz sonra tekrar dene.</string>
@@ -94,6 +119,13 @@
     <!-- Ayarlar -->
     <string name="settings_theme">Tema</string>
     <string name="settings_language">Dil</string>
+    <string name="settings_poster_url">Poster URL</string>
+    <string name="settings_poster_url_value">Özel poster şablonu</string>
+    <string name="settings_poster_url_default">Eklenti / TMDB posterleri</string>
+    <string name="settings_poster_url_title">Özel poster URL şablonu</string>
+    <string name="settings_poster_url_hint">https://…/{imdb_id}.jpg</string>
+    <string name="settings_poster_url_help">{imdb_id} kullanın; boş bırakırsanız eklenti veya TMDB posteri kullanılır.</string>
+    <string name="common_save">Kaydet</string>
     <string name="settings_about">Hakkında</string>
     <string name="theme_dark">Koyu</string>
     <string name="theme_light">Açık</string>
@@ -101,7 +133,7 @@
     <string name="about_telegram">Telegram topluluğu</string>
     <string name="about_telegram_title">Telegram Topluluğumuz</string>
     <string name="about_telegram_subtitle">Duyurular, güncellemeler ve topluluğumuza katıl</string>
-    <string name="about_telegram_url" translatable="false">https://t.me/darknes_lord</string>
+    <string name="about_telegram_url" translatable="false">https://t.me/+o-RFlV4U3UY5NGU8</string>
 
     <!-- Eklentiler -->
     <string name="addons_title">Eklentiler</string>
@@ -179,9 +211,21 @@
     <string name="addons_add_cs_hint" translatable="false">https://.../manifest.json veya .cs3</string>
     <string name="addons_add_nuvio_repo_hint" translatable="false">https://.../manifest.json</string>
     <string name="addons_add_nuvio_plugin_hint" translatable="false">https://.../scrapers.json</string>
-    <string name="nuvio_repos_title">Nuvio Depoları</string>
-    <string name="nuvio_repos_subtitle">Nuvio addon deposu ekle</string>
-    <string name="nuvio_repos_empty">Henüz Nuvio deposu eklenmedi.</string>
+    <string name="nuvio_repos_title">"Nuvio Addon'ları"</string>
+    <string name="nuvio_repos_subtitle">"Nuvio addon'larını yönet"</string>
+    <string name="nuvio_repos_empty">"Henüz Nuvio addon'u eklenmedi."</string>
+    <string name="addon_detail_title">Addon Ayrıntısı</string>
+    <string name="addon_catalogs_title">Kataloglar</string>
+    <string name="addon_no_catalogs">Bu addon katalog sunmuyor</string>
+    <string name="addon_items_count">%1$d içerik</string>
+    <string name="addon_items_unknown" translatable="false">—</string>
+    <string name="addon_badge_movie">Film</string>
+    <string name="addon_badge_series">Dizi</string>
+    <string name="addon_badge_live_tv">Canlı TV</string>
+    <string name="addon_badge_catalog">Katalog</string>
+    <string name="addon_badge_stream">Kaynak</string>
+    <string name="addon_badge_subtitles">Altyazı</string>
+    <string name="addon_badge_meta">Ayrıntı</string>
     <string name="nuvio_plugins_title">Nuvio Pluginler</string>
     <string name="nuvio_plugins_subtitle">Nuvio JavaScript plugin deposu ekle</string>
     <string name="nuvio_plugins_empty">Henüz Nuvio plugini eklenmedi.</string>
@@ -269,7 +313,7 @@
     <string name="settings_subtitle_language">Tercih edilen altyazı dili</string>
     <string name="about_no_content">Play hiçbir içerik sağlamaz; kullanıcı kendi eklentilerini ekler.</string>
     <string name="about_tmdb_attribution">Bu ürün TMDB API\'sini kullanır ancak TMDB tarafından onaylanmamıştır veya sertifikalandırılmamıştır.</string>
-    <string name="about_license_attribution">Bu uygulama GNU GPL v3.0 ile lisanslanmıştır. CloudStream (GPL-3.0) kütüphanesini kullanır.</string>
+    <string name="about_license_attribution">Bu uygulama GNU GPL v3.0 ile lisanslanmıştır. CloudStream (GPL-3.0) kütüphanesini ve EasyList (GPLv3 / CC BY-SA 3.0) filtre kurallarını kullanır.</string>
 
     <!-- Web siteleri (Eklentiler içinde) -->
     <string name="web_add">Web sitesi ekle</string>
@@ -289,6 +333,7 @@
     <string name="web_refresh">Yenile</string>
     <string name="web_load_failed">Sayfa açılamadı. Bağlantını kontrol edip yenile.</string>
     <string name="about_web_blocking">Web görünümü bilinen reklamları ve açılır pencereleri engeller; her reklamı yakalamayabilir.</string>
+    <string name="about_introdb_privacy">Atlama düğmeleri intro ve jenerik zamanlarını TheIntroDB\'den sorar; yalnızca TMDB kimliği, sezon/bölüm ve video süresi gider, TheIntroDB IP adresini ve izlenen içeriğin kimliğini görür.</string>
 
     <!-- Faz 4/B: indirme -->
     <string name="download_channel_name">İndirmeler</string>
@@ -369,6 +414,17 @@
     <string name="settings_auto_next">Sonraki bölümü otomatik oynat</string>
     <string name="settings_auto_next_countdown">Geri sayım</string>
     <string name="settings_auto_next_seconds">%1$d sn</string>
+    <string name="settings_skip_buttons">Atlama butonlarını göster</string>
+    <string name="settings_auto_skip_segments">Atlama bölümlerini otomatik geç</string>
+    <string name="settings_skip_segment_types">Atlanabilir bölüm türleri</string>
+    <string name="settings_skip_intro">İntro</string>
+    <string name="settings_skip_recap">Özet</string>
+    <string name="settings_skip_credits">Jenerik</string>
+    <string name="settings_skip_preview">Önizleme</string>
+    <string name="player_skip_intro">İntroyu geç</string>
+    <string name="player_skip_recap">Özeti geç</string>
+    <string name="player_skip_credits">Jeneriği geç</string>
+    <string name="player_skip_preview">Önizlemeyi geç</string>
 
     <!-- Güncelleme indirmesi: bildirimler -->
     <string name="update_channel_name">Uygulama güncellemeleri</string>
@@ -397,6 +453,9 @@
     <string name="player_no_sources">Bu içerik için kaynak bulunamadı.</string>
     <string name="player_switch_failed">Bu kaynak açılamadı, önceki kaynağa dönüldü.</string>
     <string name="player_source_skipped">Bir kaynak açılmadı, sıradakine geçildi.</string>
+    <string name="player_source_mismatch">Bu kaynak başka bir video gösteriyordu, atlandı.</string>
+    <string name="player_stall_switched">Kaynak yavaştı, değiştirildi.</string>
+    <string name="player_manual_slow">Kaynak yavaş, başka kaynak seçebilirsin.</string>
     <string name="player_error_detail">Ayrıntı: %1$s</string>
     <string name="dub_suggest_title">Dublajlı kaynak bulundu, geçilsin mi?</string>
     <string name="dub_suggest_switch">Geç</string>
@@ -426,6 +485,9 @@
     <string name="tracks_video">Video</string>
     <string name="tracks_auto">Otomatik</string>
     <string name="tracks_none">Seçenek yok</string>
+    <string name="player_speed">Hız</string>
+    <string name="player_speed_normal">Normal</string>
+    <string name="player_speed_normal_with_ratio">Normal (1×)</string>
     <string name="settings_auto_source">Kaynağı otomatik seç</string>
     <string name="settings_prefer_dub">Türkçe dublajı öncele</string>
     <string name="settings_auto_translate_subs">Türkçe yoksa İngilizceyi otomatik çevir</string>
@@ -465,151 +527,86 @@
     <string name="provider_verify_title">Güvenlik Doğrulaması</string>
     <string name="provider_verify_close">Kapat</string>
     <string name="provider_verify_hint">Lütfen ekrandaki kutucuğu işaretleyin</string>
-    <!-- CloudStream eklentisi site adresi (alan adı değişince) -->
-    <string name="cs_domain_action">Site adresini değiştir</string>
-    <string name="cs_domain_title">Site adresi</string>
-    <string name="cs_domain_message">Site yeni bir alan adına taşındıysa yeni adresi yaz. Eklenti bundan sonra bu adresi kullanır.</string>
-    <string name="cs_domain_default">Eklentinin kendi adresi: %1$s</string>
-    <string name="cs_domain_label">Yeni adres</string>
-    <string name="cs_domain_invalid">Geçerli bir web adresi yaz, ör. https://ornek.com</string>
-    <string name="cs_domain_save">Kaydet</string>
-    <string name="cs_domain_reset">Eklentinin adresine dön</string>
-    <string name="cs_domain_current">Adres: %1$s</string>
-    <!-- TMDB API anahtarı (uygulama içinden) -->
-    <string name="tmdb_key_title">TMDB API anahtarı</string>
-    <string name="tmdb_key_message">Ana sayfa rafları, arama ve detaylar TMDB\'den gelir. themoviedb.org → Ayarlar → API sayfasından ücretsiz v3 anahtarı alıp buraya yapıştır.</string>
-    <string name="tmdb_key_label">API anahtarı (32 karakter)</string>
-    <string name="tmdb_key_invalid">Bu bir TMDB v3 API anahtarına benzemiyor (32 harf ve rakam).</string>
-    <string name="tmdb_key_remove">Anahtarımı kaldır</string>
-    <string name="tmdb_key_add">TMDB anahtarı ekle</string>
-    <string name="tmdb_key_source_user">Senin anahtarın: %1$s</string>
-    <string name="tmdb_key_source_builtin">Bu sürümdeki yerleşik anahtar kullanılıyor</string>
-    <string name="tmdb_key_source_none">Anahtar yok: TMDB rafları ve arama boş</string>
-    <!-- Görünüm (paletler, parlaklık) ve ana sayfa kategorileri -->
-    <string name="settings_appearance">Görünüm</string>
-    <string name="theme_medium">Orta karanlık</string>
-    <string name="theme_black">Simsiyah</string>
-    <string name="appearance_home_categories">Ana sayfa kategorileri</string>
-    <string name="appearance_brightness">Parlaklık</string>
-    <string name="appearance_palette">Renk paleti</string>
-    <string name="home_edit">Ana sayfayı düzenle</string>
-    <string name="home_edit_reset">Sıfırla</string>
-    <string name="home_edit_reset_message">Varsayılan ana sayfa düzenine dönülsün mü? Kendi kategorilerin silinir.</string>
-    <string name="home_edit_add_preset">Kategori ekle</string>
-    <string name="home_edit_add_custom">Kendin yaz</string>
-    <string name="home_edit_edit_custom">Kategoriyi düzenle</string>
-    <string name="home_edit_hint">Sıralamak için okları, göstermek ya da gizlemek için anahtarı kullan.</string>
-    <string name="home_edit_move_up">Yukarı taşı</string>
-    <string name="home_edit_move_down">Aşağı taşı</string>
-    <string name="home_edit_remove">Kaldır</string>
-    <string name="home_edit_kind_special">Ana sayfa bölümü</string>
-    <string name="home_edit_kind_custom">Arama: %1$s</string>
-    <string name="home_edit_all_added">Tüm hazır kategoriler zaten ana sayfanda.</string>
-    <string name="home_edit_done">Tamam</string>
-    <string name="home_custom_name">Kategori adı</string>
-    <string name="home_custom_query">Aranacak kelime</string>
-    <string name="home_custom_query_hint">Örnek: Marvel, Harry Potter, Yeşilçam</string>
-    <string name="home_custom_type_all">Hepsi</string>
-    <string name="home_custom_type_movie">Film</string>
-    <string name="home_custom_type_series">Dizi</string>
-    <string name="home_category_empty">Bu kategoride bir şey bulunamadı.</string>
-    <string name="home_cat_hero">Kapak karuseli</string>
-    <string name="home_cat_providers">Eklenti rafları</string>
-    <string name="home_cat_unknown">Kategori</string>
-    <string name="home_cat_trending_all">Bu hafta trend</string>
-    <string name="home_cat_top_rated_movies">En beğenilen filmler</string>
-    <string name="home_cat_top_rated_series">En beğenilen diziler</string>
-    <string name="home_cat_now_playing_movies">Vizyondakiler</string>
-    <string name="home_cat_upcoming_movies">Yakında</string>
-    <string name="home_cat_airing_today_series">Bugün yayında</string>
-    <string name="home_cat_on_air_series">Yayını süren diziler</string>
-    <string name="home_cat_movie_action">Aksiyon filmleri</string>
-    <string name="home_cat_movie_adventure">Macera filmleri</string>
-    <string name="home_cat_movie_animation">Animasyon filmleri</string>
-    <string name="home_cat_movie_comedy">Komedi filmleri</string>
-    <string name="home_cat_movie_crime">Suç filmleri</string>
-    <string name="home_cat_movie_documentary">Belgeseller</string>
-    <string name="home_cat_movie_drama">Dram filmleri</string>
-    <string name="home_cat_movie_family">Aile filmleri</string>
-    <string name="home_cat_movie_fantasy">Fantastik filmler</string>
-    <string name="home_cat_movie_history">Tarih filmleri</string>
-    <string name="home_cat_movie_horror">Korku filmleri</string>
-    <string name="home_cat_movie_music">Müzik filmleri</string>
-    <string name="home_cat_movie_mystery">Gizem filmleri</string>
-    <string name="home_cat_movie_romance">Romantik filmler</string>
-    <string name="home_cat_movie_scifi">Bilim kurgu filmleri</string>
-    <string name="home_cat_movie_thriller">Gerilim filmleri</string>
-    <string name="home_cat_movie_war">Savaş filmleri</string>
-    <string name="home_cat_movie_western">Western filmleri</string>
-    <string name="home_cat_tv_action">Aksiyon ve macera dizileri</string>
-    <string name="home_cat_tv_animation">Animasyon dizileri</string>
-    <string name="home_cat_tv_comedy">Komedi dizileri</string>
-    <string name="home_cat_tv_crime">Suç dizileri</string>
-    <string name="home_cat_tv_documentary">Belgesel dizileri</string>
-    <string name="home_cat_tv_drama">Dram dizileri</string>
-    <string name="home_cat_tv_family">Aile dizileri</string>
-    <string name="home_cat_tv_kids">Çocuk</string>
-    <string name="home_cat_tv_mystery">Gizem dizileri</string>
-    <string name="home_cat_tv_reality">Reality şovlar</string>
-    <string name="home_cat_tv_scifi">Bilim kurgu ve fantastik diziler</string>
-    <string name="home_cat_tv_war">Savaş ve politika dizileri</string>
-    <string name="home_cat_turkish_movies">Türk filmleri</string>
-    <string name="home_cat_turkish_series">Türk dizileri</string>
-    <string name="home_cat_korean_series">Kore dizileri</string>
-    <string name="home_cat_korean_movies">Kore filmleri</string>
-    <string name="home_cat_anime_series">Anime</string>
-    <string name="home_cat_anime_movies">Anime filmleri</string>
-    <string name="home_cat_indian_movies">Hint filmleri</string>
-    <string name="home_cat_spanish_series">İspanyolca diziler</string>
-    <string name="home_cat_netflix_series">Netflix dizileri</string>
-    <string name="home_cat_disney_series">Disney+ dizileri</string>
-    <string name="home_cat_hbo_series">HBO dizileri</string>
-    <string name="home_cat_prime_series">Prime Video dizileri</string>
-    <string name="home_cat_apple_series">Apple TV+ dizileri</string>
-    <string name="home_cat_hulu_series">Hulu dizileri</string>
-    <string name="home_group_lists">Listeler</string>
-    <string name="home_group_movie_genres">Film türleri</string>
-    <string name="home_group_series_genres">Dizi türleri</string>
-    <string name="home_group_regional">Ülkeler ve anime</string>
-    <string name="home_group_platforms">Platformlar</string>
-    <string name="palette_play">Play camgöbeği</string>
-    <string name="palette_komur">Kömür</string>
-    <string name="palette_deve_tuyu">Deve tüyü</string>
-    <string name="palette_grafit">Grafit</string>
-    <string name="palette_gumus">Gümüş</string>
-    <string name="palette_arduvaz">Arduvaz</string>
-    <string name="palette_kum">Kum</string>
-    <string name="palette_bej">Bej</string>
-    <string name="palette_kahve">Kahve</string>
-    <string name="palette_cikolata">Çikolata</string>
-    <string name="palette_kiremit">Kiremit</string>
-    <string name="palette_mercan">Mercan</string>
-    <string name="palette_turuncu">Turuncu</string>
-    <string name="palette_kehribar">Kehribar</string>
-    <string name="palette_hardal">Hardal</string>
-    <string name="palette_altin">Altın</string>
-    <string name="palette_limon">Limon</string>
-    <string name="palette_zeytin">Zeytin</string>
-    <string name="palette_cam">Çam</string>
-    <string name="palette_orman">Orman</string>
-    <string name="palette_nane">Nane</string>
-    <string name="palette_zumrut">Zümrüt</string>
-    <string name="palette_yesim">Yeşim</string>
-    <string name="palette_deniz_kopugu">Deniz köpüğü</string>
-    <string name="palette_turkuaz">Turkuaz</string>
-    <string name="palette_gok">Gök</string>
-    <string name="palette_buz">Buz</string>
-    <string name="palette_okyanus">Okyanus</string>
-    <string name="palette_lacivert">Lacivert</string>
-    <string name="palette_indigo">Çivit</string>
-    <string name="palette_lavanta">Lavanta</string>
-    <string name="palette_leylak">Leylak</string>
-    <string name="palette_mor">Mor</string>
-    <string name="palette_erik">Erik</string>
-    <string name="palette_gul">Gül</string>
-    <string name="palette_pembe">Pembe</string>
-    <string name="palette_kirmizi">Kırmızı</string>
-    <string name="palette_bordo">Bordo</string>
-    <string name="palette_visne">Vişne</string>
-    <string name="palette_gece">Gece mavisi</string>
+    <string name="provider_error_dex_missing">Eklenti dosyası bulunamadı, yeniden indirilemedi</string>
+    <string name="provider_error_incompatible">Bu eklenti Play\'in sürümüyle uyumlu değil</string>
+    <string name="provider_error_load_failed">Eklenti yüklenemedi</string>
+    <string name="provider_error_not_found">Eklenti bulunamadı</string>
+    <string name="provider_error_no_api">Eklenti API\'si bulunamadı</string>
+    <string name="provider_error_invalid_meta_url">Geçersiz meta adresi</string>
+    <string name="provider_error_meta_not_found">Meta bilgisi bulunamadı</string>
+    <string name="provider_error_content_load_failed">İçerik yüklenemedi</string>
+    <string name="provider_error_unexpected">Beklenmeyen hata</string>
+    <string name="settings_speed_test">İnternet hız testi</string>
+    <string name="settings_speed_test_summary">Anlık indirme hızını ölç</string>
+    <string name="speed_test_failed">Test tamamlanamadı: %1$s</string>
+    <string name="speed_test_error_unreachable">Sunucuya ulaşılamadı</string>
+    <string name="speed_test_error_timeout">Zaman aşımı</string>
+    <string name="download_pick_title">İndirilecek kaynağı seç</string>
+    <string name="download_pick_checking">İndirilebilir kaynaklar denetleniyor…</string>
+    <string name="download_pick_empty_episode">Bu bölüm için indirilebilir kaynak bulunamadı</string>
+    <string name="download_pick_empty_movie">Bu film için indirilebilir kaynak bulunamadı</string>
+    <string name="wifi_sync_title">Wi-Fi senkronizasyonu · Yerel</string>
+    <string name="wifi_sync_description">Profil, geçmiş, eklenti depoları ve eklenti durumları eşitlenir</string>
+    <string name="wifi_sync_code">Kod: %1$s</string>
+    <string name="wifi_sync_code_hint">Diğer cihazda \'Diğer cihazın kodu\' kutusuna bu kodu yaz. 3 dakika geçerlidir.</string>
+    <string name="wifi_sync_peer_code">Diğer cihazın kodu</string>
+    <string name="wifi_sync_connect">Bağlan</string>
+    <string name="wifi_sync_debug_address">Cihaz adresi (debug)</string>
+    <string name="wifi_sync_new_code">Yeni kod</string>
+    <string name="wifi_sync_expired">Kod artık geçerli değil.</string>
+    <string name="wifi_sync_searching">Cihaz aranıyor…</string>
+    <string name="wifi_sync_connecting">Bağlanılıyor…</string>
+    <string name="wifi_sync_syncing">Eşitleniyor…</string>
+    <string name="wifi_sync_result">Eşitlendi: %1$s, %2$s, %3$s, %4$s</string>
+    <plurals name="wifi_sync_profiles">
+        <item quantity="one">%d profil</item>
+        <item quantity="other">%d profil</item>
+    </plurals>
+    <plurals name="wifi_sync_history">
+        <item quantity="one">%d geçmiş</item>
+        <item quantity="other">%d geçmiş</item>
+    </plurals>
+    <plurals name="wifi_sync_addons">
+        <item quantity="one">%d addon</item>
+        <item quantity="other">%d addon</item>
+    </plurals>
+    <plurals name="wifi_sync_repos">
+        <item quantity="one">%d depo</item>
+        <item quantity="other">%d depo</item>
+    </plurals>
+    <string name="wifi_sync_error_not_found">Cihaz bulunamadı; iki cihaz aynı Wi-Fi\'de mi?</string>
+    <string name="wifi_sync_error_wrong_code">Kod yanlış.</string>
+    <string name="wifi_sync_error_invalid_code">6 haneli kodu yaz.</string>
+    <string name="wifi_sync_error_unreachable">Cihaza bağlanılamadı.</string>
+    <string name="wifi_sync_error_locked">Çok fazla yanlış deneme. Yeni kod gerekiyor.</string>
+    <string name="wifi_sync_error_port">Eşitleme bu cihazda başlatılamadı.</string>
+    <string name="wifi_sync_error_failed">Eşitleme başarısız oldu.</string>
+    <string name="wifi_sync_error_permission">Yerel ağ izni gerekiyor.</string>
+    <string name="wifi_sync_add_title">Şunlar eklensin mi?</string>
+    <string name="wifi_sync_add_all">Hepsini ekle</string>
+    <string name="wifi_sync_add_selected">Seçilenleri ekle</string>
+    <string name="wifi_sync_add_skip">Şimdi değil</string>
+    <string name="wifi_sync_installing">Ekleniyor…</string>
+    <plurals name="wifi_sync_install_failed">
+        <item quantity="one">%d kaynak eklenemedi.</item>
+        <item quantity="other">%d kaynak eklenemedi.</item>
+    </plurals>
+    <string name="cloud_sync_scope">Profiller, izleme geçmişi, favoriler ve eklentiler (depolar, açık/kapalı durumları, ayarlar) bu hesapla eşitlenir. Eklenti dosyaları kopyalanmaz; her cihaz kendisi indirir.</string>
+    <string name="search_filter_all">Tümü</string>
+    <string name="search_filter_movies">Filmler</string>
+    <string name="search_filter_series">Diziler</string>
+    <!-- Depo kataloğu (Ayarlar > Eklentiler > Depo Kataloğu) -->
+    <string name="repo_catalog_title">Depo Kataloğu</string>
+    <string name="repo_catalog_subtitle">Topluluk depolarını keşfet ve tek tıkla yükle</string>
+    <string name="repo_catalog_search_hint">Depo veya kategori ara…</string>
+    <string name="repo_catalog_empty">Depo bulunamadı</string>
+    <string name="repo_catalog_no_results">Sonuç bulunamadı</string>
+    <string name="repo_catalog_load_failed">Katalog yüklenemedi</string>
+    <string name="repo_catalog_error_generic">Bir hata oluştu</string>
+    <string name="repo_catalog_install">Yükle</string>
+    <string name="repo_catalog_installed">Yüklü</string>
+    <string name="repo_catalog_install_success">Depo eklendi</string>
+    <string name="repo_catalog_install_failure">Hata: %1$s</string>
+    <string name="repo_catalog_type_nuvio_repo">Nuvio deposu</string>
+    <string name="repo_catalog_type_nuvio_plugin">Nuvio eklentisi</string>
 </resources>

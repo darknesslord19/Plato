@@ -26,6 +26,8 @@ data class PluginStream(
     val subtitles: List<PluginSubtitle>,
     /** Yalnızca `magnet:` akışlarda: torrent içindeki dosya (0 tabanlı). */
     val fileIdx: Int? = null,
+    /** Eklentinin bildirdiği biçim (`m3u8`, `hls`, `mpd`, `dash`, `mp4` ...). Adreste uzantı yoksa oynatıcı türü buradan alır. */
+    val format: String? = null,
 ) {
     companion object {
         private const val MAX_TEXT = 500
@@ -63,6 +65,7 @@ data class PluginStream(
                     .asSequence().mapNotNull { (it as? JsonObject)?.let(PluginSubtitle::fromJson) }
                     .take(MAX_SUBTITLES).toList(),
                 fileIdx = (obj["fileIdx"] as? JsonPrimitive)?.intOrNull?.takeIf { it >= 0 && TorrentLinks.isMagnet(rawUrl) },
+                format = obj.text("format"),
             )
         }
 
@@ -137,6 +140,7 @@ fun PluginStream.toPlayable(source: StreamSource): PlayableStream {
         },
         language = language?.let { StreamLabels.language(it) } ?: StreamLabels.language(text),
         torrentFileIdx = fileIdx,
+        mimeType = mimeTypeOfFormat(format, url),
         dubbed = com.kaan.play.data.stream.DubDetector.isDubbed(listOfNotNull(text, language).joinToString(" ")),
     )
 }
@@ -148,6 +152,33 @@ fun PluginOutcome.toStreamResult(source: StreamSource): StreamResult = when (thi
         source,
         if (reason == PluginOutcome.Reason.Timeout) FailureReason.Timeout else FailureReason.InvalidResponse,
     )
+}
+
+/**
+ * Eklentinin `format` alanı → medya türü. Uzantısız HLS adresleri (`.../play?id=...`) bu ipucu olmadan oynatılamaz
+ * (ExoPlayer "container desteklenmiyor" 3003 verir); Nuvio da bu alana bakar. Bilinmeyen biçimde null: tür adresten/başlıktan çıkarılır.
+ */
+internal fun mimeTypeOfFormat(format: String?, url: String? = null): String? {
+    when (format?.trim()?.lowercase(java.util.Locale.ROOT)) {
+        "m3u8", "hls", "application/x-mpegurl", "application/vnd.apple.mpegurl" -> return "application/x-mpegURL"
+        "mpd", "dash", "application/dash+xml" -> return "application/dash+xml"
+    }
+    if (url != null) {
+        val lower = url.lowercase(java.util.Locale.ROOT)
+        if (lower.contains(".m3u8") ||
+            lower.contains("/hls/") ||
+            lower.contains("/txt/") ||
+            lower.endsWith(".txt") ||
+            lower.contains("molystream") ||
+            lower.contains("vidmoly")
+        ) {
+            return "application/x-mpegURL"
+        }
+        if (lower.contains(".mpd")) {
+            return "application/dash+xml"
+        }
+    }
+    return null
 }
 
 private val LANGUAGE_CODE = Regex("^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,4})?$")

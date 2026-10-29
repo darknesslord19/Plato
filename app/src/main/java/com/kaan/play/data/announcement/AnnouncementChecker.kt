@@ -113,7 +113,7 @@ class AnnouncementChecker(
     }
 
     companion object {
-        const val DEFAULT_ENDPOINT = "https://raw.githubusercontent.com/liberta09/Play/main/announcements.json"
+        const val DEFAULT_ENDPOINT = "https://raw.githubusercontent.com/darknesslord19/Plato/main/announcements.json"
         private const val MAX_BODY_BYTES = 64L * 1024
     }
 }

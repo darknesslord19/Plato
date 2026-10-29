@@ -26,7 +26,8 @@ Değişmez kurallar: main'e birleştirme ve release yalnızca kullanıcı onayı
 - "Sorun bildir" düğmesi (teşhis bilgisi Telegram/e-posta).
 - GitHub'da her gönderimde otomatik derleme + test (bozuk kod ana dala girmesin).
 - Beta kanalı (Telegram gönüllüleri; ileride destekçilere "erken erişim").
-- Açık hatalar: (a) TV kutusunda "Eklenti API'si bulunamadı" (CsDexLoader.loadApis boş; hata metni koda Türkçe gömülü, string resource olmalı) — 2026-10-22: olası nedenler giderildi (yanlış `CloudStreamApp`/`DataStore` köprüleri, Android 8 altında çöken Jackson 2.17 → 2.13.1); TV kutusunda yeniden denenecek; (b) arkadaşın sağlayıcı seçimi sorunu, 1.1.4'te yeniden denenecek; (c) bir sonraki duyuruya Telegram adresi: https://t.me/+o-RFlV4U3UY5NGU8
+- Web görünümünde TV/kumanda desteği (şartname: docs/sartname-web-kumanda.md): Parça 1 (sanal imleç, ok tuşları, tıklama, kaydırma), Parça 2 (ekran klavyesi, Geri sırası) ve Parça 3 (tam ekranda imleç, otomatik tam ekran betiği) tamamlandı; TV kutusunda test edildi/edilecek.
+- Açık hatalar: (a) TV kutusunda "Eklenti API'si bulunamadı" (CsDexLoader.loadApis boş; hata metni koda Türkçe gömülü, string resource olmalı); (b) arkadaşın sağlayıcı seçimi sorunu, 1.1.4'te yeniden denenecek; (c) bir sonraki duyuruya Telegram adresi: https://t.me/+o-RFlV4U3UY5NGU8
 
 ### Aşama 1 — Yeni bölüm bilgisi (ücretsiz)
 - "İzlemeye devam et" kartında turkuaz **"Yeni bölüm"** rozeti; karta basınca o bölüm oynar.
@@ -64,4 +65,10 @@ Değişmez kurallar: main'e birleştirme ve release yalnızca kullanıcı onayı
 - 2026-10-21: Yeni bölüm için hem rozet hem "Yeni bölümler" rafı. Ödeme sitesi kullanıcı araştırınca seçilecek.
 - 2026-10-21: Watch List, Play'e karıştırılmaz; ayrı bir oluşum olarak kalır.
 - 2026-10-21: Gelir için bağış/destekçi modeli ile başlanır; hesap + bulut sonraya. Çalışma sistemi (yukarıdaki 7 adım) ve bu dosya oluşturuldu.
-- 2026-10-23: Kullanıcının isteğiyle ana sayfa kategorileri (sırala/göster-gizle/hazır + kendi kategorisi) ve Görünüm (5 parlaklık, 40 Monet tarzı palet) eklendi; Ayarlar'daki "Tema" kalemi "Görünüm" oldu (kalem sayısı 5).
+- 2026-10-23: Kullanıcı kararı 2026-10-23: addon sayfası (Nuvio addon ayrıntı sayfası, katalog aç/kapat ve içerik sayısı) ve altyazı listesi tekrar düzeltmesi (mükerrer altyazıları tekilleştirme, kaynak yanına ayırt edici ekleme) 1.1.7 için onaylandı.
+- 2026-10-25: Çok sağlayıcı ve torrent kaynaklarında donma/ANR sorunu giderildi (SourceRanking decorate-sort, StreamLog.hostOf koruması, SourceCoordinator önbellek & conflate); 1.1.10 normal sürümü yayınlandı.
+- 2026-10-25: Kullanıcı kararı 2026-10-25: oynatma hızı (Parçalar paneli, oturumluk, 0.75×–2×, üst çubuk rozeti) ve zaman çizelgesinde odak çerçevesi yok, odakta tutamaç büyür (1.4 kat) kuralları uygulandı (1.1.11).
+- 2026-10-25: Kullanıcı kararı 2026-10-25: yan menü kapalıyken simge şeridi, odakla açılır, içeriğin üstüne biner.
+- 2026-10-28: Kullanıcı kararı 2026-10-28 (eksikler-4, dal `ozellik/eksikler-4`, yayınlanmadı): Detay'da film/bölüm indir düğmesi (indirme modunda kaynak listesi), hız testinin sade istemci + yedek sunucu ile düzeltilmesi ve Wi-Fi senkronizasyonu (aynı ağdaki iki cihaz; kurallar CLAUDE.md "Wi-Fi senkronizasyonu"). Cihaz testi kullanıcıda; sonuç `docs/dogrulama-eksikler-4/SONUC.md`.
+- 2026-10-28: Kullanıcı kararı 2026-10-28: bulut hesabı senkronizasyonu kaynakları da taşır (aynı hesaptaki cihazlar eklentilerini paylaşır; eksik kaynak onayla kurulur, ortak kaynakta `updated_at`'e göre yeni olan kazanır); Wi-Fi senkronizasyonu internetsiz/hesapsız durum için kalır. Kurallar CLAUDE.md "Bulut hesabı senkronizasyonu"; sonuç `docs/dogrulama-bulut-kaynak/SONUC.md`. (Aşama 4'teki "bulut eşitleme (eklentiler)" maddesinin hesaplı kısmı böylece başladı.)
+- 2026-10-28: Kullanıcı kararı 2026-10-28 (dal `ozellik/eksikler-4`, yayınlanmadı): ortak geliştiricinin 1.1.47 sürümündeki TheIntroDB v4 intro/özet/jenerik/önizleme atlama özelliği tam sürüm olarak alındı (düğmeler, isteğe bağlı otomatik atlama, dört tür anahtarı); OCR jenerik algısı alınmadı. Kural 5 istisnası olarak kayda geçti. Kurallar CLAUDE.md "İntro/özet/jenerik atlama"; sonuç `docs/dogrulama-atla/SONUC.md`.

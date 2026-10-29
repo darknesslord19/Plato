@@ -10,6 +10,7 @@ import com.kaan.play.data.db.AddonEntity
 import com.kaan.play.data.db.AddonType
 import com.kaan.play.data.db.PluginDao
 import com.kaan.play.data.db.PluginEntity
+import com.kaan.play.data.plugin.RepoInstallPolicy
 import com.kaan.play.data.net.PlayJson
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -38,7 +39,7 @@ data class CsRepo(
     val pluginCount: Int,
 )
 
-/** Kurulu tek bir CS eklentisi. [enabled] varsayılan KAPALIDIR. */
+/** Kurulu tek bir CS eklentisi. Yeni depolarda [enabled] varsayılan olarak açıktır. */
 data class InstalledCsPlugin(
     val id: Long,
     val repoId: Long,
@@ -53,6 +54,10 @@ data class InstalledCsPlugin(
 
 data class CsRepoAdded(val repo: CsRepo, val installed: Int, val skipped: Int)
 
+fun interface Cs3Downloader {
+    suspend fun download(url: String, expectedHash: String, pluginId: Long): Cs3Contents
+}
+
 /**
  * CloudStream eklenti depolarının tek kapısı (Faz 3). Depo satırı `addons` tablosunda
  * ([AddonType.CLOUDSTREAM_REPO]), eklentiler `plugins` tablosunda durur.
@@ -66,9 +71,10 @@ class CsRepository(
     private val store: CsDexStore,
     private val loader: PluginDexLoader,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val parallelDownloads: Int = 6,
-    /** Kullanıcının eklenti başına girdiği site adresleri; null ise (testler) geçersiz kılma yok. */
-    val domains: CsDomainOverrides? = null,
+    private val parallelDownloads: Int = 2,
+    private val cs3Downloader: Cs3Downloader = Cs3Downloader { url, hash, id ->
+        downloadCs3(url, hash, httpClient, store, id)
+    },
 ) {
 
     val repos: Flow<List<CsRepo>> = combine(
@@ -147,7 +153,7 @@ class CsRepository(
         if (addonDao.countBySourceUrl(url) > 0) throw AddonException(Kind.AlreadyAdded)
 
         val tempId = System.nanoTime()
-        val contents = downloadCs3(url, "", httpClient, store, tempId)
+        val contents = cs3Downloader.download(url, "", tempId)
 
         val parsed = runCatching {
             PlayJson.parseToJsonElement(contents.pluginManifest) as? JsonObject
@@ -197,7 +203,7 @@ class CsRepository(
             hasSettings = false,
             sha256 = contents.sha256,
             sizeBytes = contents.sizeBytes,
-            enabled = false,
+            enabled = RepoInstallPolicy.initialPluginEnabled(AddonType.CLOUDSTREAM_REPO),
             installedAt = clock(),
         )
         val rowId = pluginDao.insert(pluginEntity)
@@ -207,7 +213,11 @@ class CsRepository(
             throw AddonException(Kind.AlreadyAdded)
         }
 
-        store.moveTo(tempId, rowId)
+        val tmpDex = store.dexFile(tempId)
+        val tmpMf = store.manifestFile(tempId)
+        if (tmpDex.exists()) tmpDex.renameTo(store.dexFile(rowId))
+        if (tmpMf.exists()) tmpMf.renameTo(store.manifestFile(rowId))
+        store.setReadOnly(rowId)
 
         return CsRepoAdded(
             repo = repoEntity.copy(id = repoId).toCsRepo(1),
@@ -221,11 +231,7 @@ class CsRepository(
     // ---------------------------------------------------------------------------
 
     suspend fun remove(repoId: Long) {
-        pluginDao.ofRepo(repoId).forEach {
-            loader.evict(store.loadFile(it.id))
-            loader.evict(store.dexFile(it.id))
-            store.delete(it.id)
-        }
+        pluginDao.ofRepo(repoId).forEach { store.delete(it.id) }
         addonDao.delete(repoId)
     }
 
@@ -245,44 +251,44 @@ class CsRepository(
      * Açık eklentiler için [MainAPI] listesini döner.
      * Her çağrıda DEX'i [PathClassLoader] ile yükler (Android sınıf yükleyici önbelleği bunu ucuzlatır).
      */
-    suspend fun loadApis(pluginRowId: Long): List<MainAPI> {
-        val row = pluginDao.byId(pluginRowId) ?: return emptyList()
-        val file = store.loadFile(pluginRowId)
-        if (!file.exists()) return emptyList()
-        // row.pluginId = depo düzeyindeki internalName; gerçek sınıf adı manifest.json'daki
-        // pluginClassName'dir ve genelde farklıdır (bkz. resolveMainClassName).
-        val manifest = store.readManifest(pluginRowId)
-        val className = resolveMainClassName(manifest, row.pluginId)
-        val apis = loader.loadPlugin(file, className, manifest)
-        applyDomain(row.pluginId, apis)
-        return apis
-    }
-
-    /** Eklentinin kendi adresi (kullanıcı değiştirmeden önceki); yükleyici örnekleri sakladığı için bir kez kaydedilir. */
-    private val originalMainUrls = java.util.WeakHashMap<MainAPI, String>()
-
-    /**
-     * Kullanıcı bu eklenti için yeni bir site adresi girdiyse her [MainAPI]'nin `mainUrl`'si onunla değiştirilir;
-     * girdi silindiyse eklentinin kendi adresine geri dönülür. Hata olursa eklentinin adresi olduğu gibi kalır.
-     */
-    private suspend fun applyDomain(internalName: String, apis: List<MainAPI>) {
-        val override = runCatching { domains?.get(internalName) }.getOrNull()
-        apis.forEach { api ->
-            try {
-                val original = synchronized(originalMainUrls) { originalMainUrls.getOrPut(api) { api.mainUrl } }
-                val wanted = override ?: original
-                if (api.mainUrl != wanted) api.mainUrl = wanted
-            } catch (t: Throwable) {
-                Log.d(TAG, "applyDomain: ${api.name} adresi değiştirilemedi ${t.javaClass.simpleName}")
-            }
+    suspend fun loadApis(pluginRowId: Long, allowRedownload: Boolean = true): CsApiResult {
+        val row = pluginDao.byId(pluginRowId) ?: run {
+            val failure = CsApiResult.PluginRowMissing(pluginRowId)
+            Log.w(TAG, formatCsLog(failure))
+            return failure
         }
+        if (row.pluginId.contains("traktsync", ignoreCase = true) ||
+            row.name.contains("traktsync", ignoreCase = true) ||
+            row.pluginId.contains("pltmustafa", ignoreCase = true)
+        ) {
+            Log.w(TAG, "Trakt eklentisi yuklenmedi (devre disi): ${row.pluginId}")
+            return CsApiResult.LoadFailed("TraktSyncDisabled", row.pluginId)
+        }
+        val dexFile = store.dexFile(pluginRowId)
+        if (!dexFile.exists()) {
+            if (allowRedownload) {
+                Log.w(TAG, "${row.pluginId}: DexFileMissing (tek seferlik yeniden indirme deneniyor)")
+                val downloaded = try {
+                    cs3Downloader.download(row.scriptUrl, row.sha256, pluginRowId)
+                    dexFile.exists()
+                } catch (e: Exception) {
+                    false
+                }
+                if (downloaded) {
+                    return loadApis(pluginRowId, allowRedownload = false)
+                }
+            }
+            val failure = CsApiResult.DexFileMissing(row.pluginId)
+            Log.w(TAG, formatCsLog(failure))
+            return failure
+        }
+        val className = resolveMainClassName(store.readManifest(pluginRowId), row.pluginId)
+        val result = loader.loadPlugin(dexFile, className, row.pluginId)
+        if (result is CsApiResult.Failure) {
+            Log.w(TAG, formatCsLog(result))
+        }
+        return result
     }
-
-    /** Eklentinin kendi (geçersiz kılınmamış) site adresi; yüklenemezse null. */
-    suspend fun defaultMainUrl(pluginRowId: Long): String? =
-        runCatching {
-            loadApis(pluginRowId).firstOrNull()?.let { api -> synchronized(originalMainUrls) { originalMainUrls[api] } ?: api.mainUrl }
-        }.getOrNull()?.takeIf { it.startsWith("http", ignoreCase = true) }
 
     suspend fun enabledPlugins(): List<InstalledCsPlugin> =
         pluginDao.enabledOfType(AddonType.CLOUDSTREAM_REPO).map { it.toInstalled() }
@@ -323,7 +329,7 @@ class CsRepository(
         return try {
             // Geçici bir id ile geçici dosya yolu belirle; eklenti satırı eklendikten sonra gerçek id alınır.
             val tempId = System.nanoTime()
-            val contents = downloadCs3(entry.url, entry.fileHash, httpClient, store, tempId)
+            val contents = cs3Downloader.download(entry.url, entry.fileHash, tempId)
 
             // Veritabanı satırını ekle
             val pluginEntity = PluginEntity(
@@ -339,7 +345,7 @@ class CsRepository(
                 hasSettings = false,
                 sha256 = contents.sha256,
                 sizeBytes = contents.sizeBytes,
-                enabled = false,
+                enabled = RepoInstallPolicy.initialPluginEnabled(AddonType.CLOUDSTREAM_REPO),
                 installedAt = clock(),
             )
             val rowId = pluginDao.insert(pluginEntity)
@@ -349,7 +355,11 @@ class CsRepository(
                 return Dl(entry, false, "db")
             }
             // Geçici dosyaları gerçek id ile yeniden adlandır
-            store.moveTo(tempId, rowId)
+            val tmpDex = store.dexFile(tempId)
+            val tmpMf = store.manifestFile(tempId)
+            if (tmpDex.exists()) tmpDex.renameTo(store.dexFile(rowId))
+            if (tmpMf.exists()) tmpMf.renameTo(store.manifestFile(rowId))
+            store.setReadOnly(rowId)
 
             Dl(entry, true)
         } catch (e: AddonException) {

@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import com.kaan.play.AppContainer
 import com.kaan.play.BuildConfig
-import com.kaan.play.data.update.UpdateChecker
 import com.kaan.play.data.addon.DefaultSubtitleAddons
 import com.kaan.play.data.cloudstream.CsNextEpisodeFinder
 import com.kaan.play.data.cloudstream.InstalledCsPlugin
@@ -342,7 +341,7 @@ object PlayDiagRunner {
         plugin: InstalledCsPlugin,
     ): CsDiagResult {
         Log.i(TAG, "[CS:${plugin.name}] Test başlıyor...")
-        val apis = runCatching { container.csRepos.loadApis(plugin.id) }.getOrNull()
+        val apis = runCatching { container.csRepos.loadApis(plugin.id).apisOrEmpty() }.getOrNull()
         if (apis.isNullOrEmpty()) {
             Log.w(TAG, "[CS:${plugin.name}] Dex yüklenemedi / API sınıfı bulunamadı")
             return CsDiagResult(
@@ -1022,7 +1021,7 @@ object PlayDiagRunner {
         }
 
         for (plugin in seriesPlugins) {
-            val apis = runCatching { container.csRepos.loadApis(plugin.id) }.getOrNull() ?: continue
+            val apis = runCatching { container.csRepos.loadApis(plugin.id).apisOrEmpty() }.getOrNull() ?: continue
             val api = apis.firstOrNull() ?: continue
             val sections = runCatching {
                 withTimeoutOrNull(CATALOG_TIMEOUT_MS) {
@@ -1091,7 +1090,7 @@ object PlayDiagRunner {
         // 1. GitHub releases/latest (yalnızca okuma)
         try {
             val req = Request.Builder()
-                .url(UpdateChecker.endpointFor(BuildConfig.UPDATE_REPO))
+                .url("https://api.github.com/repos/darknesslord19/Plato/releases/latest")
                 .header("Accept", "application/vnd.github+json")
                 .header("User-Agent", "Play-Android-UpdateCheck")
                 .build()
@@ -1140,7 +1139,7 @@ object PlayDiagRunner {
         // 2. announcements.json (yalnızca okuma)
         try {
             val req = Request.Builder()
-                .url("https://raw.githubusercontent.com/liberta09/Play/main/announcements.json")
+                .url("https://raw.githubusercontent.com/darknesslord19/Plato/main/announcements.json")
                 .header("User-Agent", "Play-Android-AnnouncementCheck")
                 .build()
             val text = withTimeoutOrNull(8_000L) {

@@ -1,6 +1,7 @@
 package com.kaan.play.data.cloudstream
 
 import android.util.Log
+import com.kaan.play.data.match.ContentIdentity
 import com.kaan.play.data.stream.FailureReason
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamProvider
@@ -12,6 +13,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * CloudStream eklentilerini [StreamProvider] arayüzüne bağlar.
@@ -21,13 +25,13 @@ import kotlinx.coroutines.launch
  *  2. [CsRuntime.streams] ile arama→detay→link akışı çalıştırılır.
  *  3. Sonuçlar tek [StreamResult.Found] olarak akar; hata → [StreamResult.Failed].
  *
- * Eklentiler paralel çalışır (her biri ayrı coroutine). Başlığı [titleResolver] çözer
- * (TMDB başlık → CS eklentisinin arama sorgusuna geçilir).
+ * Eklentiler paralel çalışır (her biri ayrı coroutine). İçeriğin kimliğini (başlıklar, yıl, imdb/tmdb) [identityResolver] çözer:
+ * eklenti bu kimlikle aranır ve sonuç doğrulanır. Kimlik çözülemezse (TMDB'ye ulaşılamadı) eşleştirme yapılamaz: CS atlanır.
  */
 class CsStreamProvider(
     private val repository: CsRepository,
     private val runtime: CsRuntime,
-    private val titleResolver: suspend (request: StreamRequest) -> String?,
+    private val identityResolver: suspend (request: StreamRequest) -> ContentIdentity?,
     private val timeoutMs: Long = 30_000L,
 ) : StreamProvider {
 
@@ -39,19 +43,26 @@ class CsStreamProvider(
             if (plugin != null) {
                 val source = StreamSource(addonId = plugin.id, addonName = plugin.name)
                 try {
-                    val apis = repository.loadApis(plugin.id)
+                    val apis = repository.loadApis(plugin.id).apisOrEmpty()
                     val streams = mutableListOf<PlayableStream>()
                     for (api in apis) {
-                        val links = runtime.loadLinksDirect(
+                        val links = runtime.loadLiveLinks(
                             api = api,
-                            data = request.dataUrl,
+                            catalogUrl = request.dataUrl,
                             source = source,
                             timeoutMs = timeoutMs,
                         )
                         streams += links
                         if (streams.isNotEmpty()) break
                     }
-                    send(StreamResult.Found(source, streams))
+                    if (streams.isEmpty()) {
+                        Log.w(TAG, "${plugin.name}: canlı kanal için akış bulunamadı (${request.dataUrl})")
+                        send(StreamResult.Failed(source, FailureReason.Network))
+                    } else {
+                        send(StreamResult.Found(source, streams))
+                    }
+                } catch (cancel: kotlinx.coroutines.CancellationException) {
+                    throw cancel
                 } catch (t: Throwable) {
                     Log.d(TAG, "${plugin.name}: direct loadLinks error: ${t.message}")
                     send(StreamResult.Failed(source, FailureReason.Network))
@@ -60,37 +71,46 @@ class CsStreamProvider(
             return@channelFlow
         }
 
-        val title = titleResolver(request)
-        if (title == null) {
-            Log.d(TAG, "streams: başlık çözülemedi (TMDB), CS atlanıyor")
+        val identity = identityResolver(request)
+        if (identity == null) {
+            Log.d(TAG, "streams: içerik kimliği çözülemedi (TMDB), CS atlanıyor")
             return@channelFlow
         }
         val plugins = repository.enabledPlugins()
         Log.d(TAG, "streams: ${plugins.size} açık CS eklentisi")
         if (plugins.isEmpty()) return@channelFlow
 
+        val gate = Semaphore(6)
         for (plugin in plugins) {
             launch {
-                val source = StreamSource(addonId = plugin.id, addonName = plugin.name)
-                try {
-                    val apis = repository.loadApis(plugin.id)
-                    Log.d(TAG, "${plugin.name}: ${apis.size} MainAPI yüklendi")
-                    val streams: List<PlayableStream> = if (apis.isEmpty()) {
-                        emptyList()
-                    } else {
-                        runtime.streams(
-                            apis = apis,
-                            request = request,
-                            title = title,
-                            pluginRowId = plugin.id,
-                            pluginName = plugin.name,
-                            timeoutMs = timeoutMs,
-                        )
+                gate.withPermit {
+                    val source = StreamSource(addonId = plugin.id, addonName = plugin.name)
+                    try {
+                        val streams: List<PlayableStream> = withTimeoutOrNull(timeoutMs) {
+                            val apis = repository.loadApis(plugin.id).apisOrEmpty()
+                            Log.d(TAG, "${plugin.name}: ${apis.size} MainAPI yüklendi")
+                            if (apis.isEmpty()) {
+                                emptyList()
+                            } else {
+                                runtime.streams(
+                                    apis = apis,
+                                    request = request,
+                                    identity = identity,
+                                    pluginRowId = plugin.id,
+                                    pluginName = plugin.name,
+                                    timeoutMs = timeoutMs,
+                                )
+                            }
+                        } ?: emptyList()
+                        if (streams.isNotEmpty()) {
+                            send(StreamResult.Found(source, streams))
+                        } else {
+                            send(StreamResult.Failed(source, FailureReason.Network))
+                        }
+                    } catch (t: Throwable) {
+                        Log.d(TAG, "${plugin.name}: streams hata ${t.javaClass.simpleName}: ${t.message}")
+                        send(StreamResult.Failed(source, FailureReason.Network))
                     }
-                    send(StreamResult.Found(source, streams))
-                } catch (t: Throwable) {
-                    Log.d(TAG, "${plugin.name}: streams hata ${t.javaClass.simpleName}: ${t.message}")
-                    send(StreamResult.Failed(source, FailureReason.Network))
                 }
             }
         }

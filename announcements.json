@@ -1,12 +1,3 @@
 {
-  "announcements": [
-    {
-      "id": "2026-10-22-darknes-telegram",
-      "title": "📢 Play Telegram kanalı",
-      "message": "Duyurular, yeni sürümler ve destek için Telegram kanalımıza katılın. 🍿",
-      "link": "https://t.me/darknes_lord",
-      "minVersion": "1.1.4",
-      "until": "2026-12-31"
-    }
-  ]
+  "announcements": []
 }

@@ -1,5 +1,14 @@
 package com.kaan.play.ui.nav
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.platform.LocalInputModeManager
+import com.kaan.play.ui.tv.focusMemory
+import com.kaan.play.ui.tv.rememberFocusMemory
 import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
@@ -72,6 +81,7 @@ import com.kaan.play.data.download.toTarget
 import com.kaan.play.data.library.ContinueItem
 import com.kaan.play.data.library.WatchRules
 import com.kaan.play.data.model.MediaType
+import com.kaan.play.data.provider.CatalogItem
 import com.kaan.play.data.stream.PlayTarget
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.StreamRequest
@@ -80,6 +90,7 @@ import com.kaan.play.ui.player.PlaySession
 import com.kaan.play.ui.player.formatTime
 import com.kaan.play.ui.addons.AddonsScreen
 import com.kaan.play.ui.addons.CsReposScreen
+import com.kaan.play.ui.addons.AddonDetailScreen
 import com.kaan.play.ui.addons.InstalledAddonsScreen
 import com.kaan.play.ui.addons.NuvioPluginsScreen
 import com.kaan.play.ui.addons.NuvioReposScreen
@@ -90,18 +101,31 @@ import com.kaan.play.data.plugin.DeepLinkEvent
 import com.kaan.play.ui.detail.DetailScreen
 import com.kaan.play.ui.detail.ProviderDetailScreen
 import com.kaan.play.ui.home.CategoryScreen
+import com.kaan.play.ui.home.HomeRow
 import com.kaan.play.ui.home.HomeScreen
 import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.search.SearchScreen
 import com.kaan.play.data.db.WatchHistoryEntity
 import com.kaan.play.ui.library.LibraryScreen
+import com.kaan.play.ui.tv.TvScreen
 import com.kaan.play.ui.settings.AboutScreen
 import com.kaan.play.ui.settings.PlayerSettingsScreen
 import com.kaan.play.ui.settings.SettingsScreen
+import com.kaan.play.ui.settings.SpeedTestScreen
+import com.kaan.play.ui.settings.ProfileScreen
+import com.kaan.play.ui.settings.SyncScreen
+import com.kaan.play.ui.settings.ProfileChooserScreen
+import com.kaan.play.ui.settings.ProfileSetupScreen
+import com.kaan.play.ui.addons.RepoManagerCatalogScreen
+import com.kaan.play.data.sync.LocalProfileSummary
 import kotlinx.coroutines.flow.first
 import com.kaan.play.ui.sources.SourcesSheet
 import kotlinx.coroutines.launch
 
+private const val SPEED_TEST_ROUTE = "settings/speed-test"
+private const val PROFILE_ROUTE = "settings/profile"
+private const val SYNC_ROUTE = "settings/sync"
+private const val REPO_MANAGER_CATALOG_ROUTE = "settings/addons/catalog"
 private const val ADDONS_ROUTE = "settings/addons?add={add}"
 private const val ADDONS_REPOS_ROUTE = "settings/addons/repos"
 private const val ADDONS_INSTALLED_ROUTE = "settings/addons/installed"
@@ -109,10 +133,9 @@ private const val CS_REPOS_ROUTE = "settings/addons/csrepos"
 private const val NUVIO_REPOS_ROUTE = "settings/addons/nuviorepos"
 private const val NUVIO_PLUGINS_ROUTE = "settings/addons/nuvioplugins"
 private const val PLUGIN_ROUTE = "settings/addons/plugin/{id}"
+private const val ADDON_DETAIL_ROUTE = "settings/addons/detail/{id}"
 private const val PLAYER_SETTINGS_ROUTE = "settings/player"
 private const val ABOUT_ROUTE = "settings/about"
-private const val APPEARANCE_ROUTE = "settings/appearance"
-private const val HOME_EDIT_ROUTE = "home/edit"
 private const val DETAIL_ROUTE = "detail/{type}/{id}"
 private const val PROVIDER_DETAIL_ROUTE = "provider_detail/{providerId}/{encodedUrl}"
 private const val CATEGORY_ROUTE = "home/category/{row}"
@@ -125,10 +148,10 @@ private data class ResumeAsk(val target: PlayTarget, val positionMs: Long, val d
 
 private fun addonsRoute(startAdding: Boolean) = "settings/addons?add=$startAdding"
 private fun detailRoute(type: MediaType, id: Int) = "detail/${type.tmdbPath}/$id"
-private fun categoryRoute(sectionId: String) = "home/category/${android.net.Uri.encode(sectionId)}"
+private fun categoryRoute(row: HomeRow) = "home/category/${row.name}"
 private fun providerDetailRoute(providerId: String, url: String): String {
     val b64 = android.util.Base64.encodeToString(url.toByteArray(Charsets.UTF_8), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
-    val safePid = providerId.replace(':', '_')
+    val safePid = ProviderRouteCodec.encode(providerId)
     return "provider_detail/$safePid/$b64"
 }
 
@@ -149,6 +172,7 @@ private fun CappedFontScale(content: @Composable () -> Unit) {
 enum class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector) {
     Home("home", R.string.tab_home, PlayIcons.Home),
     Search("search", R.string.tab_search, PlayIcons.Search),
+    Tv("tv", R.string.tab_tv, PlayIcons.Tv),
     Library("library", R.string.tab_library, PlayIcons.Folder),
     Settings("settings", R.string.tab_settings, PlayIcons.Gear),
 }
@@ -160,6 +184,76 @@ fun PlayRoot() {
     val scope = rememberCoroutineScope()
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
+
+    val profiles by container.localProfile.profiles.collectAsStateWithLifecycle(initialValue = emptyList())
+    val activeProfile by container.localProfile.activeProfile.collectAsStateWithLifecycle(initialValue = null)
+    val rememberLastProfile by container.settings.rememberLastProfile.collectAsStateWithLifecycle(initialValue = true)
+    var profileGate by remember { mutableStateOf(false) }
+    var initialGateChecked by remember { mutableStateOf(false) }
+    var showProfileSetup by remember { mutableStateOf(false) }
+    var managingProfiles by remember { mutableStateOf(false) }
+
+    LaunchedEffect(profiles, rememberLastProfile) {
+        if (!initialGateChecked && profiles.isNotEmpty()) {
+            if (!rememberLastProfile || activeProfile == null) {
+                profileGate = true
+            }
+            initialGateChecked = true
+        } else if (!initialGateChecked && profiles.isEmpty()) {
+            profileGate = true
+            initialGateChecked = true
+        }
+    }
+
+    if (showProfileSetup) {
+        ProfileSetupScreen(
+            onCreate = { name, avatar, isChild, pin ->
+                scope.launch {
+                    container.localProfile.createProfile(name, avatar, isChild, pin)
+                    showProfileSetup = false
+                    profileGate = false
+                }
+            },
+            onCancel = {
+                if (profiles.isNotEmpty()) {
+                    showProfileSetup = false
+                }
+            }
+        )
+        return
+    }
+
+    if (profileGate) {
+        ProfileChooserScreen(
+            profiles = profiles,
+            onSelect = { profile ->
+                scope.launch {
+                    container.localProfile.selectProfile(profile.id)
+                    profileGate = false
+                }
+            },
+            isAdmin = true,
+            managingProfiles = managingProfiles,
+            onToggleManage = { managingProfiles = !managingProfiles },
+            onCreateProfile = { showProfileSetup = true },
+            onToggleHidden = { profile ->
+                scope.launch {
+                    container.localProfile.setHidden(profile.id, !profile.isHidden)
+                }
+            },
+            onDeleteProfile = { profile ->
+                scope.launch {
+                    container.localProfile.deleteProfile(profile.id)
+                }
+            },
+            onEditProfile = { profile, name, avatar, isChild, pin ->
+                scope.launch {
+                    container.localProfile.updateProfile(profile.id, name, avatar, isChild, pin)
+                }
+            }
+        )
+        return
+    }
 
     fun openTab(tab: Tab) {
         if (tab == Tab.Home) {
@@ -224,7 +318,7 @@ fun PlayRoot() {
     // atlanır. Aynı içerik yarım izlenmişse önce "devam / baştan" sorulur ([startAtMs] verilmişse sorulmaz).
     fun play(target: PlayTarget, startAtMs: Long? = null, autoResumed: Boolean = false, download: DownloadEntity? = null) {
         scope.launch {
-            if (download == null && !container.hasEnabledSources()) {
+            if (download == null && target.request.pluginId == null && !container.hasEnabledSources()) {
                 openAddons(startAdding = true)
                 return@launch
             }
@@ -258,6 +352,25 @@ fun PlayRoot() {
 
     // Kütüphane > İndirilenler: internetsiz oynar; kaldığı yerden devam ve geçmiş çevrimiçi oynatmayla ortaktır.
     fun playDownload(download: DownloadEntity) = play(download.toTarget(), download = download)
+
+    /** TV katalog öğesi TMDB içeriği değildir; addonContentId ile doğrudan canlı akış aranır. */
+    fun playLiveChannel(item: CatalogItem) {
+        val target = PlayTarget(
+            request = StreamRequest(
+                tmdbId = 0,
+                imdbId = null,
+                type = MediaType.Tv,
+                pluginId = item.providerId,
+                addonType = item.addonType?.takeIf { it == "tv" || it == "channel" } ?: "tv",
+                addonContentId = item.rawUrl ?: item.id,
+                dataUrl = item.rawUrl?.takeIf { item.providerId.startsWith("cs:") },
+                title = item.title,
+            ),
+            title = item.title,
+            posterPath = null,
+        )
+        play(target)
+    }
 
     // Geçmiş/"devam et" kaydından oynatma. IMDb kimliği için TMDB'ye bir kez sorulur; olmazsa detay açılır.
     fun playEntry(entry: WatchHistoryEntity, season: Int?, episode: Int?, startAt: Long) {
@@ -384,96 +497,30 @@ fun PlayRoot() {
             }
         },
     ) { padding ->
-        Row(Modifier.padding(padding)) {
-        if (showNav && layout.useRail) CappedFontScale {
-            Row(modifier = Modifier.fillMaxHeight()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(184.dp)
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(horizontal = 12.dp),
-                ) {
-                    // Logo
-                    Row(
-                        modifier = Modifier.padding(start = 8.dp, top = 24.dp, bottom = 28.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = PlayIcons.PlayTriangle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp),
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Play",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 22.sp,
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
-                    }
+        val railCollapsedWidth = PlayLayout.RAIL_COLLAPSED_WIDTH_DP.dp
+        val railExpandedWidth = PlayLayout.RAIL_EXPANDED_WIDTH_DP.dp
 
-                    // Menü öğeleri
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Tab.entries.forEach { tab ->
-                            val isSelected = selected(tab)
-                            val shape = MaterialTheme.shapes.medium
-                            Surface(
-                                onClick = { openTab(tab) },
-                                shape = shape,
-                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .focusRing(shape),
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Icon(
-                                        imageVector = tab.icon,
-                                        contentDescription = stringResource(tab.label),
-                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(24.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Text(
-                                        text = stringResource(tab.label),
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                        ),
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                VerticalDivider(
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-                    modifier = Modifier.fillMaxHeight(),
-                )
-            }
-        }
-        NavHost(
-            navController = navController,
-            startDestination = Tab.Home.route,
-            modifier = Modifier.weight(1f),
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
         ) {
+            // İçerik alanı: menü açılırken sıkışmasın diye her zaman dar şeride göre yerleşir
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = if (showNav && layout.useRail) railCollapsedWidth else 0.dp),
+            ) {
+                NavHost(
+                    navController = navController,
+                    startDestination = Tab.Home.route,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
             composable(Tab.Home.route) {
                 HomeScreen(
                     onOpenDetail = ::openDetail,
                     onOpenProviderDetail = ::openProviderDetail,
                     onOpenCategory = { navController.navigate(categoryRoute(it)) },
-                    onEditHome = { navController.navigate(HOME_EDIT_ROUTE) },
                     onContinue = ::continueWatching,
                     onAddAddon = { openAddons(startAdding = true) },
                     onOpenSearch = { query ->
@@ -484,13 +531,17 @@ fun PlayRoot() {
                 )
             }
 
+            composable(Tab.Tv.route) {
+                ReadableWidth { TvScreen(onPlay = ::playLiveChannel) }
+            }
+
             composable(
                 route = CATEGORY_ROUTE,
                 arguments = listOf(navArgument("row") { type = NavType.StringType }),
             ) { entry ->
-                val sectionId = entry.arguments?.getString("row").orEmpty()
+                val row = HomeRow.entries.firstOrNull { it.name == entry.arguments?.getString("row") } ?: HomeRow.TrendingMovies
                 ReadableWidth(PlayLayout.GRID_WIDTH_DP.dp) {
-                    CategoryScreen(sectionId = sectionId, onBack = { navController.popBackStack() }, onOpenDetail = ::openDetail)
+                    CategoryScreen(row = row, onBack = { navController.popBackStack() }, onOpenDetail = ::openDetail)
                 }
             }
             composable(
@@ -508,7 +559,9 @@ fun PlayRoot() {
                     SettingsScreen(
                         onOpenAddons = { navController.navigate(addonsRoute(false)) },
                         onOpenPlayer = { navController.navigate(PLAYER_SETTINGS_ROUTE) },
-                        onOpenAppearance = { navController.navigate(APPEARANCE_ROUTE) },
+                        onOpenSpeedTest = { navController.navigate(SPEED_TEST_ROUTE) },
+                        onOpenProfile = { profileGate = true },
+                        onOpenSync = { navController.navigate(SYNC_ROUTE) },
                         onOpenAbout = { navController.navigate(ABOUT_ROUTE) },
                     )
                 }
@@ -527,12 +580,28 @@ fun PlayRoot() {
                         onOpenCsRepos = { navController.navigate(CS_REPOS_ROUTE) },
                         onOpenNuvioRepos = { navController.navigate(NUVIO_REPOS_ROUTE) },
                         onOpenNuvioPlugins = { navController.navigate(NUVIO_PLUGINS_ROUTE) },
+                        onOpenCatalog = { navController.navigate(REPO_MANAGER_CATALOG_ROUTE) },
                     )
                 }
             }
-            composable(ADDONS_REPOS_ROUTE) { ReadableWidth { RepositoriesScreen(onBack = { navController.popBackStack() }) } }
+            composable(ADDONS_REPOS_ROUTE) {
+                ReadableWidth {
+                    RepositoriesScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenAddon = { navController.navigate("settings/addons/detail/$it") },
+                    )
+                }
+            }
             composable(CS_REPOS_ROUTE) { ReadableWidth { CsReposScreen(onBack = { navController.popBackStack() }, container = rememberContainer()) } }
-            composable(NUVIO_REPOS_ROUTE) { ReadableWidth { NuvioReposScreen(onBack = { navController.popBackStack() }, container = rememberContainer()) } }
+            composable(NUVIO_REPOS_ROUTE) {
+                ReadableWidth {
+                    NuvioReposScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenAddon = { navController.navigate("settings/addons/detail/$it") },
+                        container = rememberContainer(),
+                    )
+                }
+            }
             composable(NUVIO_PLUGINS_ROUTE) {
                 ReadableWidth {
                     NuvioPluginsScreen(
@@ -547,6 +616,22 @@ fun PlayRoot() {
                     InstalledAddonsScreen(
                         onBack = { navController.popBackStack() },
                         onOpenPlugin = { navController.navigate("settings/addons/plugin/$it") },
+                        onOpenAddon = { navController.navigate("settings/addons/detail/$it") },
+                    )
+                }
+            }
+            composable(ADDON_DETAIL_ROUTE, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
+                val id = entry.arguments?.getLong("id") ?: return@composable
+                ReadableWidth {
+                    AddonDetailScreen(
+                        addonId = id,
+                        onBack = { navController.popBackStack() },
+                        onOpenDetail = ::openDetail,
+                        onOpenProviderDetail = ::openProviderDetail,
+                        onOpenSearch = { query ->
+                            navController.navigate("search?q=${Uri.encode(query)}") { launchSingleTop = true }
+                        },
+                        container = rememberContainer(),
                     )
                 }
             }
@@ -555,18 +640,30 @@ fun PlayRoot() {
                     PluginSettingsScreen(pluginId = entry.arguments?.getLong("id") ?: 0L, onBack = { navController.popBackStack() })
                 }
             }
-            composable(APPEARANCE_ROUTE) {
+            composable(ABOUT_ROUTE) { ReadableWidth { AboutScreen(onBack = { navController.popBackStack() }) } }
+            composable(SPEED_TEST_ROUTE) {
                 ReadableWidth {
-                    com.kaan.play.ui.settings.AppearanceScreen(
+                    SpeedTestScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable(PROFILE_ROUTE) {
+                ReadableWidth {
+                    ProfileScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable(SYNC_ROUTE) {
+                ReadableWidth {
+                    SyncScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable(REPO_MANAGER_CATALOG_ROUTE) {
+                ReadableWidth {
+                    RepoManagerCatalogScreen(
                         onBack = { navController.popBackStack() },
-                        onEditHome = { navController.navigate(HOME_EDIT_ROUTE) },
+                        container = container,
                     )
                 }
             }
-            composable(HOME_EDIT_ROUTE) {
-                ReadableWidth { com.kaan.play.ui.home.HomeLayoutScreen(onBack = { navController.popBackStack() }) }
-            }
-            composable(ABOUT_ROUTE) { ReadableWidth { AboutScreen(onBack = { navController.popBackStack() }) } }
             composable(
                 route = DETAIL_ROUTE,
                 arguments = listOf(
@@ -580,6 +677,8 @@ fun PlayRoot() {
                     type = type,
                     id = id,
                     onBack = { navController.popBackStack() },
+                    onOpenSimilar = ::openDetail,
+                    onOpenActor = { name -> navController.navigate("search?q=${Uri.encode(name)}") },
                     onPlay = { target -> play(target) },
                 )
             }
@@ -591,7 +690,7 @@ fun PlayRoot() {
                 ),
             ) { entry ->
                 val safePid = entry.arguments?.getString("providerId").orEmpty()
-                val providerId = if (safePid.startsWith("cs_")) safePid.replaceFirst('_', ':') else safePid
+                val providerId = ProviderRouteCodec.decode(safePid)
                 val b64 = entry.arguments?.getString("encodedUrl").orEmpty()
                 val rawUrl = try {
                     String(android.util.Base64.decode(b64, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP), Charsets.UTF_8)
@@ -606,7 +705,127 @@ fun PlayRoot() {
                 )
             }
         }
+            }
 
+            // Yan menü (Geniş ekran / TV): içeriğin üstüne biner (overlay)
+            if (showNav && layout.useRail) CappedFontScale {
+                val inputModeManager = LocalInputModeManager.current
+                val keyboard = inputModeManager.inputMode == InputMode.Keyboard
+                var isMenuFocused by remember { mutableStateOf(false) }
+                val isExpanded = isMenuFocused && keyboard
+
+                val currentWidth by animateDpAsState(
+                    targetValue = if (isExpanded) railExpandedWidth else railCollapsedWidth,
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    label = "railWidth",
+                )
+
+                val railFocusMemory = rememberFocusMemory()
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(currentWidth)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .onFocusChanged { isMenuFocused = it.hasFocus },
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(horizontal = 8.dp),
+                    ) {
+                        // Logo
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    start = if (isExpanded) 8.dp else 0.dp,
+                                    top = 24.dp,
+                                    bottom = 28.dp,
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center,
+                        ) {
+                            Icon(
+                                imageVector = PlayIcons.PlayTriangle,
+                                contentDescription = "Plato",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp),
+                            )
+                            if (isExpanded) {
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Plato",
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 22.sp,
+                                    ),
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                )
+                            }
+                        }
+
+                        // Menü öğeleri
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Tab.entries.forEach { tab ->
+                                val isSelected = selected(tab)
+                                val shape = MaterialTheme.shapes.medium
+                                Surface(
+                                    onClick = { openTab(tab) },
+                                    shape = shape,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                    border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .focusMemory(railFocusMemory, tab.name, isDefault = isSelected)
+                                        .focusRing(shape),
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                start = if (isExpanded) 14.dp else 16.dp,
+                                                end = if (isExpanded) 14.dp else 16.dp,
+                                                top = 12.dp,
+                                                bottom = 12.dp,
+                                            ),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center,
+                                    ) {
+                                        Icon(
+                                            imageVector = tab.icon,
+                                            contentDescription = stringResource(tab.label),
+                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(24.dp),
+                                        )
+                                        if (isExpanded) {
+                                            Spacer(modifier = Modifier.width(14.dp))
+                                            Text(
+                                                text = stringResource(tab.label),
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                                ),
+                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Clip,
+                                                softWrap = false,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    VerticalDivider(
+                        color = Color(0xFF1E3A5F),
+                        thickness = 1.dp,
+                        modifier = Modifier.fillMaxHeight(),
+                    )
+                }
+            }
         }
     }
 

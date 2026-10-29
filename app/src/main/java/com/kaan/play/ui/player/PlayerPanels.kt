@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.selection.selectable
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kaan.play.R
+import com.kaan.play.data.player.PlaybackSpeeds
 import com.kaan.play.data.stream.AudioFilter
 import com.kaan.play.data.stream.PlayableStream
 import com.kaan.play.data.stream.SizeText
@@ -239,6 +241,7 @@ fun SourcePanel(
         title = stringResource(R.string.panel_title_sources),
         onDismiss = onDismiss,
         onApply = {
+            onDismiss()
             val pick = staged
             if (coordinator != null && pick != null && pick.url != current?.url) coordinator.pick(pick)
             when (val c = subChoice) {
@@ -246,7 +249,6 @@ fun SourcePanel(
                 SubChoice.Off -> subtitles.choose(null)
                 is SubChoice.Item -> if (c.item != subtitles.selected) subtitles.choose(c.item)
             }
-            onDismiss()
         },
         header = {
             if (coordinator != null) {
@@ -293,7 +295,7 @@ fun SourcePanel(
                             selected = staged?.url == s.url,
                             playing = current?.url == s.url,
                             embeddedDub = embeddedDub,
-                            sizeText = SizeText.format(SourceRanking.sizeOf(s, ctx.sizes), locale),
+                            sizeText = if (ctx.isLive) null else SizeText.format(SourceRanking.sizeOf(s, ctx.sizes), locale),
                             onClick = { staged = s },
                             modifier = if (staged?.url == s.url) Modifier.focusRequester(focus) else Modifier,
                         )
@@ -303,7 +305,10 @@ fun SourcePanel(
                 if (coordinator.loading) {
                     item(key = "loading") { SoftText(stringResource(R.string.sources_checking_more) + if (pending.isNotEmpty()) " (${pending.joinToString { it.addonName }})" else "") }
                 }
-                items(coordinator.failedSources, key = { "f-${it.addonId}" }) { SoftText(stringResource(R.string.sources_failed, it.addonName)) }
+                val uniqueFailed = coordinator.failedSources.distinctBy { it.addonId }
+                itemsIndexed(uniqueFailed, key = { index, item -> "f-${item.addonId}_$index" }) { _, it ->
+                    SoftText(stringResource(R.string.sources_failed, it.addonName))
+                }
                 if (!coordinator.loading && shown.isEmpty()) item(key = "empty") { SoftText(stringResource(R.string.sources_empty)) }
             }
         }
@@ -392,7 +397,8 @@ fun SourcePanel(
                                     if (item.track.kind == SubtitleKind.Translated) {
                                         stringResource(R.string.subtitle_auto_translated, group.name)
                                     } else {
-                                        stringResource(R.string.dot_join, group.name, item.track.label ?: item.track.origin)
+                                        val displayOrigin = item.track.label?.let { "${item.track.origin} ($it)" } ?: item.track.origin
+                                        stringResource(R.string.dot_join, group.name, displayOrigin)
                                     }
                             }
                             Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -508,9 +514,11 @@ fun TracksPanel(
     val video = remember(tracksVersion) { controller.videoOptions() }
     val audio = remember(tracksVersion) { controller.audioTracks() }
     val pinned = remember(tracksVersion) { controller.videoPinned() }
-    // Bekleyen seçimler: video null = Otomatik; ses = parça sırası.
+    val currentSpeed = controller.speed
+    // Bekleyen seçimler: video null = Otomatik; ses = parça sırası; hız = float.
     var stagedVideo by remember { mutableStateOf(if (pinned) video.firstOrNull { it.selected } else null) }
     var stagedAudio by remember { mutableStateOf(audio.firstOrNull { it.selected }?.index) }
+    var stagedSpeed by remember { mutableStateOf(currentSpeed) }
     val focus = rememberInitialFocus()
 
     PanelFrame(
@@ -521,6 +529,9 @@ fun TracksPanel(
             if (stagedVideo != currentPinned) controller.selectVideo(stagedVideo)
             val chosen = stagedAudio
             if (chosen != null && chosen != audio.firstOrNull { it.selected }?.index) onAudioChosen(chosen)
+            if (stagedSpeed != currentSpeed) {
+                controller.speed = stagedSpeed
+            }
             onDismiss()
         },
     ) {
@@ -566,6 +577,21 @@ fun TracksPanel(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                }
+            }
+        }
+        PanelColumn(stringResource(R.string.player_speed), Modifier.weight(1f)) {
+            items(PlaybackSpeeds.ALL, key = { "speed-$it" }) { sp ->
+                val label = if (sp == PlaybackSpeeds.DEFAULT) {
+                    stringResource(R.string.player_speed_normal_with_ratio)
+                } else {
+                    PlaybackSpeeds.format(sp)
+                }
+                OptionRow(
+                    selected = stagedSpeed == sp,
+                    onClick = { stagedSpeed = sp },
+                ) {
+                    Text(label, style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }

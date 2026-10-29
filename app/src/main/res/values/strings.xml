@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Varsayılan (İngilizce). Türkçe karşılıklar values-tr/strings.xml içinde; iki dosyanın anahtarları aynı olmalı. -->
 <resources>
-    <string name="app_name" translatable="false">Play</string>
+    <string name="app_name" translatable="false">Plato</string>
     <!-- Ara noktayla ayrılmış iki parça (yıl · tür, S1 · 23 dk vb.). -->
     <string name="dot_join" translatable="false">%1$s · %2$s</string>
     <string name="download_progress_of" translatable="false">%1$s / %2$s</string>
 
     <string name="tab_home">Home</string>
     <string name="tab_search">Search</string>
+    <string name="tab_tv">TV</string>
     <string name="tab_library">Library</string>
     <string name="tab_settings">Settings</string>
 
@@ -18,6 +19,8 @@
 
     <string name="type_movie">Movie</string>
     <string name="type_series">Series</string>
+    <string name="tag_live">Live</string>
+    <string name="season_number_format">Season %1$d</string>
 
     <!-- Ana sayfa -->
     <string name="home_empty_message">No addons yet.</string>
@@ -49,6 +52,11 @@
     <string name="detail_writer">Writer</string>
     <string name="detail_creator">Creator</string>
     <string name="detail_cast">Cast</string>
+    <string name="detail_trailer_title">Trailer</string>
+    <string name="detail_trailer_play">Play trailer in the app</string>
+    <string name="detail_trailer_close">Close</string>
+    <string name="detail_similar_movies">Related movies</string>
+    <string name="detail_similar_series">Related series</string>
     <string name="detail_favorite_add">Add to favorites</string>
     <string name="detail_favorite_remove">Remove from favorites</string>
     <string name="detail_season">Season %1$d</string>
@@ -86,6 +94,23 @@
     <string name="player_error_network">Couldn\'t reach this source. Check your connection.</string>
     <string name="player_error_unavailable">This source isn\'t available right now.</string>
     <string name="player_error_format">This source can\'t be played on this device.</string>
+    <string name="live_channel_unavailable">This channel is currently unavailable.</string>
+    <string name="tv_title">Live TV</string>
+    <string name="tv_empty">No live channels were found in your enabled addons.</string>
+    <string name="tv_refresh">Refresh</string>
+    <string name="tv_loading">Loading live channels…</string>
+    <string name="tv_channel_subtitle">Live channel · %1$s</string>
+    <string name="tv_live_badge">LIVE</string>
+    <string name="tv_search_hint">Search channels</string>
+    <string name="tv_results_count">%1$d live channels</string>
+    <string name="tv_filter_all">All (%1$d)</string>
+    <string name="tv_filter_nuvio">Nuvio (%1$d)</string>
+    <string name="tv_filter_cloudstream">CloudStream (%1$d)</string>
+    <string name="tv_no_results">No channels match “%1$s”.</string>
+    <string name="tv_filtered_empty">No channels found for the selected source.</string>
+    <string name="tv_load_error">Live channels could not be loaded. Check your connection and try again.</string>
+    <string name="tv_source_options">Choose a stream source</string>
+    <string name="tv_sources_count">%1$d sources</string>
     <string name="player_error_pick">Choose another source</string>
 
     <!-- Kaldığın yerden devam -->
@@ -97,7 +122,7 @@
     <string name="quality_4k" translatable="false">4K</string>
 
     <!-- TMDB hataları -->
-    <string name="tmdb_error_missing_key">No TMDB key. Add one for home rows and search.</string>
+    <string name="tmdb_error_missing_key">The TMDB key is missing from this build.</string>
     <string name="tmdb_error_invalid_key">TMDB rejected the API key.</string>
     <string name="tmdb_error_network">Couldn\'t load. Check your connection.</string>
     <string name="tmdb_error_rate_limited">Too many requests. Try again in a moment.</string>
@@ -107,6 +132,13 @@
     <!-- Ayarlar -->
     <string name="settings_theme">Theme</string>
     <string name="settings_language">Language</string>
+    <string name="settings_poster_url">Poster URL</string>
+    <string name="settings_poster_url_value">Custom poster template</string>
+    <string name="settings_poster_url_default">Addon / TMDB posters</string>
+    <string name="settings_poster_url_title">Custom poster URL template</string>
+    <string name="settings_poster_url_hint">https://…/{imdb_id}.jpg</string>
+    <string name="settings_poster_url_help">Use {imdb_id}; leave empty to use the addon or TMDB poster.</string>
+    <string name="common_save">Save</string>
     <string name="settings_about">About</string>
     <string name="theme_dark">Dark</string>
     <string name="theme_light">Light</string>
@@ -117,10 +149,10 @@
     <string name="about_telegram">Telegram community</string>
     <string name="about_telegram_title">Our Telegram Community</string>
     <string name="about_telegram_subtitle">Announcements, updates and join our community</string>
-    <string name="about_telegram_url" translatable="false">https://t.me/darknes_lord</string>
+    <string name="about_telegram_url" translatable="false">https://t.me/+o-RFlV4U3UY5NGU8</string>
     <!-- TMDB'nin zorunlu atıf metni; olduğu gibi (İngilizce) gösterilir. -->
     <string name="about_tmdb_attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
-    <string name="about_license_attribution">Licensed under GNU GPL v3.0. Uses the CloudStream (GPL-3.0) library.</string>
+    <string name="about_license_attribution">Licensed under GNU GPL v3.0. Uses the CloudStream (GPL-3.0) library and EasyList (GPLv3 / CC BY-SA 3.0) filter rules.</string>
 
     <!-- Eklentiler -->
     <string name="addons_title">Addons</string>
@@ -199,9 +231,21 @@
     <string name="addons_add_cs_hint" translatable="false">https://.../manifest.json or .cs3</string>
     <string name="addons_add_nuvio_repo_hint" translatable="false">https://.../manifest.json</string>
     <string name="addons_add_nuvio_plugin_hint" translatable="false">https://.../scrapers.json</string>
-    <string name="nuvio_repos_title">Nuvio Repositories</string>
-    <string name="nuvio_repos_subtitle">Add Nuvio addon repository</string>
-    <string name="nuvio_repos_empty">No Nuvio repositories added yet.</string>
+    <string name="nuvio_repos_title">Nuvio Addons</string>
+    <string name="nuvio_repos_subtitle">Manage Nuvio addons</string>
+    <string name="nuvio_repos_empty">No Nuvio addons added yet.</string>
+    <string name="addon_detail_title">Addon Details</string>
+    <string name="addon_catalogs_title">Catalogs</string>
+    <string name="addon_no_catalogs">This addon does not provide catalogs</string>
+    <string name="addon_items_count">%1$d items</string>
+    <string name="addon_items_unknown" translatable="false">—</string>
+    <string name="addon_badge_movie">Movies</string>
+    <string name="addon_badge_series">Series</string>
+    <string name="addon_badge_live_tv">Live TV</string>
+    <string name="addon_badge_catalog">Catalog</string>
+    <string name="addon_badge_stream">Streams</string>
+    <string name="addon_badge_subtitles">Subtitles</string>
+    <string name="addon_badge_meta">Metadata</string>
     <string name="nuvio_plugins_title">Nuvio Plugins</string>
     <string name="nuvio_plugins_subtitle">Add Nuvio JavaScript plugin repository</string>
     <string name="nuvio_plugins_empty">No Nuvio plugins added yet.</string>
@@ -307,6 +351,7 @@
     <string name="web_refresh">Refresh</string>
     <string name="web_load_failed">The page couldn\'t be opened. Check your connection and refresh.</string>
     <string name="about_web_blocking">Website view blocks known ads and pop-ups; it may not catch every ad.</string>
+    <string name="about_introdb_privacy">Skip buttons ask TheIntroDB for intro and credits times; only the TMDB ID, season/episode and video length are sent, and TheIntroDB sees your IP address and which title you are watching.</string>
 
     <!-- Faz 4/B: indirme -->
     <string name="download_channel_name">Downloads</string>
@@ -387,6 +432,17 @@
     <string name="settings_auto_next">Autoplay next episode</string>
     <string name="settings_auto_next_countdown">Countdown</string>
     <string name="settings_auto_next_seconds">%1$d s</string>
+    <string name="settings_skip_buttons">Show skip buttons</string>
+    <string name="settings_auto_skip_segments">Automatically skip segments</string>
+    <string name="settings_skip_segment_types">Skippable segment types</string>
+    <string name="settings_skip_intro">Intro</string>
+    <string name="settings_skip_recap">Recap</string>
+    <string name="settings_skip_credits">Credits</string>
+    <string name="settings_skip_preview">Preview</string>
+    <string name="player_skip_intro">Skip intro</string>
+    <string name="player_skip_recap">Skip recap</string>
+    <string name="player_skip_credits">Skip credits</string>
+    <string name="player_skip_preview">Skip preview</string>
 
     <!-- Güncelleme indirmesi: bildirimler -->
     <string name="update_channel_name">App updates</string>
@@ -415,6 +471,9 @@
     <string name="player_no_sources">No sources found for this title.</string>
     <string name="player_switch_failed">Couldn\'t open that source. Went back to the previous one.</string>
     <string name="player_source_skipped">A source didn\'t open. Trying the next one.</string>
+    <string name="player_source_mismatch">That source was playing a different video, so it was skipped.</string>
+    <string name="player_stall_switched">Source was slow, switched.</string>
+    <string name="player_manual_slow">Source is slow, you can choose another.</string>
     <string name="player_error_detail">Details: %1$s</string>
     <string name="dub_suggest_title">Dubbed source found. Switch?</string>
     <string name="dub_suggest_switch">Switch</string>
@@ -444,6 +503,9 @@
     <string name="tracks_video">Video</string>
     <string name="tracks_auto">Auto</string>
     <string name="tracks_none">No options</string>
+    <string name="player_speed">Speed</string>
+    <string name="player_speed_normal">Normal</string>
+    <string name="player_speed_normal_with_ratio">Normal (1×)</string>
     <string name="settings_auto_source">Pick the source automatically</string>
     <string name="settings_prefer_dub">Prefer Turkish dubbing</string>
     <string name="settings_auto_translate_subs">Auto-translate English if no Turkish</string>
@@ -483,151 +545,87 @@
     <string name="provider_verify_title">Security Verification</string>
     <string name="provider_verify_close">Close</string>
     <string name="provider_verify_hint">Please check the box on screen</string>
-    <!-- CloudStream eklentisi site adresi (alan adı değişince) -->
-    <string name="cs_domain_action">Change site address</string>
-    <string name="cs_domain_title">Site address</string>
-    <string name="cs_domain_message">If the site moved to a new domain, enter the new address. This addon will use it from now on.</string>
-    <string name="cs_domain_default">Addon\'s own address: %1$s</string>
-    <string name="cs_domain_label">New address</string>
-    <string name="cs_domain_invalid">Enter a valid web address, e.g. https://example.com</string>
-    <string name="cs_domain_save">Save</string>
-    <string name="cs_domain_reset">Use addon\'s address</string>
-    <string name="cs_domain_current">Address: %1$s</string>
-    <!-- TMDB API anahtarı (uygulama içinden) -->
-    <string name="tmdb_key_title">TMDB API key</string>
-    <string name="tmdb_key_message">Home rows, search and details come from TMDB. Get a free v3 API key at themoviedb.org → Settings → API and paste it here.</string>
-    <string name="tmdb_key_label">API key (32 characters)</string>
-    <string name="tmdb_key_invalid">This doesn\'t look like a TMDB v3 API key (32 letters and digits).</string>
-    <string name="tmdb_key_remove">Remove my key</string>
-    <string name="tmdb_key_add">Add TMDB key</string>
-    <string name="tmdb_key_source_user">Your key: %1$s</string>
-    <string name="tmdb_key_source_builtin">Using the key built into this version</string>
-    <string name="tmdb_key_source_none">No key: TMDB rows and search are empty</string>
-    <!-- Görünüm (paletler, parlaklık) ve ana sayfa kategorileri -->
-    <string name="settings_appearance">Appearance</string>
-    <string name="theme_medium">Medium dark</string>
-    <string name="theme_black">Pure black</string>
-    <string name="appearance_home_categories">Home categories</string>
-    <string name="appearance_brightness">Brightness</string>
-    <string name="appearance_palette">Color palette</string>
-    <string name="home_edit">Edit home</string>
-    <string name="home_edit_reset">Reset</string>
-    <string name="home_edit_reset_message">Restore the default home layout? Your own categories will be removed.</string>
-    <string name="home_edit_add_preset">Add category</string>
-    <string name="home_edit_add_custom">Write your own</string>
-    <string name="home_edit_edit_custom">Edit category</string>
-    <string name="home_edit_hint">Use the arrows to reorder, the switch to show or hide.</string>
-    <string name="home_edit_move_up">Move up</string>
-    <string name="home_edit_move_down">Move down</string>
-    <string name="home_edit_remove">Remove</string>
-    <string name="home_edit_kind_special">Home section</string>
-    <string name="home_edit_kind_custom">Search: %1$s</string>
-    <string name="home_edit_all_added">All ready-made categories are already on your home.</string>
-    <string name="home_edit_done">Done</string>
-    <string name="home_custom_name">Category name</string>
-    <string name="home_custom_query">Search for</string>
-    <string name="home_custom_query_hint">For example: Marvel, Harry Potter, Yeşilçam</string>
-    <string name="home_custom_type_all">All</string>
-    <string name="home_custom_type_movie">Movies</string>
-    <string name="home_custom_type_series">Series</string>
-    <string name="home_category_empty">Nothing found in this category.</string>
-    <string name="home_cat_hero">Featured carousel</string>
-    <string name="home_cat_providers">Addon shelves</string>
-    <string name="home_cat_unknown">Category</string>
-    <string name="home_cat_trending_all">Trending this week</string>
-    <string name="home_cat_top_rated_movies">Top rated movies</string>
-    <string name="home_cat_top_rated_series">Top rated series</string>
-    <string name="home_cat_now_playing_movies">In theaters</string>
-    <string name="home_cat_upcoming_movies">Coming soon</string>
-    <string name="home_cat_airing_today_series">Airing today</string>
-    <string name="home_cat_on_air_series">On the air</string>
-    <string name="home_cat_movie_action">Action movies</string>
-    <string name="home_cat_movie_adventure">Adventure movies</string>
-    <string name="home_cat_movie_animation">Animated movies</string>
-    <string name="home_cat_movie_comedy">Comedy movies</string>
-    <string name="home_cat_movie_crime">Crime movies</string>
-    <string name="home_cat_movie_documentary">Documentaries</string>
-    <string name="home_cat_movie_drama">Drama movies</string>
-    <string name="home_cat_movie_family">Family movies</string>
-    <string name="home_cat_movie_fantasy">Fantasy movies</string>
-    <string name="home_cat_movie_history">History movies</string>
-    <string name="home_cat_movie_horror">Horror movies</string>
-    <string name="home_cat_movie_music">Music movies</string>
-    <string name="home_cat_movie_mystery">Mystery movies</string>
-    <string name="home_cat_movie_romance">Romance movies</string>
-    <string name="home_cat_movie_scifi">Sci-fi movies</string>
-    <string name="home_cat_movie_thriller">Thrillers</string>
-    <string name="home_cat_movie_war">War movies</string>
-    <string name="home_cat_movie_western">Westerns</string>
-    <string name="home_cat_tv_action">Action &amp; adventure series</string>
-    <string name="home_cat_tv_animation">Animated series</string>
-    <string name="home_cat_tv_comedy">Comedy series</string>
-    <string name="home_cat_tv_crime">Crime series</string>
-    <string name="home_cat_tv_documentary">Documentary series</string>
-    <string name="home_cat_tv_drama">Drama series</string>
-    <string name="home_cat_tv_family">Family series</string>
-    <string name="home_cat_tv_kids">Kids</string>
-    <string name="home_cat_tv_mystery">Mystery series</string>
-    <string name="home_cat_tv_reality">Reality shows</string>
-    <string name="home_cat_tv_scifi">Sci-fi &amp; fantasy series</string>
-    <string name="home_cat_tv_war">War &amp; politics series</string>
-    <string name="home_cat_turkish_movies">Turkish movies</string>
-    <string name="home_cat_turkish_series">Turkish series</string>
-    <string name="home_cat_korean_series">Korean series</string>
-    <string name="home_cat_korean_movies">Korean movies</string>
-    <string name="home_cat_anime_series">Anime</string>
-    <string name="home_cat_anime_movies">Anime movies</string>
-    <string name="home_cat_indian_movies">Indian movies</string>
-    <string name="home_cat_spanish_series">Spanish-language series</string>
-    <string name="home_cat_netflix_series">Netflix series</string>
-    <string name="home_cat_disney_series">Disney+ series</string>
-    <string name="home_cat_hbo_series">HBO series</string>
-    <string name="home_cat_prime_series">Prime Video series</string>
-    <string name="home_cat_apple_series">Apple TV+ series</string>
-    <string name="home_cat_hulu_series">Hulu series</string>
-    <string name="home_group_lists">Lists</string>
-    <string name="home_group_movie_genres">Movie genres</string>
-    <string name="home_group_series_genres">Series genres</string>
-    <string name="home_group_regional">Countries &amp; anime</string>
-    <string name="home_group_platforms">Platforms</string>
-    <string name="palette_play">Play cyan</string>
-    <string name="palette_komur">Charcoal</string>
-    <string name="palette_deve_tuyu">Camel</string>
-    <string name="palette_grafit">Graphite</string>
-    <string name="palette_gumus">Silver</string>
-    <string name="palette_arduvaz">Slate</string>
-    <string name="palette_kum">Sand</string>
-    <string name="palette_bej">Beige</string>
-    <string name="palette_kahve">Coffee</string>
-    <string name="palette_cikolata">Chocolate</string>
-    <string name="palette_kiremit">Terracotta</string>
-    <string name="palette_mercan">Coral</string>
-    <string name="palette_turuncu">Orange</string>
-    <string name="palette_kehribar">Amber</string>
-    <string name="palette_hardal">Mustard</string>
-    <string name="palette_altin">Gold</string>
-    <string name="palette_limon">Lemon</string>
-    <string name="palette_zeytin">Olive</string>
-    <string name="palette_cam">Pine</string>
-    <string name="palette_orman">Forest</string>
-    <string name="palette_nane">Mint</string>
-    <string name="palette_zumrut">Emerald</string>
-    <string name="palette_yesim">Jade</string>
-    <string name="palette_deniz_kopugu">Seafoam</string>
-    <string name="palette_turkuaz">Turquoise</string>
-    <string name="palette_gok">Sky</string>
-    <string name="palette_buz">Ice</string>
-    <string name="palette_okyanus">Ocean</string>
-    <string name="palette_lacivert">Navy</string>
-    <string name="palette_indigo">Indigo</string>
-    <string name="palette_lavanta">Lavender</string>
-    <string name="palette_leylak">Lilac</string>
-    <string name="palette_mor">Purple</string>
-    <string name="palette_erik">Plum</string>
-    <string name="palette_gul">Rose</string>
-    <string name="palette_pembe">Pink</string>
-    <string name="palette_kirmizi">Red</string>
-    <string name="palette_bordo">Burgundy</string>
-    <string name="palette_visne">Cherry</string>
-    <string name="palette_gece">Midnight</string>
+    <string name="provider_error_dex_missing">Plugin file not found, re-download failed</string>
+    <string name="provider_error_incompatible">This plugin is not compatible with Play\'s version</string>
+    <string name="provider_error_load_failed">Failed to load plugin</string>
+    <string name="provider_error_not_found">Plugin not found</string>
+    <string name="provider_error_no_api">No plugin API found</string>
+    <string name="provider_error_invalid_meta_url">Invalid meta address</string>
+    <string name="provider_error_meta_not_found">Meta information not found</string>
+    <string name="provider_error_content_load_failed">Content could not be loaded</string>
+    <string name="provider_error_unexpected">Unexpected error</string>
+    <string name="settings_speed_test">Internet speed test</string>
+    <string name="settings_speed_test_summary">Measure your current download speed</string>
+    <string name="speed_test_failed">The test couldn\'t finish: %1$s</string>
+    <string name="speed_test_error_unreachable">Couldn\'t reach the server</string>
+    <string name="speed_test_error_timeout">Timed out</string>
+    <string name="download_pick_title">Choose a source to download</string>
+    <string name="download_pick_checking">Checking which sources can be downloaded…</string>
+    <string name="download_pick_empty_episode">No downloadable source found for this episode</string>
+    <string name="download_pick_empty_movie">No downloadable source found for this movie</string>
+    <string name="wifi_sync_title">Wi-Fi sync · Local</string>
+    <string name="wifi_sync_description">Profiles, history, addon repositories and addon states are synced</string>
+    <string name="wifi_sync_code">Code: %1$s</string>
+    <string name="wifi_sync_code_hint">On the other device, enter this code in the \'Other device\'s code\' box. It\'s valid for 3 minutes.</string>
+    <string name="wifi_sync_peer_code">Other device\'s code</string>
+    <string name="wifi_sync_connect">Connect</string>
+    <string name="wifi_sync_debug_address">Device address (debug)</string>
+    <string name="wifi_sync_new_code">New code</string>
+    <string name="wifi_sync_expired">The code is no longer valid.</string>
+    <string name="wifi_sync_searching">Looking for the device…</string>
+    <string name="wifi_sync_connecting">Connecting…</string>
+    <string name="wifi_sync_syncing">Syncing…</string>
+    <string name="wifi_sync_result">Synced: %1$s, %2$s, %3$s, %4$s</string>
+    <plurals name="wifi_sync_profiles">
+        <item quantity="one">%d profile</item>
+        <item quantity="other">%d profiles</item>
+    </plurals>
+    <plurals name="wifi_sync_history">
+        <item quantity="one">%d history item</item>
+        <item quantity="other">%d history items</item>
+    </plurals>
+    <plurals name="wifi_sync_addons">
+        <item quantity="one">%d addon</item>
+        <item quantity="other">%d addons</item>
+    </plurals>
+    <plurals name="wifi_sync_repos">
+        <item quantity="one">%d repository</item>
+        <item quantity="other">%d repositories</item>
+    </plurals>
+    <string name="wifi_sync_error_not_found">Device not found. Are both devices on the same Wi-Fi?</string>
+    <string name="wifi_sync_error_wrong_code">Wrong code.</string>
+    <string name="wifi_sync_error_invalid_code">Enter the 6-digit code.</string>
+    <string name="wifi_sync_error_unreachable">Couldn\'t connect to the device.</string>
+    <string name="wifi_sync_error_locked">Too many wrong attempts. A new code is needed.</string>
+    <string name="wifi_sync_error_port">Sync couldn\'t start on this device.</string>
+    <string name="wifi_sync_error_failed">Sync failed.</string>
+    <string name="wifi_sync_error_permission">Local network access is needed.</string>
+    <string name="wifi_sync_add_title">Add these?</string>
+    <string name="wifi_sync_add_all">Add all</string>
+    <string name="wifi_sync_add_selected">Add selected</string>
+    <string name="wifi_sync_add_skip">Not now</string>
+    <string name="wifi_sync_installing">Adding…</string>
+    <plurals name="wifi_sync_install_failed">
+        <item quantity="one">%d source couldn\'t be added.</item>
+        <item quantity="other">%d sources couldn\'t be added.</item>
+    </plurals>
+    <string name="cloud_sync_scope">Profiles, watch history, favorites and addons (repositories, on/off states, settings) are synced with this account. Addon files aren\'t copied; each device downloads them itself.</string>
+    <string name="search_filter_all">All</string>
+    <string name="search_filter_movies">Movies</string>
+    <string name="search_filter_series">Series</string>
+    <!-- Repository catalog (Settings > Addons > Repository catalog) -->
+    <string name="repo_catalog_title">Repository catalog</string>
+    <string name="repo_catalog_subtitle">Discover community repositories and install in one tap</string>
+    <string name="repo_catalog_search_hint">Search repositories or categories…</string>
+    <string name="repo_catalog_empty">No repositories found</string>
+    <string name="repo_catalog_no_results">No results found</string>
+    <string name="repo_catalog_load_failed">Could not load the catalog</string>
+    <string name="repo_catalog_error_generic">Something went wrong</string>
+    <string name="repo_catalog_install">Install</string>
+    <string name="repo_catalog_installed">Installed</string>
+    <string name="repo_catalog_install_success">Repository added</string>
+    <string name="repo_catalog_install_failure">Error: %1$s</string>
+    <string name="repo_catalog_type_cloudstream" translatable="false">CloudStream</string>
+    <string name="repo_catalog_type_nuvio_repo">Nuvio repo</string>
+    <string name="repo_catalog_type_nuvio_plugin">Nuvio plugin</string>
 </resources>

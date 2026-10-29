@@ -9,15 +9,7 @@ data class ReleaseAsset(val name: String, val url: String, val size: Long)
 
 /** Seçilen APK: indirme adresi, beklenen boyut ve SHA-256 dosyasının adresi. */
 @Serializable
-data class UpdateApk(
-    val name: String,
-    val url: String,
-    val size: Long,
-    /** SHA-256 dosyasının adresi (GitHub release'i); [sha256] verilmişse kullanılmaz. */
-    val sha256Url: String,
-    /** Bildirimde doğrudan verilen SHA-256 (64 onaltılık); varsa dosya indirilmez. */
-    val sha256: String? = null,
-)
+data class UpdateApk(val name: String, val url: String, val size: Long, val sha256Url: String)
 
 /** Android'den bağımsız APK seçimi ve adres/özet kuralları (birim testli). */
 object UpdateApkRules {
@@ -62,8 +54,10 @@ object UpdateApkRules {
      * Satır yoksa ya da özet 64 onaltılık basamak değilse null.
      */
     fun parseSha256(text: String, fileName: String): String? {
-        for (line in text.lineSequence()) {
-            val parts = line.trim().split(Regex("\\s+"), limit = 2)
+        val clean = text.removePrefix("\uFEFF")
+        for (line in clean.lineSequence()) {
+            val trimmedLine = line.removePrefix("\uFEFF").trim()
+            val parts = trimmedLine.split(Regex("\\s+"), limit = 2)
             if (parts.size != 2) continue
             if (parts[1].trim().removePrefix("*") != fileName) continue
             val hash = parts[0].lowercase()

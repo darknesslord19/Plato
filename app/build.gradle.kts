@@ -23,18 +23,20 @@ val subdlApiKey: String = localProps.getProperty("SUBDL_API_KEY")
     ?: System.getenv("SUBDL_API_KEY")
     ?: ""
 
-// CI (GitHub Actions) sürüm numarasını ve güncelleme deposunu ortam değişkeniyle verir; yerelde varsayılanlar geçerli.
-// PLAY_VERSION_NAME / PLAY_VERSION_CODE: fork derlemeleri "1.1.4.<çalıştırma>" gibi artan sürümler üretir.
-// PLAY_UPDATE_REPO: uygulama içi güncelleme denetiminin baktığı "sahip/depo" (fork kendi release'lerine bakar).
-val playVersionName: String = System.getenv("PLAY_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "1.1.4"
-val playVersionCode: Int = System.getenv("PLAY_VERSION_CODE")?.toIntOrNull() ?: 10
-val playUpdateRepo: String = (localProps.getProperty("PLAY_UPDATE_REPO") ?: System.getenv("PLAY_UPDATE_REPO"))
-    ?.takeIf { Regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$").matches(it) }
-    ?: "liberta09/Play"
-// PLAY_UPDATE_URL: güncelleme bildirimi (JSON, biçim: data/update/UpdateManifest.kt). Önce buna bakılır, olmazsa GitHub.
-val playUpdateUrl: String = (localProps.getProperty("PLAY_UPDATE_URL") ?: System.getenv("PLAY_UPDATE_URL"))
-    ?.takeIf { it.startsWith("https://") && !it.contains('"') && !it.contains('\\') }
-    ?: "https://darknes-lord-paste-default-rtdb.firebaseio.com/pastes/Playupdate.json"
+val telegramBotToken: String = localProps.getProperty("TELEGRAM_BOT_TOKEN")
+    ?: System.getenv("TELEGRAM_BOT_TOKEN")
+    ?: ""
+val telegramChatId: String = localProps.getProperty("TELEGRAM_CHAT_ID")
+    ?: System.getenv("TELEGRAM_CHAT_ID")
+    ?: ""
+
+val supabaseUrl: String = (localProps.getProperty("SUPABASE_URL")
+    ?: System.getenv("SUPABASE_URL")
+    ?: "").trim()
+
+val supabasePublishableKey: String = (localProps.getProperty("SUPABASE_PUBLISHABLE_KEY")
+    ?: System.getenv("SUPABASE_PUBLISHABLE_KEY")
+    ?: "").trim()
 
 android {
     namespace = "com.kaan.play"
@@ -44,8 +46,9 @@ android {
         applicationId = "com.kaan.play"
         minSdk = 24
         targetSdk = 37
-        versionCode = playVersionCode
-        versionName = playVersionName
+        // CI (GitHub Actions) sürümü verir: 1.2.0.<çalıştırma>; yerelde 1.2.0.
+        versionCode = System.getenv("PLAY_VERSION_CODE")?.toIntOrNull() ?: 27
+        versionName = System.getenv("PLAY_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "1.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
@@ -54,8 +57,10 @@ android {
 
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         buildConfigField("String", "SUBDL_API_KEY", "\"$subdlApiKey\"")
-        buildConfigField("String", "UPDATE_REPO", "\"$playUpdateRepo\"")
-        buildConfigField("String", "UPDATE_URL", "\"$playUpdateUrl\"")
+        buildConfigField("String", "TELEGRAM_BOT_TOKEN", "\"$telegramBotToken\"")
+        buildConfigField("String", "TELEGRAM_CHAT_ID", "\"$telegramChatId\"")
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"$supabasePublishableKey\"")
     }
 
     // Yayın imzası: keystore yolu repoda, şifreler yalnızca local.properties'te (ya da ortam değişkeninde).
@@ -73,6 +78,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
         release {
             // Şifreler yoksa (ör. başka makine) imzasız derlenir; derleme kırılmaz.
             if (signingConfigs.getByName("release").storeFile != null) {
@@ -128,6 +138,8 @@ configurations.all {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
+    implementation(libs.androidx.webkit)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -154,12 +166,6 @@ dependencies {
     // CloudStream resmi kütüphanesi (GPL-3.0) ve NiceHttp
     implementation(libs.cloudstream.library)
     implementation(libs.nicehttp)
-    // Gerçek CloudStream uygulamasının eklentilere sağladığı kütüphaneler. Eklentiler bunlara adla bağlanır;
-    // eksik olursa eklenti yüklenirken NoClassDefFoundError alır (ör. Phisher deposundaki eklentilerin
-    // çoğu Material penceresi sınıfını açılışta yükler). Bkz. tools/cs_plugin_abi_check.py.
-    implementation(libs.material)
-    implementation(libs.gson)
-    implementation(libs.fuzzywuzzy)
 
 
     // Yerleşik torrent motoru: Java API + işlemci başına yerel kütüphane (.so).

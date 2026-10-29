@@ -51,6 +51,9 @@ import com.kaan.play.ui.containerViewModel
 import com.kaan.play.ui.rememberContainer
 import com.kaan.play.ui.nav.PlayIcons
 import com.kaan.play.ui.tv.focusRing
+import com.kaan.play.ui.tv.rememberRowControls
+import com.kaan.play.ui.tv.rowControl
+import com.kaan.play.ui.tv.rowControlsHost
 import kotlinx.coroutines.launch
 
 /** "Kurulu tüm depolar"da bölüm başlığı (Nuvio / CloudStream). Odak almaz; uzun metinde alt satıra geçer. */
@@ -83,7 +86,7 @@ private fun ThirdPartyNote() {
  * Satırlar ve veri kaynakları o ekranlarınkiyle aynıdır; boş bölüm gösterilmez.
  */
 @Composable
-fun RepositoriesScreen(onBack: () -> Unit) {
+fun RepositoriesScreen(onBack: () -> Unit, onOpenAddon: (Long) -> Unit = {}) {
     val container = rememberContainer()
     val vm = containerViewModel { RepositoriesViewModel(it.plugins) }
     val csVm = containerViewModel { CsReposViewModel(it.csRepos) }
@@ -134,6 +137,7 @@ fun RepositoriesScreen(onBack: () -> Unit) {
                                 addon = addon,
                                 onToggle = { scope.launch { container.addons.setEnabled(addon.id, it) } },
                                 onRemove = { addonToRemove = addon },
+                                onClick = { onOpenAddon(addon.id) },
                             )
                         }
                     }
@@ -252,14 +256,12 @@ private fun RepoRow(repo: PluginRepo, busy: Boolean, enabled: Boolean, onCheck: 
  * Depo eklentileri **varsayılan kapalıdır**; kullanıcı bilinçle açar. Depoyu silmek "Kurulu tüm depolar"dandır.
  */
 @Composable
-fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
-    val vm = containerViewModel { c -> InstalledAddonsViewModel(c.addons, c.plugins, c.csRepos) { c.catalogRepository.cache.clear() } }
+fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit, onOpenAddon: (Long) -> Unit = {}) {
+    val vm = containerViewModel { InstalledAddonsViewModel(it.addons, it.plugins, it.csRepos) }
     val addons by vm.addons.collectAsStateWithLifecycle()
     val groups by vm.groups.collectAsStateWithLifecycle()
     val csGroups by vm.csGroups.collectAsStateWithLifecycle()
-    val csDomains by vm.csDomains.collectAsStateWithLifecycle()
     var toRemove by remember { mutableStateOf<Addon?>(null) }
-    var domainEdit by remember { mutableStateOf<com.kaan.play.data.cloudstream.InstalledCsPlugin?>(null) }
 
     val addonList = addons
     val groupList = groups
@@ -304,7 +306,7 @@ fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
                     modifier = Modifier.padding(bottom = 8.dp),
                 ) }
                 items(addonList, key = { "a-${it.id}" }) { addon ->
-                    AddonRow(addon = addon, onToggle = { vm.setEnabled(addon, it) }, onRemove = { toRemove = addon })
+                    AddonRow(addon = addon, onToggle = { vm.setEnabled(addon, it) }, onRemove = { toRemove = addon }, onClick = { onOpenAddon(addon.id) })
                 }
                 groupList.forEach { group ->
                     item(key = "g-${group.repo.id}") {
@@ -362,26 +364,11 @@ fun InstalledAddonsScreen(onBack: () -> Unit, onOpenPlugin: (Long) -> Unit) {
                         }
                     }
                     items(group.plugins, key = { "csp-${it.id}" }) { plugin ->
-                        CsPluginRow(
-                            plugin = plugin,
-                            onToggle = { vm.setCsPluginEnabled(plugin, it) },
-                            domain = csDomains[plugin.pluginId],
-                            onEditDomain = { domainEdit = plugin },
-                        )
+                        CsPluginRow(plugin = plugin, onToggle = { vm.setCsPluginEnabled(plugin, it) })
                     }
                 }
             }
         }
-    }
-
-    domainEdit?.let { plugin ->
-        CsDomainDialog(
-            plugin = plugin,
-            current = csDomains[plugin.pluginId],
-            loadDefault = { vm.csDefaultUrl(plugin) },
-            onSave = { url, onResult -> vm.setCsDomain(plugin, url, onResult) },
-            onDismiss = { domainEdit = null },
-        )
     }
 
     toRemove?.let { addon ->
@@ -406,6 +393,7 @@ internal fun PluginRow(plugin: InstalledPlugin, onToggle: (Boolean) -> Unit, onO
     val series = stringResource(R.string.type_series)
     val types = plugin.supportedTypes.joinToString(", ") { if (it == "movie") movie else series }
     val detail = plugin.contentLanguage.takeIf { it.isNotEmpty() }?.joinToString(", ") { it.uppercase() } ?: types
+    val controls = rememberRowControls(1)
 
     androidx.compose.material3.Surface(
         onClick = onOpen,
@@ -413,7 +401,8 @@ internal fun PluginRow(plugin: InstalledPlugin, onToggle: (Boolean) -> Unit, onO
         shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            .then(if (plugin.hasSettings) Modifier.rowControlsHost(controls).focusRing(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) else Modifier),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -444,7 +433,7 @@ internal fun PluginRow(plugin: InstalledPlugin, onToggle: (Boolean) -> Unit, onO
                     checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                     checkedTrackColor = MaterialTheme.colorScheme.primary,
                 ),
-                modifier = Modifier.focusRing(CircleShape).semantics { contentDescription = toggleLabel },
+                modifier = Modifier.rowControl(controls, 0, plugin.hasSettings).focusRing(CircleShape).semantics { contentDescription = toggleLabel },
             )
         }
     }

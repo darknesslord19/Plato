@@ -2,13 +2,22 @@ package com.kaan.play.ui.player
 
 import android.content.Context
 import android.graphics.Color as AndroidColor
+import com.kaan.play.BuildConfig
 import android.net.Uri
 import android.os.SystemClock
+import android.graphics.SurfaceTexture
+import android.view.TextureView
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.mutableLongStateOf
 import android.provider.OpenableColumns
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,6 +25,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -39,8 +51,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,8 +97,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.kaan.play.R
+import androidx.compose.ui.text.font.FontWeight
+import com.kaan.play.data.player.PlaybackSpeeds
 import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.settings.ResizeMode
+import com.kaan.play.data.settings.SkipPlaybackSettings
 import com.kaan.play.data.settings.SubtitleStyle
 import com.kaan.play.data.stream.PlayTarget
 import com.kaan.play.data.stream.PlayableStream
@@ -110,6 +129,7 @@ private const val SEEK_HOLD_MS = 1_200L
 private const val NOTICE_MS = 4_000L
 private const val SOURCE_NOTICE_MS = 5_000L
 private const val RESIZE_LABEL_MS = 1_500L
+private const val SKIP_INITIAL_VISIBILITY_MS = 20_000L
 
 /**
  * Tam ekran oynatıcı. Üst çubuk: geri, çalan kaynağın adı · çözünürlüğü · dosya boyutu, altında film adı. Ortada 10 sn geri / oynat-duraklat /
@@ -142,6 +162,8 @@ fun PlayerScreen(
     embeddedDub: Boolean = false,
     /** Kullanıcı sesi Parçalar panelinden seçti. */
     onAudioChosen: (Int) -> Unit = {},
+    /** İntro/özet/jenerik/önizleme atlama düğmeleri; null: yok. */
+    skips: SkipController? = null,
     onBack: () -> Unit,
 ) {
     val container = rememberContainer()
@@ -158,6 +180,16 @@ fun PlayerScreen(
     var showAppearance by remember { mutableStateOf(false) }
     var showSync by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(false) }
+    val lockHint = remember { LockHintState() }
+    var lockHintVisible by remember { mutableStateOf(false) }
+    var unlockFocused by remember { mutableStateOf(false) }
+    var lockHintTrigger by remember { mutableIntStateOf(0) }
+
+    fun showUnlockHint() {
+        lockHint.show(SystemClock.uptimeMillis())
+        lockHintVisible = true
+        lockHintTrigger++
+    }
     var resizeToast by remember { mutableStateOf<ResizeMode?>(null) }
     var lastSeekKeyAt by remember { mutableLongStateOf(0L) }
     var position by remember { mutableLongStateOf(0L) }
@@ -167,6 +199,12 @@ fun PlayerScreen(
     var noticeFocused by remember { mutableStateOf(false) }
     val zones = remember { GestureZones() }
     val levelIndicator = remember { LevelIndicatorState() }
+    val seekIndicator = remember { SeekIndicatorState() }
+    var suppressTapUntil by remember { mutableLongStateOf(0L) }
+    fun tapWasSuppressed(): Boolean = SystemClock.uptimeMillis() < suppressTapUntil
+    val seekGestureState: (Boolean) -> Unit = { active ->
+        if (!active) suppressTapUntil = SystemClock.uptimeMillis() + 500L
+    }
     val rootFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
     val noticeFocus = remember { FocusRequester() }
@@ -204,6 +242,15 @@ fun PlayerScreen(
     // Senkron paneli açıkken kontroller gizlenir: altyazı (altta) ilerleme çubuğunun altında kalmasın.
     // Kaynaklar aranırken ve hiçbiri açılmadığında geri düğmesi ve kontroller görünür kalır.
     val showControls = !locked && ((controlsVisible && !showSync) || ui.error != null || resolving || sourcesFailed)
+    // Atlama düğmeleri (sağ altta): segmentin ilk 20 sn'sinde kontroller gizliyken de, sonra kontroller açılınca görünür.
+    val skipSettings = skips?.settings ?: SkipPlaybackSettings.Default
+    val skipPosition = skips?.positionMs ?: 0L
+    val shownSkipSegments = if (skips != null && skipSettings.showButtons) {
+        skips.active.filter { skipSettings.isEnabled(it.category) && (showControls || skipPosition - it.startMs < SKIP_INITIAL_VISIBILITY_MS) }
+    } else emptyList()
+    val skipVisible = shownSkipSegments.isNotEmpty() && !cardActive && !locked && ui.error == null
+    val skipFocus = remember { FocusRequester() }
+    var skipFocused by remember { mutableStateOf(false) }
 
     fun bump() { interaction++ }
     fun reveal() { controlsVisible = true; bump() }
@@ -211,6 +258,12 @@ fun PlayerScreen(
         controller.seekBy(deltaMs)
         position = controller.positionMs()
         reveal()
+    }
+    fun seekFromGesture(deltaMs: Long) {
+        controller.seekBy(deltaMs)
+        position = controller.positionMs()
+        controlsVisible = false
+        resumeNotice = false
     }
     fun seekByKey(direction: Int, repeat: Int) {
         val step = SeekAcceleration.stepMs(repeat)
@@ -270,18 +323,47 @@ fun PlayerScreen(
             resizeToast = null
         }
     }
-    LaunchedEffect(locked) { if (locked) controlsVisible = false else reveal() }
+    LaunchedEffect(locked) {
+        if (locked) {
+            controlsVisible = false
+            showUnlockHint()
+        } else {
+            lockHint.hide()
+            lockHintVisible = false
+            reveal()
+        }
+    }
+    LaunchedEffect(locked, lockHintTrigger) {
+        if (locked) {
+            val remaining = lockHint.remainingMs(SystemClock.uptimeMillis())
+            if (remaining > 0L) {
+                lockHintVisible = true
+                delay(remaining)
+            }
+            lockHintVisible = false
+            unlockFocused = false
+        } else {
+            lockHint.hide()
+            lockHintVisible = false
+            unlockFocused = false
+        }
+    }
     LaunchedEffect(cardActive) { if (!cardActive) cardFocused = false }
     LaunchedEffect(dubVisible) { if (!dubVisible) dubFocused = false }
-    // Odak: kilitliyken açma simgesinde; hata/kaynak yokken hata düğmesinde; sonraki bölüm kartında; kontroller açıkken ilerleme
+    LaunchedEffect(skipVisible) { if (!skipVisible) skipFocused = false }
+    // Odak: kilitliyken ve simge görünürken açma simgesinde; kilitli ve simge gizliyken kök yüzeyde;
+    // hata/kaynak yokken hata düğmesinde; sonraki bölüm kartında; kontroller açıkken ilerleme
     // çubuğunda; gizliyken kök yüzeyde (yön tuşları orada yakalanır).
-    LaunchedEffect(controlsVisible, ui.error, sourcesFailed, cardPhase, locked, dubVisible, keyboard) {
+    LaunchedEffect(controlsVisible, ui.error, sourcesFailed, cardPhase, locked, lockHintVisible, dubVisible, skipVisible, keyboard) {
         when {
-            locked -> unlockFocus.requestWhenAttached()
+            locked && lockHintVisible -> unlockFocus.requestWhenAttached()
+            locked -> runCatching { rootFocus.requestFocus() }
             ui.error != null || sourcesFailed -> runCatching { playFocus.requestFocus() }
             cardActive -> cardFocus.requestWhenAttached()
             dubVisible && keyboard -> dubFocus.requestWhenAttached()
-            controlsVisible -> barFocus.requestWhenAttached()
+            // Atlama düğmesi görünürken kumandada odak ondadır: Tamam = atla.
+            skipVisible && keyboard -> skipFocus.requestWhenAttached()
+            controlsVisible && keyboard -> barFocus.requestWhenAttached()
             else -> runCatching { rootFocus.requestFocus() }
         }
     }
@@ -310,6 +392,8 @@ fun PlayerScreen(
                             locked -> locked = false
                             dubVisible -> coordinator?.dismissDubSuggestion()
                             cardActive -> onAutoNextCancel()
+                            // Atlama düğmesi odaktayken Geri düğmeyi kapatır, oynatıcıdan çıkarmaz.
+                            skipVisible && skipFocused -> skips?.dismiss(shownSkipSegments)
                             else -> onBack()
                         }
                     }
@@ -322,10 +406,16 @@ fun PlayerScreen(
                 ) return@onPreviewKeyEvent true
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 if (locked) {
-                    // Kilitliyken yalnızca açma düğmesi (Tamam) ve ses tuşları çalışır; sarma/oynat-duraklat yok.
+                    if (event.key in UNLOCK_TRIGGER_KEYS) {
+                        if (lockHintVisible && unlockFocused && event.key in UNLOCK_ENTER_KEYS) {
+                            locked = false
+                        } else {
+                            showUnlockHint()
+                            runCatching { unlockFocus.requestFocus() }
+                        }
+                        return@onPreviewKeyEvent true
+                    }
                     return@onPreviewKeyEvent when (event.key) {
-                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter,
-                        Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight,
                         Key.VolumeUp, Key.VolumeDown, Key.VolumeMute -> false
                         else -> true
                     }
@@ -352,6 +442,7 @@ fun PlayerScreen(
                     }
                 }
                 if (dubVisible && dubFocused && event.key in CARD_KEYS) return@onPreviewKeyEvent false
+                if (skipVisible && skipFocused && event.key in CARD_KEYS) return@onPreviewKeyEvent false
                 val repeat = event.nativeKeyEvent.repeatCount
                 // Sarma sürerken (basılı tutma) kontroller açılsa da Sol/Sağ sarmaya devam eder, odağı gezdirmez.
                 val seeking = SystemClock.uptimeMillis() - lastSeekKeyAt < SEEK_HOLD_MS
@@ -368,9 +459,13 @@ fun PlayerScreen(
             }
             // Açık focusable(): clickable dokunmatik modda odak almaz; gizli kontrollerde tuşlar buraya gelmeli.
             .focusable()
-            .clickable(enabled = !locked, interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                controlsVisible = !controlsVisible
-                bump()
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                if (locked) {
+                    showUnlockHint()
+                } else {
+                    controlsVisible = !controlsVisible
+                    bump()
+                }
             }
             // clickable'dan sonra: eşik aşılınca olayı tüketir, dokunuş tıklama sayılmaz. Kilitliyken jest yok.
             .levelGestures(effectiveLevels, zones, levelIndicator),
@@ -389,28 +484,113 @@ fun PlayerScreen(
             }
             AndroidView(
                 factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        useController = false
+                    val view = try {
+                        android.view.LayoutInflater.from(ctx).inflate(R.layout.view_player, null, false) as PlayerView
+                    } catch (t: Throwable) {
+                        PlayerView(ctx).apply {
+                            useController = false
+                            setShutterBackgroundColor(android.graphics.Color.BLACK)
+                        }
+                    }
+                    view.apply {
                         player = controller.player
-                        setShutterBackgroundColor(AndroidColor.BLACK)
-                        // Odak ve tuşlar Compose katmanında; görünüm odak çalmasın.
                         isFocusable = false
                         descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-                        // Harici altyazı satırlarını (kaydırmayla birlikte) kendimiz veririz; videonun içindekileri Media3 çizer.
-                        subtitles.attach { cues -> subtitleView?.setCues(SubtitleCues.toCues(cues)) }
+
+                        // View ağacı eklendiğinde child görünümlere eriş
+                        post {
+                            try {
+                                subtitles.attach { cues ->
+                                    try {
+                                        subtitleView?.setCues(SubtitleCues.toCues(cues))
+                                    } catch (t: Throwable) {
+                                        android.util.Log.w("PlayerScreen", "subtitleView.setCues hatası: ${t.message}")
+                                    }
+                                }
+
+                                val textureView = videoSurfaceView as? TextureView
+                                if (textureView != null) {
+                                    if (textureView.isAvailable) {
+                                        controller.onSurfaceReady()
+                                    }
+                                    val existingListener = textureView.surfaceTextureListener
+                                    textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                                        override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+                                            existingListener?.onSurfaceTextureAvailable(surface, width, height)
+                                            controller.onSurfaceReady()
+                                        }
+                                        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+                                            existingListener?.onSurfaceTextureSizeChanged(surface, width, height)
+                                        }
+                                        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+                                            controller.onSurfaceDestroyed()
+                                            return existingListener?.onSurfaceTextureDestroyed(surface) ?: true
+                                        }
+                                        override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
+                                            existingListener?.onSurfaceTextureUpdated(surface)
+                                        }
+                                    }
+                                } else {
+                                    controller.onSurfaceReady()
+                                }
+                            } catch (t: Throwable) {
+                                android.util.Log.w("PlayerScreen", "PlayerView post-attach hatası: ${t.message}")
+                            }
+                        }
                     }
                 },
                 // Ayar değişince anında uygulanır; oynatma kesilmez.
                 update = { view ->
-                    view.resizeMode = when (resize) {
-                        ResizeMode.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        ResizeMode.Fill -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        else -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    try {
+                        view.resizeMode = when (resize) {
+                            ResizeMode.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            ResizeMode.Fill -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            else -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                        }
+                        view.subtitleView?.let { SubtitleStyling.apply(it, subtitleStyle) }
+                    } catch (t: Throwable) {
+                        android.util.Log.w("PlayerScreen", "PlayerView update hatası: ${t.message}")
                     }
-                    view.subtitleView?.let { SubtitleStyling.apply(it, subtitleStyle) }
                 },
-                onRelease = { subtitles.attach(null) },
+                onRelease = { view ->
+                    try {
+                        controller.onSurfaceDestroyed()
+                        subtitles.attach(null)
+                        view.player = null
+                    } catch (t: Throwable) {
+                        android.util.Log.w("PlayerScreen", "PlayerView onRelease hatası: ${t.message}")
+                    }
+                },
                 modifier = viewModifier,
+            )
+            // Video dokunmatik hareket katmanı: çift tık 10sn geri/ileri, yatay sürükleme 5sn sarma
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(locked, zones) {
+                        detectTapGestures(
+                            onTap = { offset ->
+                                if (!zones.contains(offset) && !tapWasSuppressed()) {
+                                    if (locked) showUnlockHint()
+                                    else {
+                                        controlsVisible = !controlsVisible
+                                        bump()
+                                    }
+                                }
+                            },
+                            onDoubleTap = { offset ->
+                                if (!locked && !zones.contains(offset)) {
+                                    suppressTapUntil = SystemClock.uptimeMillis() + 500L
+                                    val delta = if (offset.x < size.width / 2f) -10_000L else 10_000L
+                                    seekIndicator.start()
+                                    seekFromGesture(delta)
+                                    seekIndicator.add(delta)
+                                    seekIndicator.finish()
+                                }
+                            },
+                        )
+                    }
+                    .horizontalSeekGesture(!locked, zones, ::seekFromGesture, seekIndicator, seekGestureState),
             )
         }
 
@@ -435,6 +615,7 @@ fun PlayerScreen(
         }
 
         LevelIndicator(levelIndicator)
+        SeekIndicator(seekIndicator)
 
         if (resolving && ui.error == null) {
             Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -447,14 +628,16 @@ fun PlayerScreen(
         }
 
         if (showControls) {
+            val isLive = target.request.addonType in listOf("tv", "channel")
             val playing = coordinator?.current ?: offlineStream
-            val sizeText = playing?.let { SizeText.format(coordinator?.sizeOf(it) ?: it.sizeBytes, locale) }
+            val sizeText = if (isLive) null else playing?.let { SizeText.format(coordinator?.sizeOf(it) ?: it.sizeBytes, locale) }
             val dims = SizeText.dimensions(ui.videoWidth, ui.videoHeight)
             val dubTag = when {
                 embeddedDub -> stringResource(R.string.tag_dubbed_embedded)
                 playing?.dubbed == true -> stringResource(R.string.tag_dubbed)
                 else -> null
             }
+            val speedBadge = PlaybackSpeeds.badgeLabel(ui.speed)
             val infoLine = listOfNotNull(playing?.source?.addonName, dims, sizeText, dubTag)
                 .reduceOrNull { acc, part -> stringResource(R.string.dot_join, acc, part) }
             val canSync = subtitles.selected is SubtitleItem.External && subtitles.status == SubtitleStatus.Idle
@@ -464,7 +647,8 @@ fun PlayerScreen(
                 if (canSync) add(BarAction(PlayIcons.SubtitleSync, stringResource(R.string.player_btn_sync)) { showSync = true })
                 add(BarAction(PlayIcons.SwitchSource, stringResource(R.string.player_btn_source), ::openPanel))
                 add(BarAction(PlayIcons.Tracks, stringResource(R.string.player_btn_tracks)) { showTracks = true; bump() })
-                if (onNextEpisode != null) {
+                val canShowNext = onNextEpisode != null && AutoNextRules.canShowNextEpisodeButton(target.request.type, target.request.season, target.request.episode, target.request.addonType, duration)
+                if (canShowNext) {
                     add(BarAction(PlayIcons.NextEpisode, stringResource(R.string.player_btn_next_episode)) {
                         onNextEpisode()
                         bump()
@@ -473,6 +657,7 @@ fun PlayerScreen(
             }
             Controls(
                 infoLine = infoLine,
+                speedBadge = speedBadge,
                 title = titleOf(target),
                 isPlaying = ui.isPlaying,
                 // Hata, kaynak yok ya da kaynaklar aranırken yalnızca üst çubuk (geri) görünür; oynat/sar/alt düğmeler anlamsızdır.
@@ -496,7 +681,7 @@ fun PlayerScreen(
 
         if (resumeNotice && ui.error == null && !locked) {
             ResumeNotice(
-                onRestart = { controller.seekTo(0L); position = 0L; resumeNotice = false; bump() },
+                onRestart = { skips?.restartFromBeginning(); controller.seekTo(0L); position = 0L; resumeNotice = false; bump() },
                 focus = noticeFocus,
                 upFocus = playFocus,
                 onFocusChange = { noticeFocused = it },
@@ -514,6 +699,25 @@ fun PlayerScreen(
                     .gestureZone(zones, "next")
                     .onFocusChanged { cardFocused = it.hasFocus },
             )
+        }
+
+        AnimatedVisibility(
+            visible = skipVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 24.dp, bottom = 156.dp)
+                .gestureZone(zones, "skip")
+                .onFocusChanged { skipFocused = it.hasFocus },
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.End) {
+                shownSkipSegments.forEachIndexed { index, segment ->
+                    SkipSegmentButton(
+                        segment = segment,
+                        onClick = { skips?.skip(segment); bump() },
+                        modifier = if (index == 0) Modifier.focusRequester(skipFocus) else Modifier,
+                    )
+                }
+            }
         }
 
         if (coordinator != null && dubVisible) {
@@ -534,7 +738,9 @@ fun PlayerScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
+                val isLive = target.request.addonType in listOf("tv", "channel")
                 val message = when {
+                    isLive && sourcesFailed -> R.string.live_channel_unavailable
                     sourcesFailed && coordinator?.streams.isNullOrEmpty() -> R.string.player_no_sources
                     sourcesFailed -> R.string.player_all_failed
                     canSwitchSource -> ui.error!!.messageRes()
@@ -554,7 +760,10 @@ fun PlayerScreen(
             }
         }
 
-        coordinator?.notice?.let { notice ->
+        val activeNotice = coordinator?.notice ?: if (BuildConfig.DEBUG && PlayerNoticeLogic.forceNoticeForTest) {
+            SourceNotice.Skipped("TEST_SIMULATED_ERROR (500)")
+        } else null
+        activeNotice?.let { notice ->
             SourceNoticePill(notice, Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 84.dp))
         }
 
@@ -570,13 +779,20 @@ fun PlayerScreen(
             )
         }
 
-        // Kilitliyken yalnızca açma simgesi görünür.
-        if (locked) {
+        // Kilitliyken açma simgesi geçici olarak (3 sn) görünür; dokununca veya kumanda tuşuyla yeniden belirir.
+        AnimatedVisibility(
+            visible = locked && lockHintVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp),
+        ) {
             IconButton(
                 onClick = { locked = false },
-                modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp)
+                modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                    .focusRequester(unlockFocus),
+                    .focusRing(CircleShape)
+                    .focusRequester(unlockFocus)
+                    .onFocusChanged { unlockFocused = it.isFocused },
             ) {
                 Icon(PlayIcons.Unlock, contentDescription = stringResource(R.string.player_btn_unlock), tint = Color.White)
             }
@@ -654,6 +870,12 @@ private val CARD_KEYS = setOf(
     Key.DirectionLeft, Key.DirectionRight, Key.DirectionUp, Key.DirectionDown,
 )
 
+private val UNLOCK_ENTER_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
+private val UNLOCK_TRIGGER_KEYS = setOf(
+    Key.DirectionCenter, Key.Enter, Key.NumPadEnter,
+    Key.DirectionLeft, Key.DirectionRight, Key.DirectionUp, Key.DirectionDown,
+)
+
 @Composable
 private fun resizeText(mode: ResizeMode): String = stringResource(
     when (mode) {
@@ -683,10 +905,13 @@ private fun SubtitleNotice(text: String, modifier: Modifier = Modifier) {
 
 /** Kaynak bildirimi: ana ileti sade; hata kodu küçük ayrıntı satırında. */
 @Composable
-private fun SourceNoticePill(notice: SourceNotice, modifier: Modifier = Modifier) {
+private fun SourceNoticePill(notice: SourceNotice, modifier: Modifier = Modifier, isDebug: Boolean = BuildConfig.DEBUG) {
     val (message, detail) = when (notice) {
         is SourceNotice.SwitchFailed -> R.string.player_switch_failed to notice.detail
         is SourceNotice.Skipped -> R.string.player_source_skipped to notice.detail
+        SourceNotice.Mismatch -> R.string.player_source_mismatch to "content"
+        SourceNotice.StallSwitched -> R.string.player_stall_switched to null
+        SourceNotice.ManualSlow -> R.string.player_manual_slow to null
     }
     Column(
         modifier = modifier
@@ -696,12 +921,14 @@ private fun SourceNoticePill(notice: SourceNotice, modifier: Modifier = Modifier
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(stringResource(message), style = MaterialTheme.typography.bodyMedium, color = Color.White, textAlign = TextAlign.Center)
-        Text(
-            stringResource(R.string.player_error_detail, detail),
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.6f),
-            textAlign = TextAlign.Center,
-        )
+        if (PlayerNoticeLogic.shouldShowDetail(isDebug, detail)) {
+            Text(
+                stringResource(R.string.player_error_detail, detail.orEmpty()),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
@@ -792,6 +1019,28 @@ private fun NextEpisodeCard(
     }
 }
 
+/** Doğrulanmış intro/özet/jenerik/önizleme aralığını tek dokunuşla (kumandada Tamam) atlar. */
+@Composable
+private fun SkipSegmentButton(
+    segment: SkipSegment,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val label = stringResource(
+        when (segment.kind) {
+            SkipSegmentKind.Recap -> R.string.player_skip_recap
+            SkipSegmentKind.Intro -> R.string.player_skip_intro
+            SkipSegmentKind.Outro -> R.string.player_skip_credits
+            SkipSegmentKind.Preview -> R.string.player_skip_preview
+        },
+    )
+    Button(onClick = onClick, modifier = modifier) {
+        Icon(PlayIcons.SeekForward, contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label)
+    }
+}
+
 /** Sol alt köşede "Dublajlı kaynak bulundu, geçilsin mi?" (Geç / Kapat). Oynatma kesilmez; Geç kaldığı saniyeden devam ettirir. */
 @Composable
 private fun DubSuggestionCard(
@@ -820,6 +1069,7 @@ private fun DubSuggestionCard(
 @Composable
 private fun Controls(
     infoLine: String?,
+    speedBadge: String? = null,
     title: String,
     isPlaying: Boolean,
     minimal: Boolean,
@@ -857,14 +1107,35 @@ private fun Controls(
                 Icon(PlayIcons.Back, contentDescription = stringResource(R.string.common_back), tint = tint)
             }
             Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                if (infoLine != null) {
-                    Text(
-                        text = infoLine,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = tint,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                if (infoLine != null || speedBadge != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (infoLine != null) {
+                            Text(
+                                text = infoLine,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = tint,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                        }
+                        if (speedBadge != null) {
+                            if (infoLine != null) Spacer(Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                            ) {
+                                Text(
+                                    text = speedBadge,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                    }
                 }
                 Text(
                     text = title,
@@ -987,36 +1258,113 @@ private fun ProgressBar(
 ) {
     var dragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableStateOf(0f) }
+    var isFocused by remember { mutableStateOf(false) }
+    val keyboard = LocalInputModeManager.current.inputMode == InputMode.Keyboard
     val fraction = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
     val shown = if (dragging) dragFraction else fraction
 
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val inactiveColor = Color.White.copy(alpha = 0.3f)
+
     Row(
-        modifier = modifier.fillMaxWidth().onFocusChanged { onFocusChange(it.hasFocus) }.focusRing(RoundedCornerShape(24.dp))
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged {
+                isFocused = it.hasFocus
+                onFocusChange(it.hasFocus)
+            }
             .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(formatTime((shown * duration).toLong()), style = MaterialTheme.typography.bodyMedium, color = Color.White)
-        Slider(
-            value = shown,
-            onValueChange = { dragging = true; dragFraction = it; onInteract() },
-            onValueChangeFinished = {
-                // Yalnızca gerçekten sürüklendiyse sar. Kumandada Sol/Sağ'ın KeyDown'ını kök yakalayıcı işler (10 sn);
-                // KeyUp ise Slider'a ulaşıp bu geri çağrıyı tetikliyordu ve hiç sürüklenmediği için dragFraction = 0 →
-                // video başa dönüyordu.
-                ProgressSeek.finishTargetMs(dragging, dragFraction, duration)?.let(onSeekTo)
-                dragging = false
-            },
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = Color.White.copy(alpha = 0.3f),
-            ),
+        Box(
             modifier = Modifier
                 .weight(1f)
+                .height(48.dp)
                 .padding(horizontal = 12.dp)
                 .focusRequester(focus)
-                .focusProperties { up = upFocus; down = downFocus },
-        )
+                .focusProperties { up = upFocus; down = downFocus }
+                .focusable()
+                .pointerInput(duration) {
+                    detectTapGestures(
+                        onPress = { offset ->
+                            onInteract()
+                            val frac = (offset.x / size.width).coerceIn(0f, 1f)
+                            dragging = true
+                            dragFraction = frac
+                            val success = tryAwaitRelease()
+                            if (success) {
+                                ProgressSeek.finishTargetMs(true, frac, duration)?.let(onSeekTo)
+                            }
+                            dragging = false
+                        }
+                    )
+                }
+                .pointerInput(duration) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            dragging = true
+                            dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            onInteract()
+                        },
+                        onHorizontalDrag = { change, _ ->
+                            change.consume()
+                            dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                            onInteract()
+                        },
+                        onDragEnd = {
+                            ProgressSeek.finishTargetMs(dragging, dragFraction, duration)?.let(onSeekTo)
+                            dragging = false
+                        },
+                        onDragCancel = {
+                            dragging = false
+                        }
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(16.dp)
+            ) {
+                val trackStroke = 4.dp.toPx()
+                val thumbHighlighted = isFocused && keyboard
+                val thumbRadius = (if (thumbHighlighted) 8.4.dp else 6.dp).toPx()
+                val cy = size.height / 2f
+                val startX = thumbRadius
+                val endX = size.width - thumbRadius
+                val availableWidth = (endX - startX).coerceAtLeast(0f)
+
+                // Inaktif iz (arkaplan)
+                drawLine(
+                    color = inactiveColor,
+                    start = Offset(startX, cy),
+                    end = Offset(endX, cy),
+                    strokeWidth = trackStroke,
+                    cap = StrokeCap.Round,
+                )
+
+                val thumbX = startX + availableWidth * shown
+                // Aktif iz
+                if (thumbX > startX) {
+                    drawLine(
+                        color = primaryColor,
+                        start = Offset(startX, cy),
+                        end = Offset(thumbX, cy),
+                        strokeWidth = trackStroke,
+                        cap = StrokeCap.Round,
+                    )
+                }
+
+                // Yuvarlak tutamaç (12dp çap = 6dp yarıçap)
+                drawCircle(
+                    color = primaryColor,
+                    radius = thumbRadius,
+                    center = Offset(thumbX, cy),
+                )
+            }
+        }
         Text(formatTime(duration), style = MaterialTheme.typography.bodyMedium, color = Color.White)
     }
 }

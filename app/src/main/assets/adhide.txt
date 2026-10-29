@@ -1,0 +1,17 @@
+# Play Web Element Gizleme Kurallari
+# Kaynaklar: EasyList & Turkce Filtreler (GNU GPL v3.0 / CC BY-SA 3.0)
+# Uretim araci: tools/generate_adhosts.py
+# NOT: Genel (alan adsiz) kurallar ve video oynatici riski tasiyan seciciler kaldirilmistir.
+# Toplam: 11 alan adina bagli kural
+#
+hdfilmcehennemi.*##.card-money
+hdfilmcehennemi.*##.col > .alert-danger-50.alert
+hdfilmcehennemi.*##.money
+hdfilmcehennemi.*##.money--video
+hdfilmcehennemi.*##.money-child
+hdfilmcehennemi.*##.money-item
+hdfilmcehennemi.*##.money-text
+hdfilmcehennemi.*##.money-wrapper
+hdfilmcehennemi.*##.rek-wrap
+hdfilmcehennemi.*##.reklam-link
+hdfilmcehennemi.*##.video_content > a[target="_blank"]

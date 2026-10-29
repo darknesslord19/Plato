@@ -38,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import com.kaan.play.BuildConfig
+import com.kaan.play.MainActivity
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -56,11 +58,12 @@ import com.kaan.play.data.cloudstream.cloudflare.CloudflareSolver
 import com.kaan.play.data.library.ContinueItem
 import com.kaan.play.data.model.MediaType
 import com.kaan.play.data.provider.ProviderRules
+import com.kaan.play.data.addon.CatalogVisibility
 import com.kaan.play.ui.cloudflare.CloudflareVerifyActivity
 import com.kaan.play.data.tmdb.TmdbImages
+import com.kaan.play.data.tmdb.PosterUrlTemplate
 import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.ui.components.Button
-import com.kaan.play.data.home.HomeCatalog
 import com.kaan.play.ui.components.ErrorMessage
 import com.kaan.play.ui.components.Loadable
 import com.kaan.play.ui.components.PosterCard
@@ -98,12 +101,11 @@ private val ScreenPadding = 20.dp
 @Composable
 fun HomeScreen(
     onOpenDetail: (MediaType, Int) -> Unit,
-    onOpenCategory: (String) -> Unit,
+    onOpenCategory: (HomeRow) -> Unit,
     onContinue: (ContinueItem) -> Unit,
     onAddAddon: () -> Unit,
     onOpenSearch: (String) -> Unit = {},
     onOpenProviderDetail: (providerId: String, url: String) -> Unit = { _, _ -> },
-    onEditHome: () -> Unit = {},
 ) {
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
@@ -168,7 +170,6 @@ fun HomeScreen(
                 onOpenProviderDetail = onOpenProviderDetail,
                 onOpenProviderCategory = { activeProviderRow = it },
                 onOpenSearch = onOpenSearch,
-                onEditHome = onEditHome,
             )
         }
 
@@ -186,7 +187,18 @@ fun HomeScreen(
 
         if (showProviderSelector) {
             ProviderSelectorSheet(
-                providers = allProviders,
+                providers = if (BuildConfig.DEBUG && MainActivity.testManyProviders) {
+                    allProviders + (1..60).map {
+                        ProviderItem(
+                            id = "cs:fake_$it",
+                            name = "Test Sağlayıcı #$it",
+                            subtitle = "CloudStream · Test Repo",
+                            kind = com.kaan.play.data.provider.ProviderKind.CloudStream,
+                        )
+                    }
+                } else {
+                    allProviders
+                },
                 selectedIds = selectedProviders,
                 // Uygulama kapsamında yazılır: seçici kapanırken ya da ekran değişirken yazma iptal olmasın.
                 onSelectSingle = { id ->
@@ -226,44 +238,32 @@ private fun HomeEmptyState(onAddAddon: () -> Unit) {
 @Composable
 private fun HomeContent(
     onOpenDetail: (MediaType, Int) -> Unit,
-    onOpenCategory: (String) -> Unit,
+    onOpenCategory: (HomeRow) -> Unit,
     onContinue: (ContinueItem) -> Unit,
     onOpenProviderDetail: (providerId: String, url: String) -> Unit = { _, _ -> },
     onOpenProviderCategory: (CatalogRow) -> Unit = {},
     onOpenSearch: (String) -> Unit = {},
-    onEditHome: () -> Unit = {},
 ) {
     val container = rememberContainer()
     val homeProviders by container.providers.homeProviders.collectAsStateWithLifecycle(initialValue = emptyList())
     val loadSemaphore = remember { Semaphore(3) }
 
     // Dil değişince (etkinlik yeniden kurulur) yeni dille taze bir ViewModel: satırlar yeni dilde yüklenir.
-    val vm = containerViewModel(key = "home-${AppLanguage.effective().iso}") {
-        HomeViewModel(it.tmdb, it.continueWatching, it.homeLayout)
-    }
+    val vm = containerViewModel(key = "home-${AppLanguage.effective().iso}") { HomeViewModel(it.tmdb, it.continueWatching) }
     val rows by vm.rows.collectAsStateWithLifecycle()
     val hero by vm.hero.collectAsStateWithLifecycle()
-    val loadedLayout by vm.layout.collectAsStateWithLifecycle()
     // Durum kompozisyon kapsamında okunur (LazyColumn DSL bloğunda değil): değişince bu ekran yeniden çizilir.
     val continueWatching = vm.continueWatching.collectAsStateWithLifecycle().value
     val layout = rememberPlayLayout()
     val cardWidth = if (layout.widthDp >= 600) 152.dp else 132.dp
     val heroHeight = heroHeightFor(layout.widthDp, layout.heightDp)
 
-    // Kullanıcının düzeni (sıra + görünürlük; Ana sayfayı düzenle). Okunana kadar yalnızca kapak yer tutucusu.
-    val sections = loadedLayout.orEmpty().filter { it.visible }
-    val visibleIds = sections.mapTo(HashSet()) { it.id }
-    val heroOn = loadedLayout == null || HomeCatalog.HERO in visibleIds
-    val tmdbSections = sections.filter { !it.isSpecial }
-
     val heroItems = (hero as? Loadable.Ready)?.value.orEmpty()
-    val hasHero = heroOn && heroItems.isNotEmpty()
-    val hasContinue = HomeCatalog.CONTINUE in visibleIds && continueWatching.isNotEmpty()
-    val firstTmdb = tmdbSections.firstOrNull()
+    val hasHero = heroItems.isNotEmpty()
+    val hasContinue = continueWatching.isNotEmpty()
     // Kumanda: başlangıç odağı kapak düğmesinde (yoksa devam et / ilk satırın ilk kartında); geri dönünce son odaklanan öğe.
     // Kapak yüklenirken beklenir ki odak sonradan eklenen öğenin altına düşmesin.
-    val firstReady = loadedLayout != null && (!heroOn || hero !is Loadable.Loading) &&
-        (hasHero || hasContinue || firstTmdb == null || rows[firstTmdb.rowKey()] is Loadable.Ready)
+    val firstReady = hero !is Loadable.Loading && (hasHero || hasContinue || rows.getValue(HomeRow.TrendingMovies) is Loadable.Ready)
     val focus = rememberFocusMemory(enabled = firstReady)
 
     // LazyColumn anahtar bazlı konumu korur: en üste sonradan eklenen "devam et" satırı ekranın üstüne itilirdi.
@@ -273,9 +273,8 @@ private fun HomeContent(
     // Sağlayıcı raflarıyla aynı adı taşıyan TMDB rafı (ör. "Popüler filmler") ikinci kopya olarak gizlenir;
     // yalnızca gerçekten görünen sağlayıcı rafları sayılır (addon rafı yüklenemezse TMDB rafı kalır).
     val shownProviderTitles = remember { mutableStateMapOf<String, List<String>>() }
-    val providersOn = HomeCatalog.PROVIDERS in visibleIds
-    val tmdbTitles = tmdbSections.associate { it.rowKey() to it.title() }
-    val providerIds = if (providersOn) homeProviders.mapTo(HashSet()) { it.id } else emptySet()
+    val tmdbTitles = HomeRow.entries.associateWith { stringResource(it.titleRes()) }
+    val providerIds = homeProviders.mapTo(HashSet()) { it.id }
     val hiddenTmdbRows = ProviderRules.duplicateTmdbRows(
         tmdbTitles,
         shownProviderTitles.filterKeys { it in providerIds }.values.flatten(),
@@ -296,111 +295,86 @@ private fun HomeContent(
                     isDefaultFocus = true,
                     onOpen = onOpenDetail,
                 )
-                // Yükleniyor: aynı boyutta sönük kutu (yerleşim zıplamasın). Başarısızsa ya da gizliyse kapak çıkmaz.
-                heroOn && hero is Loadable.Loading -> Box(Modifier.fillMaxWidth().height(heroHeight).background(MaterialTheme.colorScheme.surfaceVariant))
+                // Yükleniyor: aynı boyutta sönük kutu (yerleşim zıplamasın). Başarısızsa kapak hiç çıkmaz.
+                hero is Loadable.Loading -> Box(Modifier.fillMaxWidth().height(heroHeight).background(MaterialTheme.colorScheme.surfaceVariant))
                 else -> Spacer(Modifier.statusBarsPadding().height(8.dp))
             }
         }
-        sections.forEach { section ->
-            when {
-                section.id == HomeCatalog.HERO -> Unit
-                section.id == HomeCatalog.CONTINUE -> if (hasContinue) {
-                    item(key = "continue") {
-                        Section(title = stringResource(R.string.home_row_continue)) {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = ScreenPadding),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                items(continueWatching, key = { "${it.entry.type}-${it.entry.tmdbId}" }) { item ->
-                                    ContinueCard(
-                                        item,
-                                        modifier = Modifier.focusMemory(
-                                            focus, "c-${item.entry.type}-${item.entry.tmdbId}",
-                                            isDefault = !hasHero && item === continueWatching.first(),
-                                        ),
-                                        width = cardWidth,
-                                    ) { onContinue(item) }
-                                }
-                            }
-                        }
-                    }
-                }
-                section.id == HomeCatalog.PROVIDERS -> homeProviders.forEach { provider ->
-                    item(key = "home_provider_${provider.id}") {
-                        LazyProviderSection(
-                            provider = provider,
-                            cardWidth = cardWidth,
-                            focus = focus,
-                            loadSemaphore = loadSemaphore,
-                            onOpenDetail = onOpenDetail,
-                            onOpenProviderDetail = onOpenProviderDetail,
-                            onOpenProviderCategory = onOpenProviderCategory,
-                            onOpenSearch = onOpenSearch,
-                            onShownTitles = { titles -> shownProviderTitles[provider.id] = titles },
-                        )
-                    }
-                }
-                section.rowKey() in hiddenTmdbRows -> Unit
-                else -> item(key = "row_${section.rowKey()}") {
-                    val key = section.rowKey()
-                    // Satır ekrana gelince yüklenir (LazyColumn yalnızca görünenleri kurar).
-                    LaunchedEffect(key) { vm.ensure(section) }
-                    Section(
-                        title = section.title(),
-                        onSeeAll = { onOpenCategory(section.id) },
-                        headerModifier = Modifier.focusMemory(focus, "h-${section.id}"),
+        if (hasContinue) {
+            item(key = "continue") {
+                Section(title = stringResource(R.string.home_row_continue)) {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = ScreenPadding),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        when (val state = rows[key] ?: Loadable.Loading) {
-                            Loadable.Loading -> SkeletonRow(cardWidth)
-                            is Loadable.Failed -> ErrorMessage(state.error, onRetry = { vm.load(section) }, modifier = Modifier.fillMaxWidth())
-                            is Loadable.Ready -> if (state.value.isEmpty()) {
-                                Text(
-                                    text = stringResource(R.string.home_category_empty),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = ScreenPadding),
-                                )
-                            } else {
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = ScreenPadding),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                ) {
-                                    items(state.value, key = { "${it.type}-${it.id}" }) { media ->
-                                        PosterCard(
-                                            title = media.title,
-                                            subtitle = media.year?.toString(),
-                                            imageUrl = media.posterUrl(),
-                                            onClick = { onOpenDetail(media.type, media.id) },
-                                            modifier = Modifier
-                                                .width(cardWidth)
-                                                .focusMemory(
-                                                    focus,
-                                                    "${section.id}-${media.type}-${media.id}",
-                                                    isDefault = !hasHero && !hasContinue && section == firstTmdb &&
-                                                        media == state.value.first(),
-                                                ),
-                                        )
-                                    }
-                                }
-                            }
+                        items(continueWatching, key = { "${it.entry.type}-${it.entry.tmdbId}" }) { item ->
+                            ContinueCard(
+                                item,
+                                modifier = Modifier.focusMemory(
+                                    focus, "c-${item.entry.type}-${item.entry.tmdbId}",
+                                    isDefault = !hasHero && item === continueWatching.first(),
+                                ),
+                                width = cardWidth,
+                            ) { onContinue(item) }
                         }
                     }
                 }
             }
         }
-        // Sıra, görünürlük, hazır ve kendi kategorileri: Ana sayfayı düzenle (Ayarlar > Görünüm'de de var).
-        if (loadedLayout != null) {
-            item(key = "edit_home") {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    com.kaan.play.ui.components.OutlinedButton(
-                        onClick = onEditHome,
-                        modifier = Modifier.focusMemory(focus, "edit_home"),
-                    ) { Text(stringResource(R.string.home_edit)) }
+        homeProviders.forEach { provider ->
+            item(key = "home_provider_${provider.id}") {
+                LazyProviderSection(
+                    provider = provider,
+                    cardWidth = cardWidth,
+                    focus = focus,
+                    loadSemaphore = loadSemaphore,
+                    onOpenDetail = onOpenDetail,
+                    onOpenProviderDetail = onOpenProviderDetail,
+                    onOpenProviderCategory = onOpenProviderCategory,
+                    onOpenSearch = onOpenSearch,
+                    onShownTitles = { titles -> shownProviderTitles[provider.id] = titles },
+                )
+            }
+        }
+        HomeRow.entries.filterNot { it in hiddenTmdbRows }.forEach { row ->
+            item(key = row.name) {
+                Section(
+                    title = stringResource(row.titleRes()),
+                    onSeeAll = { onOpenCategory(row) },
+                    headerModifier = Modifier.focusMemory(focus, "h-${row.name}"),
+                ) {
+                    when (val state = rows.getValue(row)) {
+                        Loadable.Loading -> SkeletonRow(cardWidth)
+                        is Loadable.Failed -> ErrorMessage(state.error, onRetry = { vm.load(row) }, modifier = Modifier.fillMaxWidth())
+                        is Loadable.Ready -> LazyRow(
+                            contentPadding = PaddingValues(horizontal = ScreenPadding),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(state.value, key = { "${it.type}-${it.id}" }) { media ->
+                                PosterCard(
+                                    title = media.title,
+                                    subtitle = media.year?.toString(),
+                                    imageUrl = media.posterUrl(),
+                                    tmdbId = media.id,
+                                    mediaType = media.type,
+                                    onClick = { onOpenDetail(media.type, media.id) },
+                                    modifier = Modifier
+                                        .width(cardWidth)
+                                        .focusMemory(
+                                            focus,
+                                            "${row.name}-${media.type}-${media.id}",
+                                            isDefault = !hasHero && !hasContinue && row == HomeRow.TrendingMovies && media == state.value.first(),
+                                        ),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
+
 
 /**
  * Kapak yüksekliği (dp): dik telefonda genişliğe yakın, geniş/yatay ekranda alçak ve en çok ekran yüksekliğinin
@@ -482,6 +456,8 @@ private fun ContinueCard(item: ContinueItem, width: Dp, modifier: Modifier = Mod
         title = entry.title,
         subtitle = subtitle,
         imageUrl = TmdbImages.url(entry.posterPath, TmdbImages.Size.Poster),
+        tmdbId = entry.tmdbId,
+        mediaType = entry.type,
         onClick = onClick,
         modifier = modifier.width(width),
         progress = progress,
@@ -508,6 +484,12 @@ private fun SkeletonRow(cardWidth: Dp) {
     }
 }
 
+internal fun HomeRow.titleRes(): Int = when (this) {
+    HomeRow.TrendingMovies -> R.string.home_row_trending_movies
+    HomeRow.TrendingSeries -> R.string.home_row_trending_series
+    HomeRow.PopularMovies -> R.string.home_row_popular_movies
+    HomeRow.PopularSeries -> R.string.home_row_popular_series
+}
 
 
 private sealed interface ProviderSectionUiState {
@@ -531,25 +513,33 @@ private fun LazyProviderSection(
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
 
-    var state by remember(provider.id) {
+    val disabledCatalogs by container.settings.disabledCatalogs.collectAsStateWithLifecycle(initialValue = emptySet())
+    var state by remember(provider.id, disabledCatalogs) {
         val cached = container.catalogRepository.cache.get(provider.id)
+        val visible = cached?.let { ProviderRules.withoutLiveRows(CatalogVisibility.filterRows(it, disabledCatalogs)) }
         mutableStateOf<ProviderSectionUiState>(
             when {
-                cached == null -> ProviderSectionUiState.Loading
-                cached.isEmpty() -> ProviderSectionUiState.Hidden
-                else -> ProviderSectionUiState.Ready(cached)
+                visible == null -> ProviderSectionUiState.Loading
+                visible.isEmpty() -> ProviderSectionUiState.Hidden
+                else -> ProviderSectionUiState.Ready(visible)
             }
         )
     }
 
-    LaunchedEffect(provider.id) {
-        if (state is ProviderSectionUiState.Ready) return@LaunchedEffect
+    LaunchedEffect(provider.id, disabledCatalogs) {
+        val cached = container.catalogRepository.cache.get(provider.id)
+        val visible = cached?.let { ProviderRules.withoutLiveRows(CatalogVisibility.filterRows(it, disabledCatalogs)) }
+        if (visible != null) {
+            state = if (visible.isNotEmpty()) ProviderSectionUiState.Ready(visible) else ProviderSectionUiState.Hidden
+            return@LaunchedEffect
+        }
         loadSemaphore.withPermit {
             try {
                 val result = container.catalogRepository.loadCatalog(setOf(provider.id))
                 // Sunucu kapalı / hata / boş: bölüm sessizce gizlenir (ProviderRules.homeSectionRows).
                 val valid = ProviderRules.homeSectionRows(result)
-                state = if (valid.isNotEmpty()) ProviderSectionUiState.Ready(valid) else ProviderSectionUiState.Hidden
+                val filtered = ProviderRules.withoutLiveRows(CatalogVisibility.filterRows(valid, disabledCatalogs))
+                state = if (filtered.isNotEmpty()) ProviderSectionUiState.Ready(filtered) else ProviderSectionUiState.Hidden
             } catch (_: Throwable) {
                 state = ProviderSectionUiState.Hidden
             }
@@ -557,8 +547,10 @@ private fun LazyProviderSection(
     }
 
     // Görünen raf adlarını ana sayfaya bildir (aynı adlı TMDB raflarını gizlemek için).
-    LaunchedEffect(state) {
-        onShownTitles((state as? ProviderSectionUiState.Ready)?.rows?.map { it.title }.orEmpty())
+    LaunchedEffect(state, disabledCatalogs) {
+        val rows = (state as? ProviderSectionUiState.Ready)?.rows
+        val visible = rows?.let { CatalogVisibility.filterRows(it, disabledCatalogs) }
+        onShownTitles(visible?.map { it.title }.orEmpty())
     }
 
     when (val current = state) {
@@ -595,11 +587,16 @@ private fun LazyProviderSection(
             // Sessizce gizlenir (ekran hata kartlarıyla dolmasın)
         }
         is ProviderSectionUiState.Ready -> {
+            val visibleRows = remember(current.rows, disabledCatalogs) {
+                CatalogVisibility.filterRows(current.rows, disabledCatalogs)
+            }
+            if (visibleRows.isEmpty()) return
+
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                current.rows.forEach { row ->
+                visibleRows.forEach { row ->
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -665,6 +662,9 @@ private fun LazyProviderSection(
                                     title = item.title,
                                     subtitle = item.subtitle,
                                     imageUrl = item.posterUrl,
+                                    posterId = PosterUrlTemplate.findImdbId(item.id, item.rawUrl, item.posterUrl),
+                                    tmdbId = item.id.toIntOrNull() ?: PosterUrlTemplate.findTmdbId(item.id, item.rawUrl, item.posterUrl),
+                                    mediaType = item.mediaType,
                                     onClick = {
                                         if (!item.rawUrl.isNullOrBlank() && item.providerId.startsWith("cs:")) {
                                             onOpenProviderDetail(item.providerId, item.rawUrl)
@@ -720,7 +720,7 @@ private fun ProviderCatalogView(
     onOpenDetail: (MediaType, Int) -> Unit,
     onOpenProviderDetail: (providerId: String, url: String) -> Unit,
     onOpenSearch: (String) -> Unit,
-    onOpenCategory: (String) -> Unit,
+    onOpenCategory: (HomeRow) -> Unit,
     onContinue: (ContinueItem) -> Unit,
     onOpenProviderCategory: (CatalogRow) -> Unit,
     modifier: Modifier = Modifier,
@@ -742,11 +742,12 @@ private fun ProviderCatalogView(
         }
     }
 
-    LaunchedEffect(selectedIds, refreshKey) {
+    val disabledCatalogs by container.settings.disabledCatalogs.collectAsStateWithLifecycle(initialValue = emptySet())
+    LaunchedEffect(selectedIds, refreshKey, disabledCatalogs) {
         state = CatalogUiState.Loading
         val result = container.catalogRepository.loadCatalog(selectedIds, forceRefresh = refreshKey > 0)
         state = when (result) {
-            is CatalogResult.Success -> CatalogUiState.Success(result.rows)
+            is CatalogResult.Success -> CatalogUiState.Success(ProviderRules.withoutLiveRows(result.rows))
             is CatalogResult.NoCatalogProvided -> CatalogUiState.NoCatalogProvided
             is CatalogResult.Empty -> CatalogUiState.Empty
             is CatalogResult.Error -> CatalogUiState.Error(
@@ -884,10 +885,35 @@ private fun ProviderCatalogView(
             }
         }
         is CatalogUiState.Success -> {
-            val rows = current.rows
-            val listState = rememberLazyListState()
+            val rows = remember(current.rows, disabledCatalogs) {
+                CatalogVisibility.filterRows(current.rows, disabledCatalogs)
+            }
+            if (rows.isEmpty()) {
+                Column(
+                    modifier = modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .padding(32.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = stringResource(R.string.provider_catalog_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    Button(
+                        onClick = { refreshKey++ },
+                        modifier = Modifier.focusRing(MaterialTheme.shapes.medium),
+                    ) {
+                        Text(stringResource(R.string.provider_catalog_retry))
+                    }
+                }
+            } else {
+                val listState = rememberLazyListState()
 
-            LazyColumn(
+                LazyColumn(
                 state = listState,
                 modifier = modifier
                     .fillMaxSize()
@@ -948,6 +974,9 @@ private fun ProviderCatalogView(
                                     title = item.title,
                                     subtitle = item.subtitle,
                                     imageUrl = item.posterUrl,
+                                    posterId = PosterUrlTemplate.findImdbId(item.id, item.rawUrl, item.posterUrl),
+                                    tmdbId = item.id.toIntOrNull() ?: PosterUrlTemplate.findTmdbId(item.id, item.rawUrl, item.posterUrl),
+                                    mediaType = item.mediaType,
                                     onClick = {
                                         if (!item.rawUrl.isNullOrBlank() && item.providerId.startsWith("cs:")) {
                                             onOpenProviderDetail(item.providerId, item.rawUrl)
@@ -971,6 +1000,7 @@ private fun ProviderCatalogView(
                         }
                     }
                 }
+            }
             }
         }
     }
@@ -1106,14 +1136,24 @@ internal suspend fun resolveAndOpenPoster(
         val addonRowId = item.providerId.removePrefix("nuvio_addon:").toLongOrNull() ?: 0L
         val addon = withContext(Dispatchers.IO) { addons.byId(addonRowId) }
         val hasMeta = addon?.manifest?.resources?.any { it.name == com.kaan.play.data.addon.AddonManifest.META } == true
-        if (hasMeta) {
-            val typeStr = when (item.mediaType) {
+        val isLive = item.addonType in listOf("tv", "channel")
+        if (hasMeta || isLive) {
+            val typeStr = item.addonType ?: when (item.mediaType) {
                 MediaType.Tv -> "series"
                 MediaType.Movie -> "movie"
             }
             onOpenProviderDetail(item.providerId, "$typeStr/${item.id}")
             return
         }
+    }
+
+    // Canlı kanalda (tv/channel) TMDB başlık araması yapılmaz; yanlış içerik açar
+    if (item.addonType in listOf("tv", "channel")) {
+        if (item.providerId.startsWith("nuvio_addon:") && onOpenProviderDetail != null) {
+            val typeStr = item.addonType ?: "tv"
+            onOpenProviderDetail(item.providerId, "$typeStr/${item.id}")
+        }
+        return
     }
 
     // 4. O da yoksa başlıkla ara
@@ -1186,4 +1226,3 @@ private fun ProviderPillButton(
         )
     }
 }
-

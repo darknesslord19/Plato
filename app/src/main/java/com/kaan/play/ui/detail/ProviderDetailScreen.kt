@@ -31,6 +31,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kaan.play.R
+import com.kaan.play.data.addon.AddonUrl
+import com.kaan.play.data.cloudstream.CsApiResult
 import com.kaan.play.data.model.Episode
 import com.kaan.play.data.model.MediaDetail
 import com.kaan.play.data.model.MediaSummary
@@ -106,13 +108,15 @@ private data class ProviderEpisodeItem(
 
 private sealed interface ProviderDetailUiState {
     data object Loading : ProviderDetailUiState
-    data class Error(val message: String) : ProviderDetailUiState
+    data class Error(val messageRes: Int, val fallbackText: String? = null) : ProviderDetailUiState
     data class Ready(
         val detail: MediaDetail,
         val isSeries: Boolean,
         val episodes: List<ProviderEpisodeItem>,
         val movieDataUrl: String?,
         val syntheticId: Int,
+        val addonType: String? = null,
+        val addonContentId: String? = null,
     ) : ProviderDetailUiState
 }
 
@@ -130,6 +134,7 @@ fun ProviderDetailScreen(
 ) {
     val container = rememberContainer()
     val layout = rememberPlayLayout()
+    val context = androidx.compose.ui.platform.LocalContext.current.applicationContext
 
     var state by remember(providerId, url) { mutableStateOf<ProviderDetailUiState>(ProviderDetailUiState.Loading) }
     var selectedSeason by remember(providerId, url) { mutableStateOf<Int?>(null) }
@@ -146,15 +151,60 @@ fun ProviderDetailScreen(
                 if (providerId.startsWith("nuvio_addon:")) {
                     val addonRowId = providerId.removePrefix("nuvio_addon:").toLongOrNull() ?: 0L
                     val addon = container.addons.byId(addonRowId)
-                        ?: return@withContext ProviderDetailUiState.Error("Eklenti bulunamadı")
+                        ?: return@withContext ProviderDetailUiState.Error(R.string.provider_error_not_found)
+
+                    val hasMeta = addon.manifest.resources.any { it.name == com.kaan.play.data.addon.AddonManifest.META }
+                    val pathParts = if (url.contains('/')) url.split('/', limit = 2) else listOf("movie", url)
+                    val parsedType = pathParts.getOrNull(0) ?: "movie"
+                    val parsedId = pathParts.getOrNull(1) ?: url
+                    val isLiveType = parsedType.lowercase() in listOf("tv", "channel")
+
+                    if (!hasMeta && isLiveType) {
+                        val summary = MediaSummary(
+                            id = syntheticId,
+                            type = MediaType.Movie,
+                            title = parsedId,
+                            overview = "",
+                            posterPath = null,
+                            backdropPath = null,
+                            year = null,
+                            rating = null,
+                        )
+                        val detail = MediaDetail(
+                            summary = summary,
+                            imdbId = if (parsedId.startsWith("tt")) parsedId else null,
+                            tagline = "",
+                            genres = emptyList(),
+                            runtimeMinutes = null,
+                            seasons = emptyList(),
+                        )
+                        return@withContext ProviderDetailUiState.Ready(
+                            detail = detail,
+                            isSeries = false,
+                            episodes = emptyList(),
+                            movieDataUrl = parsedId,
+                            syntheticId = syntheticId,
+                            addonType = parsedType.lowercase(),
+                            addonContentId = parsedId,
+                        )
+                    }
 
                     val metaUrl = when {
                         url.startsWith("http://") || url.startsWith("https://") -> url
-                        url.contains('/') -> "${addon.baseUrl}/meta/$url.json"
-                        else -> "${addon.baseUrl}/meta/movie/$url.json"
+                        else -> {
+                            val metaPath = if (url.contains('/')) {
+                                url.split('/').mapIndexed { index, segment ->
+                                    if (index == url.split('/').lastIndex) "$segment.json" else segment
+                                }
+                            } else {
+                                listOf("movie", "$url.json")
+                            }
+                            AddonUrl.endpoint(addon.sourceUrl, "meta", *metaPath.toTypedArray())?.toString()
+                                ?: return@withContext ProviderDetailUiState.Error(R.string.provider_error_invalid_meta_url)
+                        }
                     }
                     val httpUrl = metaUrl.toHttpUrlOrNull()
-                        ?: return@withContext ProviderDetailUiState.Error("Geçersiz meta adresi")
+                        ?: return@withContext ProviderDetailUiState.Error(R.string.provider_error_invalid_meta_url)
 
                     val jsonText = fetchAddonText(
                         container.httpClient,
@@ -163,9 +213,10 @@ fun ProviderDetailScreen(
                         maxBytes = 5L * 1024 * 1024,
                     )
                     val resp = PlayJson.decodeFromString(StremioMetaDetailResponse.serializer(), jsonText)
-                    val meta = resp.meta ?: return@withContext ProviderDetailUiState.Error("Meta bilgisi bulunamadı")
+                    val meta = resp.meta ?: return@withContext ProviderDetailUiState.Error(R.string.provider_error_meta_not_found)
 
-                    val isSeries = meta.type.lowercase() in listOf("series", "tv")
+                    val isLive = ProviderDetailRules.isLive(meta.type, meta.videos.size)
+                    val isSeries = ProviderDetailRules.isSeries(meta.type, meta.videos.size)
                     val episodes: List<ProviderEpisodeItem> = if (isSeries) {
                         meta.videos.map { v ->
                             ProviderEpisodeItem(
@@ -190,7 +241,7 @@ fun ProviderDetailScreen(
                     val seasonInfos = seasonNums.map { sNum ->
                         SeasonInfo(
                             number = sNum,
-                            name = "Sezon $sNum",
+                            name = context.getString(R.string.season_number_format, sNum),
                             episodeCount = episodes.count { (it.season ?: 1) == sNum },
                             posterPath = null,
                         )
@@ -221,19 +272,37 @@ fun ProviderDetailScreen(
                         selectedSeason = seasonNums.first()
                     }
 
+                    val resolvedAddonType = when {
+                        isLive -> if (meta.type.lowercase() in listOf("tv", "channel")) meta.type.lowercase() else parsedType.lowercase()
+                        isSeries -> "series"
+                        else -> "movie"
+                    }
+                    val resolvedContentId = meta.id.ifBlank { parsedId }
+
                     ProviderDetailUiState.Ready(
                         detail = detail,
                         isSeries = isSeries,
                         episodes = episodes,
                         movieDataUrl = meta.id,
                         syntheticId = syntheticId,
+                        addonType = resolvedAddonType,
+                        addonContentId = resolvedContentId,
                     )
-                } else {
+                } else if (providerId.startsWith("cs:")) {
                     val pluginRowId = providerId.removePrefix("cs:").toLongOrNull() ?: 0L
-                    val apis: List<MainAPI> = container.csRepos.loadApis(pluginRowId)
+                    val result = container.csRepos.loadApis(pluginRowId)
+                    val apis = result.apisOrEmpty()
                     val api = apis.firstOrNull()
                     if (api == null) {
-                        return@withContext ProviderDetailUiState.Error("Eklenti API'si bulunamadı")
+                        val errorRes = when (result) {
+                            is CsApiResult.DexFileMissing -> R.string.provider_error_dex_missing
+                            is CsApiResult.IncompatibleLibrary -> R.string.provider_error_incompatible
+                            is CsApiResult.LoadFailed -> R.string.provider_error_load_failed
+                            is CsApiResult.PluginRowMissing -> R.string.provider_error_not_found
+                            is CsApiResult.NoApiRegistered,
+                            is CsApiResult.Success -> R.string.provider_error_no_api
+                        }
+                        return@withContext ProviderDetailUiState.Error(errorRes)
                     }
 
                     val loadResp: LoadResponse? = try {
@@ -244,7 +313,7 @@ fun ProviderDetailScreen(
                     }
 
                     if (loadResp == null) {
-                        return@withContext ProviderDetailUiState.Error("İçerik yüklenemedi")
+                        return@withContext ProviderDetailUiState.Error(R.string.provider_error_content_load_failed)
                     }
 
                     val isSeries = loadResp is TvSeriesLoadResponse || loadResp is AnimeLoadResponse
@@ -280,7 +349,7 @@ fun ProviderDetailScreen(
                     val seasonInfos = seasonNums.map { sNum ->
                         SeasonInfo(
                             number = sNum,
-                            name = "Sezon $sNum",
+                            name = context.getString(R.string.season_number_format, sNum),
                             episodeCount = episodes.count { (it.season ?: 1) == sNum },
                             posterPath = null,
                         )
@@ -326,10 +395,12 @@ fun ProviderDetailScreen(
                         movieDataUrl = movieDataUrl,
                         syntheticId = syntheticId,
                     )
+                } else {
+                    ProviderDetailUiState.Error(R.string.provider_error_not_found)
                 }
             } catch (t: Throwable) {
                 Log.e("ProviderDetail", "Error in ProviderDetailScreen", t)
-                ProviderDetailUiState.Error(t.message ?: "Beklenmeyen hata")
+                ProviderDetailUiState.Error(R.string.provider_error_unexpected)
             }
         }
         state = loadedState
@@ -345,7 +416,7 @@ fun ProviderDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(
-                        text = s.message,
+                        text = stringResource(s.messageRes),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,
@@ -384,6 +455,7 @@ fun ProviderDetailScreen(
                     episodes = Loadable.Ready(currentEpisodes),
                     twoPane = layout.twoPane,
                     screenHeight = layout.heightDp.dp,
+                    isSeries = s.isSeries,
                     onToggleFavorite = { /* Favori */ },
                     onSelectSeason = { sNum -> selectedSeason = sNum },
                     onRetryEpisodes = { refreshKey++ },
@@ -402,14 +474,16 @@ fun ProviderDetailScreen(
                             request = StreamRequest(
                                 tmdbId = s.detail.summary.id,
                                 imdbId = s.detail.imdbId,
-                                type = if (s.isSeries) MediaType.Tv else MediaType.Movie,
-                                season = season ?: selectedSeason,
-                                episode = episode,
+                                type = if (s.isSeries || s.addonType in listOf("tv", "channel")) MediaType.Tv else s.detail.summary.type,
+                                season = if (s.isSeries) (season ?: selectedSeason) else null,
+                                episode = if (s.isSeries) episode else null,
                                 pluginId = providerId,
                                 dataUrl = dataUrl,
                                 contentUrl = url,
                                 title = s.detail.summary.title,
                                 year = s.detail.summary.year,
+                                addonType = s.addonType,
+                                addonContentId = s.addonContentId ?: if (!s.isSeries) (s.movieDataUrl ?: dataUrl) else null,
                             ),
                             title = s.detail.summary.title,
                             posterPath = s.detail.summary.posterPath,

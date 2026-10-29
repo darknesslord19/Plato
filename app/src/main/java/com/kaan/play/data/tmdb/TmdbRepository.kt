@@ -29,19 +29,11 @@ import okhttp3.OkHttpClient
 class TmdbRepository(
     client: OkHttpClient,
     json: Json,
-    apiKeyProvider: () -> String,
+    apiKey: String,
     private val language: () -> UiLanguage,
     baseUrl: HttpUrl = TmdbService.DEFAULT_BASE_URL.toHttpUrl(),
 ) {
-    constructor(
-        client: OkHttpClient,
-        json: Json,
-        apiKey: String,
-        language: () -> UiLanguage,
-        baseUrl: HttpUrl = TmdbService.DEFAULT_BASE_URL.toHttpUrl(),
-    ) : this(client, json, { apiKey }, language, baseUrl)
-
-    private val service = TmdbService(client, json, apiKeyProvider, baseUrl)
+    private val service = TmdbService(client, json, apiKey, baseUrl)
 
     suspend fun trending(page: Int = 1): Page<MediaSummary> =
         service.trending(lang(), page).toPage()
@@ -89,19 +81,13 @@ class TmdbRepository(
     private fun imageLanguages(): String = imageLanguagesFor(language())
 
     /**
-     * Ana sayfa kategorisi ([TmdbQuery]): hazır listeler, tür/dil/platform keşfi ya da kullanıcının yazdığı arama.
-     * Arama sorgusu boşsa ağa gitmeden boş sonuç verir.
+     * Boş sorgu ağa gitmeden boş sonuç verir. [type] null ise `search/multi` (kişi sonuçları ayıklanır); verilirse
+     * TMDB'nin `search/movie` / `search/tv` uç noktası çağrılır (sonuçlar istemcide süzülmez, sayfalama bozulmaz).
      */
-    suspend fun list(query: TmdbQuery, page: Int = 1): Page<MediaSummary> {
-        if (query.path.startsWith("search/") && query.params["query"].isNullOrBlank()) return Page(emptyList(), 1, 1)
-        return service.list(query.path, lang(), page, query.params).toPage(defaultType = query.type)
-    }
-
-    /** Boş sorgu ağa gitmeden boş sonuç verir. Kişi sonuçları ayıklanır. */
-    suspend fun search(query: String, page: Int = 1): Page<MediaSummary> {
+    suspend fun search(query: String, page: Int = 1, type: MediaType? = null): Page<MediaSummary> {
         val q = query.trim()
         if (q.isEmpty()) return Page(emptyList(), 1, 1)
-        return service.search(q, lang(), page).toPage()
+        return service.search(q, lang(), page, type?.tmdbPath ?: "multi").toPage(defaultType = type)
     }
 
     /** IMDb kimliğine göre TMDB'de ara. Bulunursa (MediaType, tmdbId), yoksa null döner. */
@@ -123,7 +109,20 @@ class TmdbRepository(
         } else {
             primary
         }
-        return merged.toDetail(type, language())
+        val keywordIds = merged.keywords?.all().orEmpty().map { it.id }.filter { it > 0 }.distinct()
+        val discovered = if (keywordIds.isNotEmpty()) {
+            bestEffort {
+                service.discoverRelated(
+                    type = type.tmdbPath,
+                    language = lang(),
+                    keywordIds = keywordIds,
+                    genreIds = merged.genres.map { it.id },
+                ).toPage(defaultType = type).items
+            }.orEmpty()
+        } else {
+            emptyList()
+        }
+        return merged.toDetail(type, language(), discovered)
     }
 
     suspend fun season(tvId: Int, season: Int): SeasonDetail {
@@ -175,10 +174,15 @@ private fun ItemDto.toSummary(defaultType: MediaType?): MediaSummary? {
         year = yearOf(releaseDate ?: firstAirDate),
         rating = voteAverage?.takeIf { it > 0.0 },
         genreIds = genreIds,
+        popularity = popularity?.takeIf { it > 0.0 },
     )
 }
 
-private fun DetailDto.toDetail(type: MediaType, language: UiLanguage): MediaDetail = MediaDetail(
+private fun DetailDto.toDetail(
+    type: MediaType,
+    language: UiLanguage,
+    discovered: List<MediaSummary>,
+): MediaDetail = MediaDetail(
     summary = MediaSummary(
         id = id,
         type = type,
@@ -188,6 +192,7 @@ private fun DetailDto.toDetail(type: MediaType, language: UiLanguage): MediaDeta
         backdropPath = backdropPath,
         year = yearOf(releaseDate ?: firstAirDate),
         rating = voteAverage?.takeIf { it > 0.0 },
+        genreIds = genres.map { it.id }.filter { it > 0 },
     ),
     imdbId = (externalIds?.imdbId ?: imdbId)?.takeIf { it.startsWith("tt") },
     tagline = tagline.orEmpty(),
@@ -212,7 +217,32 @@ private fun DetailDto.toDetail(type: MediaType, language: UiLanguage): MediaDeta
         .sortedBy { it.order }
         .take(CAST_COUNT)
         .map { CastMember(it.id, it.name.orEmpty(), it.character.orEmpty().trim(), it.profilePath) },
+    originalTitle = (originalTitle ?: originalName)?.takeIf { it.isNotBlank() },
+    alternativeTitles = alternativeTitleList(),
+    similar = RelatedMediaRanking.rank(
+        type = type,
+        sourceId = id,
+        sourceTitle = (title ?: name).orEmpty(),
+        sourceOverview = overview.orEmpty(),
+        sourceGenreIds = genres.map { it.id }.filter { it > 0 },
+        discovered = discovered,
+        recommendations = recommendations?.results.orEmpty().mapNotNull { it.toSummary(type) },
+        similar = similar?.results.orEmpty().mapNotNull { it.toSummary(type) },
+    ),
+    trailerKey = videos?.results.orEmpty()
+        .filter { it.site.equals("YouTube", ignoreCase = true) && !it.key.isNullOrBlank() }
+        .sortedWith(compareByDescending<VideoDto> { it.type.equals("Trailer", ignoreCase = true) }
+            .thenByDescending { it.official == true })
+        .firstOrNull()?.key,
 )
+
+/** Alternatif başlıklar: önce Türkiye/ABD/Birleşik Krallık kayıtları, sonra diğerleri; boşlar atılır, yinelenenler [com.kaan.play.data.match.ContentIdentity] eler. */
+private fun DetailDto.alternativeTitleList(): List<String> {
+    val all = alternativeTitles?.let { it.titles + it.results }.orEmpty()
+    val preferred = setOf("TR", "US", "GB")
+    return all.filter { it.country in preferred }.plus(all.filter { it.country !in preferred })
+        .mapNotNull { it.title?.trim()?.takeIf(String::isNotEmpty) }
+}
 
 private val WRITER_JOBS = setOf("Screenplay", "Writer", "Story", "Novel")
 private const val CAST_COUNT = 12
@@ -266,6 +296,7 @@ private fun DetailDto.fillFrom(en: DetailDto): DetailDto = copy(
     name = name.takeUnless { it.isNullOrBlank() } ?: en.name,
     overview = overview.takeUnless { it.isNullOrBlank() } ?: en.overview,
     tagline = tagline.takeUnless { it.isNullOrBlank() } ?: en.tagline,
+    keywords = keywords?.takeIf { it.all().isNotEmpty() } ?: en.keywords,
 )
 
 private fun SeasonDetailDto.fillFrom(en: SeasonDetailDto): SeasonDetailDto {

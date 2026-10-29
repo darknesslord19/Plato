@@ -86,20 +86,7 @@ private fun OfferDialog(info: UpdateInfo, flow: UpdateFlow, context: Context, on
         shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
         containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
         title = { Text(stringResource(R.string.update_title), style = androidx.compose.material3.MaterialTheme.typography.titleLarge) },
-        text = {
-            androidx.compose.foundation.layout.Column(
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
-            ) {
-                Text(stringResource(if (inApp) R.string.update_message else R.string.update_message_web, info.tag))
-                info.notes?.let {
-                    Text(
-                        text = it,
-                        style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        },
+        text = { Text(stringResource(if (inApp) R.string.update_message else R.string.update_message_web, info.tag)) },
         confirmButton = {
             TextButton(
                 onClick = {
@@ -225,7 +212,8 @@ private fun FailedDialog(state: UpdateState.Failed, flow: UpdateFlow, context: C
 /** Tarayıcısı olmayan cihazda (bazı TV'ler) sessizce geçer. */
 private fun openReleasePage(context: Context, info: UpdateInfo) {
     try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, info.pageUrl.toUri()))
+        val target = info.directDownloadUrl
+        context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri()))
     } catch (_: ActivityNotFoundException) {
     }
 }

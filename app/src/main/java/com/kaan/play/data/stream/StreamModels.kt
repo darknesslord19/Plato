@@ -22,6 +22,8 @@ data class StreamRequest(
     val contentUrl: String? = null,
     val title: String? = null,
     val year: Int? = null,
+    val addonType: String? = null,
+    val addonContentId: String? = null,
 ) {
     /**
      * Addon'a giden kimlik: film `tt123`, dizi `tt123:sezon:bölüm`.
@@ -29,6 +31,7 @@ data class StreamRequest(
      */
     val contentId: String?
         get() {
+            if (!addonContentId.isNullOrBlank()) return addonContentId
             val imdb = imdbId ?: return null
             return when (type) {
                 MediaType.Movie -> imdb
@@ -69,6 +72,8 @@ data class PlayableStream(
     val torrentFileIdx: Int? = null,
     /** Ad/başlık/açıklamada Türkçe dublaj işareti var ([DubDetector]); belirsizse false = altyazılı. */
     val dubbed: Boolean = false,
+    /** Kaynağın ait olduğu içeriğin anahtarı ([StreamOwnership.keyOf]); birleşik sağlayıcı damgalar. Başka içeriğin kaynağı oynatılmaz. */
+    val forKey: String? = null,
 )
 
 /** Akışla gelen altyazı; [language] addon'un verdiği ham etiket (`eng`, `tur` ...). */

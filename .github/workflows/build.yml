@@ -1,4 +1,4 @@
-# Play — otomatik derleme (GitHub Actions)
+# Plato — otomatik derleme (GitHub Actions)
 #
 # Her main gönderiminde (ve Actions sekmesinden elle "Run workflow" ile):
 #   1. "Testler" işi birim testlerini çalıştırır (bozuk kod görünür olsun).
@@ -6,7 +6,7 @@
 #      ve main'deyse "v<sürüm>" etiketiyle bir GitHub Release yayımlar
 #      (Play-<sürüm>.apk + Play-<sürüm>-SHA256.txt; uygulama içi güncelleme bunları bulur).
 #
-# Sürüm: build.gradle.kts'teki taban sürüme çalıştırma numarası eklenir (ör. 1.1.4 → 1.1.4.7),
+# Sürüm: build.gradle.kts'teki taban sürüme çalıştırma numarası eklenir (ör. 1.2.0 → 1.2.0.7),
 # böylece her derleme bir öncekinden yenidir ve uygulama içi güncelleme çalışır.
 #
 # Depo ayarları > Secrets and variables > Actions altında tanımlanacak gizli değerler:
@@ -27,11 +27,6 @@ on:
       - "**.md"
       - "docs/**"
       - "announcements.json"
-      # Yalnızca cihaz denemesini (device-test.yml) ilgilendiren değişiklikler yeni sürüm çıkarmaz.
-      - "app/src/androidTest/**"
-      - ".github/workflows/device-test.yml"
-      - ".github/scripts/cs-device-*"
-      - "tools/cs_repos_device.list"
   pull_request:
   workflow_dispatch:
 
@@ -141,7 +136,8 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           PLAY_VERSION_NAME: ${{ steps.version.outputs.name }}
           PLAY_VERSION_CODE: ${{ steps.version.outputs.code }}
-          PLAY_UPDATE_REPO: ${{ github.repository }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           if [ -n "$TEMP_KEYSTORE_PASSWORD" ]; then
             export KEYSTORE_PASSWORD="$TEMP_KEYSTORE_PASSWORD" KEY_PASSWORD="$TEMP_KEYSTORE_PASSWORD"
@@ -171,38 +167,6 @@ jobs:
         if: always()
         run: rm -f keystore/play-release.keystore
 
-      - name: CloudStream eklenti uyumluluğu
-        # Gerçek depolardaki eklentilerin çağırdığı her sınıf/metot bu APK'da var mı? (tools/cs_plugin_abi_check.py)
-        # Bilgi amaçlıdır: üçüncü taraf eklentilerdeki bir eksik derlemeyi durdurmaz; sonuç notlarda ve özet sayfasında.
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NAME: ${{ steps.version.outputs.name }}
-        run: |
-          python3 tools/cs_plugin_abi_check.py \
-            --apk "app/build/outputs/apk/release/Play-$NAME.apk" \
-            --repos tools/cs_repos.list --out build/cs-abi --cache build/cs-plugins
-          # Karşılaştırma için bir önceki yayımlanmış sürüm (varsa)
-          mkdir -p build/prev
-          if gh release download --repo "$GITHUB_REPOSITORY" --pattern 'Play-*.apk' --dir build/prev 2>/dev/null; then
-            prev=$(ls build/prev/*.apk | head -1)
-            python3 tools/cs_plugin_abi_check.py --apk "$prev" --repos tools/cs_repos.list \
-              --out build/cs-abi-prev --cache build/cs-plugins > /tmp/prev.txt 2>&1 || true
-            python3 -c "import json;d=json.load(open('build/cs-abi-prev/report.json'));c=d['counts'];print('::notice title=Önceki sürüm ($(basename $prev))::Uyumlu',c.get('ok',0),'/',c.get('ok',0)+c.get('broken',0),'(%%%.1f)'%d['okPercent'])" || true
-          fi
-
-      - name: Uyumluluk raporunu yükle
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cs-uyumluluk-${{ steps.version.outputs.name }}
-          path: |
-            build/cs-abi/report.md
-            build/cs-abi/report.json
-            build/cs-abi-prev/report.md
-          retention-days: 30
-          if-no-files-found: ignore
-
       - name: APK'yı yükle (Artifacts)
         uses: actions/upload-artifact@v4
         with:
@@ -219,7 +183,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NAME: ${{ steps.version.outputs.name }}
           SIGNING: ${{ steps.signing.outputs.kind }}
-          UPDATE_NOTES: ${{ vars.UPDATE_NOTES }}
         run: |
           dir=app/build/outputs/apk/release
           notes="Otomatik derleme: ${GITHUB_SHA::7}"
@@ -228,39 +191,12 @@ jobs:
 
           ⚠️ Geçici anahtarla imzalandı: önceki sürümün üzerine kurulamaz, önce kaldırman gerekir. Depo ayarlarına KEYSTORE_BASE64 ve KEYSTORE_PASSWORD ekleyince bu sorun kalkar."
           fi
-          # Uygulamanın güncelleme bildirimi (data/update/UpdateManifest.kt biçimi); Firebase'e yazılacak JSON.
-          sha=$(cut -d' ' -f1 "$dir/Play-$NAME-SHA256.txt")
-          size=$(stat -c %s "$dir/Play-$NAME.apk")
-          base="https://github.com/$GITHUB_REPOSITORY/releases"
-          python3 -c "import json,sys;print(json.dumps({'version':sys.argv[1],'apkUrl':sys.argv[2],'sha256':sys.argv[3],'size':int(sys.argv[4]),'pageUrl':sys.argv[5],'notes':sys.argv[6]},ensure_ascii=False,indent=1))" \
-            "$NAME" "$base/download/v$NAME/Play-$NAME.apk" "$sha" "$size" "$base/tag/v$NAME" "${UPDATE_NOTES:-}" > "$dir/Playupdate.json"
-          cat "$dir/Playupdate.json"
           if ! gh release create "v$NAME" \
-            "$dir/Play-$NAME.apk" "$dir/Play-$NAME-SHA256.txt" "$dir/Playupdate.json" \
-            --target "$GITHUB_SHA" --title "Play $NAME" --notes "$notes" --latest > /tmp/release.txt 2>&1; then
+            "$dir/Play-$NAME.apk" "$dir/Play-$NAME-SHA256.txt" \
+            --target "$GITHUB_SHA" --title "Plato $NAME" --notes "$notes" --latest > /tmp/release.txt 2>&1; then
             cat /tmp/release.txt
             msg=$(tail -5 /tmp/release.txt | sed -e ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=GitHub Release::$msg"
             exit 1
           fi
           cat /tmp/release.txt
-
-      - name: Güncelleme bildirimini Firebase'e yaz
-        # İsteğe bağlı: depo ayarlarında FIREBASE_UPDATE_WRITE_URL tanımlıysa (yazma yetkili tam adres, ör. ...json?auth=...)
-        # yeni sürüm uygulamalara hemen bildirilir. Tanımlı değilse Playupdate.json release'e eklenir, elle yapıştırılır.
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        env:
-          WRITE_URL: ${{ secrets.FIREBASE_UPDATE_WRITE_URL }}
-          NAME: ${{ steps.version.outputs.name }}
-        run: |
-          if [ -z "$WRITE_URL" ]; then
-            echo "::notice title=Güncelleme bildirimi::FIREBASE_UPDATE_WRITE_URL tanımlı değil; Playupdate.json release'te, elle Firebase'e yapıştır."
-            exit 0
-          fi
-          code=$(curl -sS -o /tmp/fb.txt -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
-            --data-binary "@app/build/outputs/apk/release/Playupdate.json" "$WRITE_URL")
-          if [ "$code" != "200" ]; then
-            echo "::warning title=Firebase::Bildirim yazılamadı (HTTP $code): $(head -c 200 /tmp/fb.txt)"
-          else
-            echo "::notice title=Firebase::Güncelleme bildirimi yazıldı: v$NAME"
-          fi

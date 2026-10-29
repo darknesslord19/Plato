@@ -9,10 +9,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -46,12 +42,6 @@ fun ErrorMessage(error: TmdbException, onRetry: () -> Unit, modifier: Modifier =
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        if (error.kind == Kind.MissingApiKey || error.kind == Kind.InvalidApiKey) {
-            // Anahtar sorununda doğrudan anahtar girilebilsin; kaydedince ekran kendiliğinden yeniden dener.
-            var showKey by remember { mutableStateOf(false) }
-            TextButton(onClick = { showKey = true }) { Text(stringResource(R.string.tmdb_key_add)) }
-            if (showKey) TmdbKeyDialog(onDismiss = { showKey = false }, onSaved = onRetry)
-        }
         TextButton(onClick = onRetry) { Text(stringResource(R.string.common_retry)) }
     }
 }

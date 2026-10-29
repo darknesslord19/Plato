@@ -4,6 +4,7 @@ import com.kaan.play.data.addon.AddonException
 import com.kaan.play.data.addon.AddonException.Kind
 import com.kaan.play.data.addon.AddonRepository
 import com.kaan.play.data.addon.ManifestFetcher
+import com.kaan.play.data.cloudstream.CsApiResult
 import com.kaan.play.data.cloudstream.CsDexStore
 import com.kaan.play.data.cloudstream.CsRepository
 import com.kaan.play.data.cloudstream.PluginDexLoader
@@ -156,7 +157,7 @@ class PluginRepositoryTest {
     private val csFetcher = ManifestFetcher { csPluginListJson }
     private val csDexDir = java.io.File.createTempFile("csdex", "").also { it.delete(); it.mkdirs() }
     private val csLoader = object : PluginDexLoader {
-        override suspend fun loadPlugin(dexFile: java.io.File, className: String): List<MainAPI> = emptyList()
+        override suspend fun loadPlugin(dexFile: java.io.File, className: String, pluginId: String): CsApiResult = CsApiResult.NoApiRegistered(pluginId)
     }
     private val csRepos = CsRepository(
         addonDao = db.addons,
@@ -257,7 +258,7 @@ class PluginRepositoryTest {
 
         val rows = db.pluginRows.value
         assertEquals(setOf("a", "b"), rows.map { it.pluginId }.toSet())
-        assertTrue("varsayılan KAPALI olmalı", rows.none { it.enabled })
+        assertTrue("varsayılan AÇIK olmalı", rows.all { it.enabled })
         assertEquals("providers/a.js", rows.first { it.pluginId == "a" }.filename)
         assertEquals("tr,en", rows[0].contentLanguage)
         assertEquals("movie,series", rows[0].supportedTypes)
@@ -269,8 +270,8 @@ class PluginRepositoryTest {
         assertEquals(2, plugins.repos.first().single().pluginCount)
         val installed = plugins.plugins.first()
         assertEquals(setOf("movie", "tv"), installed[0].supportedTypes)
-        assertTrue(installed.none { it.enabled })
-        assertTrue(plugins.enabledPlugins().isEmpty())
+        assertTrue(installed.all { it.enabled })
+        assertEquals(setOf("a", "b"), plugins.enabledPlugins().map { it.pluginId }.toSet())
     }
 
     @Test
@@ -431,11 +432,15 @@ class PluginRepositoryTest {
         stock("a", "b")
         plugins.addFetched(repoUrl, manifestText)
         val a = db.pluginRows.value.first { it.pluginId == "a" }
+        val b = db.pluginRows.value.first { it.pluginId == "b" }
 
+        assertEquals(setOf("a", "b"), plugins.enabledPlugins().map { it.pluginId }.toSet())
+        plugins.setPluginEnabled(a.id, false)
+        assertEquals(listOf("b"), plugins.enabledPlugins().map { it.pluginId })
+        plugins.setPluginEnabled(b.id, false)
+        assertTrue(plugins.enabledPlugins().isEmpty())
         plugins.setPluginEnabled(a.id, true)
         assertEquals(listOf("a"), plugins.enabledPlugins().map { it.pluginId })
-        plugins.setPluginEnabled(a.id, false)
-        assertTrue(plugins.enabledPlugins().isEmpty())
 
         assertEquals(good, plugins.loadCode(a.id))
         store.files[a.id] = good + "// değiştirildi"
@@ -484,7 +489,7 @@ class PluginRepositoryTest {
         val rows = db.pluginRows.value.associateBy { it.pluginId }
         assertEquals(setOf("a", "c"), rows.keys)
         assertTrue("güncellenen kazıyıcının açık durumu korunmalı", rows.getValue("a").enabled)
-        assertFalse("yeni kazıyıcı kapalı gelir", rows.getValue("c").enabled)
+        assertTrue("yeni kazıyıcı açık gelir", rows.getValue("c").enabled)
         assertEquals("1.1.0", rows.getValue("a").version)
         assertEquals(newCode, store.files[rows.getValue("a").id])
         assertEquals(PluginRepository.sha256(newCode), rows.getValue("a").sha256)

@@ -1,6 +1,7 @@
 package com.kaan.play.data.subtitle
 
 import com.kaan.play.data.addon.Addon
+import com.kaan.play.data.addon.AddonUrl
 import com.kaan.play.data.net.PlayJson
 import com.kaan.play.data.stream.AddonFetchFailure
 import com.kaan.play.data.stream.FailureReason
@@ -14,7 +15,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -51,7 +51,7 @@ class AddonSubtitleProvider(
 
     private suspend fun query(addon: Addon, type: String, contentId: String, limit: Duration): SubtitleResult {
         val source = StreamSource(addon.id, addon.manifest.name)
-        val url = "${addon.baseUrl}/subtitles/$type/$contentId.json".toHttpUrlOrNull()
+        val url = AddonUrl.endpoint(addon.sourceUrl, "subtitles", type, "$contentId.json")
             ?: return SubtitleResult.Failed(source, FailureReason.Network)
         return try {
             val tracks = parse(source.addonName, fetchAddonText(client, url, limit, maxBytes))
@@ -66,7 +66,7 @@ class AddonSubtitleProvider(
         const val MAX_BYTES = 5L * 1024 * 1024
 
         /** Dil başına en çok bu kadar sonuç (Altyazı menüsü taşmasın: addon başına dil başına en çok 10 sonuç). */
-        const val MAX_PER_LANGUAGE = 10
+        const val MAX_PER_LANGUAGE = 5
 
         /** Bir addon'dan en çok bu kadar parça alınır (tüm diller toplamı güvenlik sınırı). */
         const val MAX_PER_ADDON = 100
@@ -90,7 +90,13 @@ class AddonSubtitleProvider(
                         ?.takeIf { it.startsWith("http://", true) || it.startsWith("https://", true) }
                         ?: return@mapNotNull null
                     val lang = (obj["lang"] as? JsonPrimitive)?.contentOrNull
-                    SubtitleTrack(url, SubtitleLanguages.normalize(lang), origin)
+                    val rawLabel = (obj["file"] as? JsonPrimitive)?.contentOrNull?.trim()
+                        ?: (obj["filename"] as? JsonPrimitive)?.contentOrNull?.trim()
+                        ?: (obj["label"] as? JsonPrimitive)?.contentOrNull?.trim()
+                        ?: (obj["release"] as? JsonPrimitive)?.contentOrNull?.trim()
+                        ?: (obj["title"] as? JsonPrimitive)?.contentOrNull?.trim()
+                    val label = SubtitleSelection.cleanLabel(rawLabel)
+                    SubtitleTrack(url, SubtitleLanguages.normalize(lang), origin, label = label)
                 }
                 .distinctBy { it.url }
                 .filter { track ->

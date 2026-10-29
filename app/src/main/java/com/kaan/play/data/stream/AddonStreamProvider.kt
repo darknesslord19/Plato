@@ -4,6 +4,9 @@ import com.kaan.play.data.addon.Addon
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import kotlin.time.Duration
@@ -26,24 +29,39 @@ class AddonStreamProvider(
 
     override fun streams(request: StreamRequest): Flow<StreamResult> = channelFlow {
         val contentId = request.contentId ?: return@channelFlow
-        val type = request.type.addonType
+        val type = request.addonType ?: request.type.addonType
         val limit = timeout()
-        for (addon in askable(type, contentId)) {
-            launch { send(query(addon, type, contentId, limit)) }
+        val targetAddonId = if (request.pluginId?.startsWith("nuvio_addon:") == true) request.pluginId.removePrefix("nuvio_addon:").toLongOrNull() else null
+        val gate = Semaphore(6)
+        for (addon in askable(type, contentId, targetAddonId)) {
+            launch {
+                gate.withPermit {
+                    try {
+                        send(query(addon, type, contentId, limit))
+                    } catch (t: Throwable) {
+                        android.util.Log.e("PlayAddon", "${addon.manifest.name} çağrı hatası: ${t.message}", t)
+                        send(StreamResult.Failed(StreamSource(addon.id, addon.manifest.name), FailureReason.Network))
+                    }
+                }
+            }
         }
     }
 
     override suspend fun sources(request: StreamRequest): List<StreamSource> {
         val contentId = request.contentId ?: return emptyList()
-        return askable(request.type.addonType, contentId).map { StreamSource(it.id, it.manifest.name) }
+        val type = request.addonType ?: request.type.addonType
+        val targetAddonId = if (request.pluginId?.startsWith("nuvio_addon:") == true) request.pluginId.removePrefix("nuvio_addon:").toLongOrNull() else null
+        return askable(type, contentId, targetAddonId).map { StreamSource(it.id, it.manifest.name) }
     }
 
     /** Manifest'e uyan (tür / `idPrefixes`) aktif addon'lar; diğerlerine istek gitmez. */
-    private suspend fun askable(type: String, contentId: String): List<Addon> =
-        addons().filter { it.manifest.supportsStream(type, contentId) }
+    private suspend fun askable(type: String, contentId: String, targetAddonId: Long? = null): List<Addon> =
+        addons().filter { targetAddonId == null || it.id == targetAddonId }.filter { it.manifest.supportsStream(type, contentId) }
 
     private suspend fun query(addon: Addon, type: String, contentId: String, limit: Duration): StreamResult {
         val source = StreamSource(addon.id, addon.manifest.name)
+        // Tanı: addon'a giden kimlik (IMDb "tt…" + sezon/bölüm); adres yazılmaz.
+        android.util.Log.d("PlayAddon", "${addon.manifest.name}: istek tür=$type kimlik=$contentId")
         val url = "${addon.baseUrl}/stream/$type/$contentId.json".toHttpUrlOrNull()
             ?: return StreamResult.Failed(source, FailureReason.Network)
 

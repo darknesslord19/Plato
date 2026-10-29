@@ -19,15 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kaan.play.R
-import com.kaan.play.data.home.HomeCatalog
-import com.kaan.play.data.home.HomeSection
 import com.kaan.play.data.model.MediaType
-import com.kaan.play.data.tmdb.TmdbQuery
-import com.kaan.play.ui.rememberContainer
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.ui.components.CenteredLoading
 import com.kaan.play.ui.components.ErrorMessage
@@ -42,47 +34,17 @@ import kotlinx.coroutines.flow.filter
 
 /** Ana sayfadaki bir satırın tamamı ("tümü"): afiş ızgarası, kaydırdıkça sonraki sayfalar. */
 @Composable
-fun CategoryScreen(sectionId: String, onBack: () -> Unit, onOpenDetail: (MediaType, Int) -> Unit) {
-    val container = rememberContainer()
-    val layout by container.homeLayout.layout.collectAsStateWithLifecycle(initialValue = null)
-    // Düzenden kaldırılmış hazır kategori de (geri yığınında kalmışsa) açılabilsin.
-    val section = layout?.firstOrNull { it.id == sectionId }
-        ?: HomeSection(sectionId).takeIf { layout != null && HomeCatalog.preset(sectionId) != null }
-    val query = section?.let(HomeCatalog::query)
-    if (section == null || query == null) {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            ScreenHeader(title = "", onBack = onBack)
-            if (layout == null) CenteredLoading()
-        }
-        return
-    }
-    CategoryGrid(section.title(), section.rowKey(), query, onBack, onOpenDetail)
-}
-
-@Composable
-private fun CategoryGrid(
-    title: String,
-    key: String,
-    query: TmdbQuery,
-    onBack: () -> Unit,
-    onOpenDetail: (MediaType, Int) -> Unit,
-) {
-    val vm = containerViewModel(key = "category-$key-${AppLanguage.effective().iso}") { CategoryViewModel(it.tmdb, query) }
+fun CategoryScreen(row: HomeRow, onBack: () -> Unit, onOpenDetail: (MediaType, Int) -> Unit) {
+    val vm = containerViewModel(key = "category-${row.name}-${AppLanguage.effective().iso}") { CategoryViewModel(it.tmdb, row) }
     val state by vm.state.collectAsStateWithLifecycle()
     // Kumanda: içerik gelince ilk afiş başlangıç odağı; geri dönünce son odaklanan afiş.
     val focus = rememberFocusMemory(enabled = state.items.isNotEmpty())
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        ScreenHeader(title = title, onBack = onBack, initialFocus = state.items.isEmpty())
+        ScreenHeader(title = stringResource(row.titleRes()), onBack = onBack, initialFocus = state.items.isEmpty())
         Box(Modifier.weight(1f)) {
             when {
                 state.loading -> CenteredLoading()
-                state.items.isEmpty() && state.error == null -> Text(
-                    text = stringResource(R.string.home_category_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.Center).padding(20.dp),
-                )
                 state.error != null -> ErrorMessage(state.error!!, onRetry = vm::reload, modifier = Modifier.align(Alignment.Center))
                 else -> {
                     val grid = rememberLazyGridState()
@@ -106,6 +68,8 @@ private fun CategoryGrid(
                                 title = media.title,
                                 subtitle = media.year?.toString(),
                                 imageUrl = media.posterUrl(),
+                                tmdbId = media.id,
+                                mediaType = media.type,
                                 onClick = { onOpenDetail(media.type, media.id) },
                                 modifier = Modifier.focusMemory(focus, "${media.type}-${media.id}", isDefault = media == state.items.first()),
                             )

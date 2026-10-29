@@ -11,6 +11,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 /**
  * TMDB v3 için ince HTTP katmanı. Yalnızca DTO döndürür; eşleme ve dil yedeği [TmdbRepository]'dedir.
@@ -19,12 +20,9 @@ import java.io.IOException
 internal class TmdbService(
     private val client: OkHttpClient,
     private val json: Json,
-    /** Her istekte yeniden okunur: kullanıcı anahtarı uygulama içinden değiştirince hemen geçerli olur. */
-    private val apiKeyProvider: () -> String,
+    private val apiKey: String,
     private val baseUrl: HttpUrl = DEFAULT_BASE_URL.toHttpUrl(),
 ) {
-    constructor(client: OkHttpClient, json: Json, apiKey: String, baseUrl: HttpUrl = DEFAULT_BASE_URL.toHttpUrl()) :
-        this(client, json, { apiKey }, baseUrl)
 
     suspend fun trending(language: String, page: Int): ListDto =
         get("trending/all/week", ListDto.serializer(), language, "page" to page.toString())
@@ -35,13 +33,6 @@ internal class TmdbService(
     suspend fun popular(type: String, language: String, page: Int): ListDto =
         get("$type/popular", ListDto.serializer(), language, "page" to page.toString())
 
-    /**
-     * Genel liste isteği (ana sayfa kategorileri): `movie/top_rated`, `discover/tv`, `search/movie` gibi yollar,
-     * ek sorgu parametreleriyle. Yol ve parametreler yalnızca uygulamanın kendi kategori tanımlarından gelir.
-     */
-    suspend fun list(path: String, language: String, page: Int, params: Map<String, String>): ListDto =
-        get(path, ListDto.serializer(), language, *(params + ("page" to page.toString())).toList().toTypedArray())
-
     /** Tür kimliği -> ad listesi (`genre/movie/list`, `genre/tv/list`), istenen dilde. */
     suspend fun genres(type: String, language: String): GenreListDto =
         get("genre/$type/list", GenreListDto.serializer(), language)
@@ -50,9 +41,10 @@ internal class TmdbService(
     suspend fun images(type: String, id: Int, language: String, imageLanguages: String): ImagesDto =
         get("$type/$id/images", ImagesDto.serializer(), language, "include_image_language" to imageLanguages)
 
-    suspend fun search(query: String, language: String, page: Int): ListDto =
+    /** [kind]: `multi` (film + dizi + kişi), `movie` ya da `tv`. */
+    suspend fun search(query: String, language: String, page: Int, kind: String = "multi"): ListDto =
         get(
-            "search/multi", ListDto.serializer(), language,
+            "search/$kind", ListDto.serializer(), language,
             "query" to query, "page" to page.toString(), "include_adult" to "false",
         )
 
@@ -67,9 +59,30 @@ internal class TmdbService(
         val rating = if (type == "tv") "content_ratings" else "release_dates"
         return get(
             "$type/$id", DetailDto.serializer(), language,
-            "append_to_response" to "external_ids,credits,images,$rating",
+            "append_to_response" to "external_ids,credits,images,alternative_titles,similar,recommendations,keywords,videos,$rating",
             "include_image_language" to imageLanguages,
         )
+    }
+
+    /** Aynı tür içinde tema anahtar kelimelerinden aday bulur; TMDB pipe ile OR eşleşmesi uygular. */
+    suspend fun discoverRelated(
+        type: String,
+        language: String,
+        keywordIds: List<Int>,
+        genreIds: List<Int>,
+    ): ListDto {
+        val params = buildList {
+            add("include_adult" to "false")
+            add("sort_by" to "popularity.desc")
+            add("page" to "1")
+            keywordIds.filter { it > 0 }.distinct().take(5).takeIf { it.isNotEmpty() }?.let {
+                add("with_keywords" to it.joinToString("|"))
+            }
+            genreIds.filter { it > 0 }.distinct().take(4).takeIf { it.isNotEmpty() }?.let {
+                add("with_genres" to it.joinToString("|"))
+            }
+        }
+        return get("discover/$type", ListDto.serializer(), language, *params.toTypedArray())
     }
 
     suspend fun season(tvId: Int, season: Int, language: String): SeasonDetailDto =
@@ -81,7 +94,6 @@ internal class TmdbService(
         language: String,
         vararg params: Pair<String, String>,
     ): T {
-        val apiKey = apiKeyProvider()
         if (apiKey.isBlank()) throw TmdbException(TmdbException.Kind.MissingApiKey, path = path)
 
         val url = baseUrl.newBuilder().apply {
@@ -93,7 +105,9 @@ internal class TmdbService(
 
         return withContext(Dispatchers.IO) {
             try {
-                client.newCall(Request.Builder().url(url).get().build()).await().use { response ->
+                val call = client.newCall(Request.Builder().url(url).get().build())
+                if (path.startsWith("discover/")) call.timeout().timeout(RELATED_DISCOVERY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                call.await().use { response ->
                     if (!response.isSuccessful) {
                         throw TmdbException(kindFor(response.code), response.code, path)
                     }
@@ -116,5 +130,6 @@ internal class TmdbService(
 
     companion object {
         const val DEFAULT_BASE_URL = "https://api.themoviedb.org/3/"
+        private const val RELATED_DISCOVERY_TIMEOUT_SECONDS = 4L
     }
 }

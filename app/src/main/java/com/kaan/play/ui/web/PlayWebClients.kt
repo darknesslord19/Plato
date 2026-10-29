@@ -13,7 +13,10 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.kaan.play.data.web.AdHideRules
 import com.kaan.play.data.web.WebPolicy
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import org.json.JSONObject
 import java.io.ByteArrayInputStream
 
 private const val TAG = "PlayWeb"
@@ -35,7 +38,13 @@ interface WebPageListener {
 class PlayWebViewClient(
     private val policy: WebPolicy,
     private val listener: WebPageListener,
+    private val hideRules: AdHideRules = AdHideRules.default,
 ) : WebViewClient() {
+
+    companion object {
+        /** CSS element gizleme etkinleştirme bayrağı. */
+        var enableCssElementHiding: Boolean = true
+    }
 
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
         val host = request.url.host
@@ -62,9 +71,80 @@ class PlayWebViewClient(
         return false
     }
 
-    override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) = listener.onPageStarted()
+    override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+        injectElementHiding(view, url)
+        listener.onPageStarted()
+    }
 
-    override fun onPageFinished(view: WebView, url: String?) = listener.onPageFinished()
+    override fun onPageFinished(view: WebView, url: String?) {
+        injectElementHiding(view, url)
+        listener.onPageFinished()
+        schedulePlayerGuardCheck(view)
+    }
+
+    /**
+     * Sayfanın alan adına uyan element gizleme seçicilerini tek bir CSS olarak enjekte eder:
+     * `seçiciler { display:none !important; }` biçiminde <style> etiketi eklenir veya güncellenir.
+     * Video oynatıcıların çalıştığı iç çerçevelere (iframe) dokunmaz, yalnızca ana belgeye uygulanır.
+     * Ağ isteği yapmaz, veri toplamaz, console.log yazmaz, tamamen try/catch içindedir.
+     */
+    private fun injectElementHiding(view: WebView, url: String?) {
+        if (!enableCssElementHiding || !hideRules.isLoaded) return
+        val targetUrl = url ?: view.url ?: return
+        val host = targetUrl.toHttpUrlOrNull()?.host ?: return
+        val css = hideRules.buildCssForHost(host) ?: return
+        val quotedCss = JSONObject.quote(css)
+        val script = """
+            (function() {
+                try {
+                    var css = $quotedCss;
+                    var style = document.getElementById('__play_ad_hide__');
+                    if (!style) {
+                        style = document.createElement('style');
+                        style.id = '__play_ad_hide__';
+                        style.type = 'text/css';
+                        var target = document.head || document.documentElement || document.body;
+                        if (target) {
+                            target.appendChild(style);
+                        } else {
+                            document.addEventListener('DOMContentLoaded', function() {
+                                try {
+                                    var t = document.head || document.documentElement || document.body;
+                                    if (t && !document.getElementById('__play_ad_hide__')) {
+                                        t.appendChild(style);
+                                    }
+                                } catch(e1) {}
+                            });
+                        }
+                    }
+                    if (style && style.textContent !== css) {
+                        style.textContent = css;
+                    }
+                } catch(e) {}
+            })();
+        """.trimIndent()
+        view.evaluateJavascript(script, null)
+    }
+
+    /**
+     * Sayfa yüklendikten (onPageFinished + 1,5 sn sonra) oynatıcı koruma denetimi çalıştırır.
+     * Sayfadaki video/oynatıcı iframe'i ya da ata kutuları display:none ise CSS'i kaldırır.
+     * Adres veya URL loglamaz, yalnızca tek bir debug kaydı düşer.
+     */
+    private fun schedulePlayerGuardCheck(view: WebView) {
+        if (!enableCssElementHiding) return
+        view.postDelayed({
+            try {
+                view.evaluateJavascript(com.kaan.play.data.web.AdHidePlayerGuard.buildGuardScript()) { result ->
+                    if (result?.contains("REMOVED") == true) {
+                        Log.d(TAG, "player guard triggered: ad hide style removed to protect video playback")
+                    }
+                }
+            } catch (e: Exception) {
+                // Sessizce yutulur
+            }
+        }, 1500)
+    }
 
     override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) = listener.onHistoryChanged()
 
@@ -108,19 +188,10 @@ class PlayWebChromeClient(
     override fun onProgressChanged(view: WebView, newProgress: Int) = onProgress(newProgress)
 
     /**
-     * Yeni pencere hiçbir zaman açılmaz. Tek istisna: kullanıcının dokunduğu, aynı siteye giden `target=_blank`
-     * bağlantısı mevcut sayfada açılır (bölüm/sayfa bağlantıları çalışsın). Hareketsiz `window.open`
-     * zaten gelmez (`javaScriptCanOpenWindowsAutomatically` kapalı).
+     * Yeni pencere her durumda reddedilir (popunder ve açılır pencereler engellenir).
+     * Kullanıcı aynı sekmede gezinmeye devam eder (<a target="_blank"> DOCUMENT_START_SCRIPT ile _self'e çevrilir).
      */
     override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message?): Boolean {
-        if (isUserGesture) {
-            val hit = view.hitTestResult
-            val isLink = hit.type == WebView.HitTestResult.SRC_ANCHOR_TYPE || hit.type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE
-            val target = hit.extra
-            if (isLink && policy.allowsNavigation(target) && WebPolicy.sameSite(view.url, target)) {
-                view.loadUrl(target!!)
-            }
-        }
         Log.d(TAG, "popup rejected")
         return false
     }
