@@ -31,7 +31,7 @@ data class UpdateInfo(
      * GitHub Release web sayfasina yonlendirmek yerine dogrudan .apk dosyasini indirir.
      */
     val directDownloadUrl: String
-        get() = apk?.url ?: "https://github.com/darknesslord19/Plato/releases/download/$tag/Play-${tag.trim().removePrefix("v").removePrefix("V")}.apk"
+        get() = apk?.url ?: "https://github.com/darknesslord19/Plato/releases/download/$tag/${UpdateApkRules.PREFIX}-${tag.trim().removePrefix("v").removePrefix("V")}.apk"
 }
 
 /**

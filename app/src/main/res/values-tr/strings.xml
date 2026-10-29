@@ -156,7 +156,7 @@
     <string name="addons_add_checking">Eklenti denetleniyor…</string>
     <string name="addons_remove">Kaldır</string>
     <string name="addons_remove_title">Eklenti kaldırılsın mı?</string>
-    <string name="addons_remove_message">“%1$s” Play\'den kaldırılacak.</string>
+    <string name="addons_remove_message">“%1$s” Dark Play\'den kaldırılacak.</string>
     <string name="addons_enabled_toggle">%1$s eklentisini aç/kapat</string>
     <string name="addons_row_info">v%1$s · %2$s</string>
     <string name="addons_timeout">Kaynak zaman aşımı: %1$d sn</string>
@@ -165,7 +165,7 @@
     <string name="torrent_server_row">Torrent sunucusu: %1$s</string>
     <string name="torrent_server_none">yerleşik</string>
     <string name="torrent_server_title">Torrent sunucusu</string>
-    <string name="torrent_server_message">Torrent kaynakları Play\'in yerleşik motoruyla oynar. Kendi sunucunuz (TorrServer uyumlu) varsa adresini girin; boş bırakırsanız yerleşik motor kullanılır.</string>
+    <string name="torrent_server_message">Torrent kaynakları Dark Play\'in yerleşik motoruyla oynar. Kendi sunucunuz (TorrServer uyumlu) varsa adresini girin; boş bırakırsanız yerleşik motor kullanılır.</string>
     <string name="torrent_server_field">Sunucu adresi</string>
     <string name="torrent_server_hint">192.168.1.20:8090</string>
     <string name="torrent_server_invalid">192.168.1.20:8090 gibi bir adres girin</string>
@@ -180,8 +180,8 @@
     <string name="addon_error_not_json">Bu adres geçerli bir eklenti döndürmedi (yanıt JSON değil). Adresin manifest.json ile bittiğinden emin ol.</string>
     <string name="addon_error_missing_field">Eklentide “%1$s” alanı yok.</string>
     <string name="addon_error_invalid_field">Eklentinin “%1$s” alanı bozuk.</string>
-    <string name="addon_error_no_stream">Bu eklenti ne akış ne altyazı sunuyor, bu yüzden Play onu kullanamaz.</string>
-    <string name="addon_error_unsupported_types">Bu eklenti film veya dizi sunmuyor, bu yüzden Play onu kullanamaz.</string>
+    <string name="addon_error_no_stream">Bu eklenti ne akış ne altyazı sunuyor, bu yüzden Dark Play onu kullanamaz.</string>
+    <string name="addon_error_unsupported_types">Bu eklenti film veya dizi sunmuyor, bu yüzden Dark Play onu kullanamaz.</string>
     <string name="addon_error_no_plugins">Bu depoda kullanılabilir eklenti yok.</string>
     <string name="addon_error_plugin_file">“%1$s” indirilemedi ya da geçerli bir eklenti dosyası değil. Bağlantıyı kontrol edip tekrar dene.</string>
     <string name="addon_error_plugin_file_reason">“%1$s” indirilemedi ya da geçerli bir eklenti dosyası değil (%2$s). Bağlantıyı kontrol edip tekrar dene.</string>
@@ -237,7 +237,7 @@
     <string name="addon_type_subtitles">Altyazı eklentisi</string>
     <string name="add_done_repo">Eklenti deposu eklendi</string>
     <string name="add_done_repo_skipped">Eklenti deposu eklendi · %1$d atlandı</string>
-    <string name="plugins_note">Eklentiler üçüncü taraflarca yazılır; Play içerik sağlamaz.</string>
+    <string name="plugins_note">Eklentiler üçüncü taraflarca yazılır; Dark Play içerik sağlamaz.</string>
     <plurals name="plugins_count">
         <item quantity="one">%d eklenti</item>
         <item quantity="other">%d eklenti</item>
@@ -256,7 +256,7 @@
     <string name="plugin_settings_failed">Ayarlar yüklenemedi.</string>
     <string name="repos_remove">Depoyu kaldır</string>
     <string name="repos_remove_title">Depo kaldırılsın mı?</string>
-    <string name="repos_remove_message">“%1$s” ve eklentileri Play\'den kaldırılacak.</string>
+    <string name="repos_remove_message">“%1$s” ve eklentileri Dark Play\'den kaldırılacak.</string>
 
     <!-- Kütüphane -->
     <string name="library_favorites">Favoriler</string>
@@ -311,7 +311,7 @@
     <string name="player_audio">Ses</string>
     <string name="player_audio_track">Parça %1$d</string>
     <string name="settings_subtitle_language">Tercih edilen altyazı dili</string>
-    <string name="about_no_content">Play hiçbir içerik sağlamaz; kullanıcı kendi eklentilerini ekler.</string>
+    <string name="about_no_content">Dark Play hiçbir içerik sağlamaz; kullanıcı kendi eklentilerini ekler.</string>
     <string name="about_tmdb_attribution">Bu ürün TMDB API\'sini kullanır ancak TMDB tarafından onaylanmamıştır veya sertifikalandırılmamıştır.</string>
     <string name="about_license_attribution">Bu uygulama GNU GPL v3.0 ile lisanslanmıştır. CloudStream (GPL-3.0) kütüphanesini ve EasyList (GPLv3 / CC BY-SA 3.0) filtre kurallarını kullanır.</string>
 
@@ -327,7 +327,7 @@
     <string name="web_error_already_added">Bu web sitesi zaten ekli.</string>
     <string name="web_remove">Web sitesini kaldır</string>
     <string name="web_remove_title">Web sitesi kaldırılsın mı?</string>
-    <string name="web_remove_message">“%1$s” Play\'den kaldırılacak; çerezleri ve kayıtlı verileri silinecek.</string>
+    <string name="web_remove_message">“%1$s” Dark Play\'den kaldırılacak; çerezleri ve kayıtlı verileri silinecek.</string>
     <string name="web_close">Kapat</string>
     <string name="web_forward">İleri</string>
     <string name="web_refresh">Yenile</string>
@@ -386,7 +386,7 @@
     <string name="update_progress">%%%1$d</string>
     <string name="update_cancel">İptal</string>
     <string name="update_permission_title">Güncelleme kurulumuna izin ver</string>
-    <string name="update_permission_message">Play\'in güncelleme kurabilmesi için Android\'in iznine ihtiyaç var. "Bu kaynaktan izin verin" ayarını aç, sonra geri dön.</string>
+    <string name="update_permission_message">Dark Play\'in güncelleme kurabilmesi için Android\'in iznine ihtiyaç var. "Bu kaynaktan izin verin" ayarını aç, sonra geri dön.</string>
     <string name="update_open_settings">Ayarları aç</string>
     <string name="update_failed_title">Güncelleme tamamlanamadı</string>
     <string name="update_failed_download">İndirme tamamlanamadı. Bağlantını kontrol et ya da bu sürümü tarayıcıdan indir.</string>
@@ -428,10 +428,10 @@
 
     <!-- Güncelleme indirmesi: bildirimler -->
     <string name="update_channel_name">Uygulama güncellemeleri</string>
-    <string name="update_notification_downloading">Play %1$s indiriliyor</string>
+    <string name="update_notification_downloading">Dark Play %1$s indiriliyor</string>
     <string name="update_notification_ready">Güncelleme indirildi</string>
-    <string name="update_notification_ready_text">Play %1$s sürümünü yüklemek için dokun</string>
-    <string name="update_notification_failed_text">Tekrar denemek için Play\'i aç</string>
+    <string name="update_notification_ready_text">Dark Play %1$s sürümünü yüklemek için dokun</string>
+    <string name="update_notification_failed_text">Tekrar denemek için Dark Play\'i aç</string>
     <string name="update_retry">Tekrar dene</string>
 
     <!-- Oynatıcı: kaynak, altyazı, ses, çözünürlük -->
@@ -528,7 +528,7 @@
     <string name="provider_verify_close">Kapat</string>
     <string name="provider_verify_hint">Lütfen ekrandaki kutucuğu işaretleyin</string>
     <string name="provider_error_dex_missing">Eklenti dosyası bulunamadı, yeniden indirilemedi</string>
-    <string name="provider_error_incompatible">Bu eklenti Play\'in sürümüyle uyumlu değil</string>
+    <string name="provider_error_incompatible">Bu eklenti Dark Play\'in sürümüyle uyumlu değil</string>
     <string name="provider_error_load_failed">Eklenti yüklenemedi</string>
     <string name="provider_error_not_found">Eklenti bulunamadı</string>
     <string name="provider_error_no_api">Eklenti API\'si bulunamadı</string>

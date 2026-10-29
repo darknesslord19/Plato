@@ -143,16 +143,16 @@ class UpdateCheckerTest {
                 extra = ""","x":0""",
             ).replace(
                 """[{"name":"a.apk"}]""",
-                """[{"name":"Play-1.0.1-arm64-v8a.apk","browser_download_url":"$base/Play-1.0.1-arm64-v8a.apk","size":13000000},
-                   {"name":"Play-1.0.1-x86_64.apk","browser_download_url":"$base/Play-1.0.1-x86_64.apk","size":12000000},
-                   {"name":"Play-1.0.1-SHA256.txt","browser_download_url":"$base/Play-1.0.1-SHA256.txt","size":200}]""",
+                """[{"name":"DarkPlay-1.0.1-arm64-v8a.apk","browser_download_url":"$base/DarkPlay-1.0.1-arm64-v8a.apk","size":13000000},
+                   {"name":"DarkPlay-1.0.1-x86_64.apk","browser_download_url":"$base/DarkPlay-1.0.1-x86_64.apk","size":12000000},
+                   {"name":"DarkPlay-1.0.1-SHA256.txt","browser_download_url":"$base/DarkPlay-1.0.1-SHA256.txt","size":200}]""",
             ),
         )
         val info = UpdateChecker(
             OkHttpClient(), PlayJson, "1.0.0", server.url("/r").toString(), abis = listOf("x86_64", "arm64-v8a"),
         ).fetch()
-        assertEquals("Play-1.0.1-x86_64.apk", info?.apk?.name)
-        assertEquals("$base/Play-1.0.1-SHA256.txt", info?.apk?.sha256Url)
+        assertEquals("DarkPlay-1.0.1-x86_64.apk", info?.apk?.name)
+        assertEquals("$base/DarkPlay-1.0.1-SHA256.txt", info?.apk?.sha256Url)
         reply(release()) // apk varlığı yok: eski yöntem (apk=null)
         assertNull(checker().fetch()?.apk)
     }

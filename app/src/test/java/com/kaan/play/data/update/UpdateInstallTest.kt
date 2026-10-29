@@ -35,70 +35,70 @@ private fun sha256Hex(bytes: ByteArray) =
 class UpdateApkRulesTest {
 
     private fun assets(vararg abis: String, base: String = "https://github.com/liberta09/Play/releases/download/v1.0.3") =
-        abis.map { ReleaseAsset("Play-1.0.3-$it.apk", "$base/Play-1.0.3-$it.apk", 13_000_000) } +
-            ReleaseAsset("Play-1.0.3-SHA256.txt", "$base/Play-1.0.3-SHA256.txt", 272)
+        abis.map { ReleaseAsset("DarkPlay-1.0.3-$it.apk", "$base/DarkPlay-1.0.3-$it.apk", 13_000_000) } +
+            ReleaseAsset("DarkPlay-1.0.3-SHA256.txt", "$base/DarkPlay-1.0.3-SHA256.txt", 272)
 
     private val all = assets("arm64-v8a", "armeabi-v7a", "x86_64")
 
     @Test
     fun `evrensel apk varsa abi den bagimsiz ilk olarak o secilir`() {
         val withUniversal = listOf(
-            ReleaseAsset("Play-1.1.0.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0.apk", 55_000_000),
-            ReleaseAsset("Play-1.1.0-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-arm64-v8a.apk", 13_000_000),
-            ReleaseAsset("Play-1.1.0-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-SHA256.txt", 200),
+            ReleaseAsset("DarkPlay-1.1.0.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/DarkPlay-1.1.0.apk", 55_000_000),
+            ReleaseAsset("DarkPlay-1.1.0-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/DarkPlay-1.1.0-arm64-v8a.apk", 13_000_000),
+            ReleaseAsset("DarkPlay-1.1.0-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.1.0/DarkPlay-1.1.0-SHA256.txt", 200),
         )
         val picked = UpdateApkRules.pick("v1.1.0", withUniversal, listOf("arm64-v8a"))
         assertNotNull(picked)
-        assertEquals("Play-1.1.0.apk", picked?.name)
-        assertEquals("https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0.apk", picked?.url)
+        assertEquals("DarkPlay-1.1.0.apk", picked?.name)
+        assertEquals("https://github.com/liberta09/Play/releases/download/v1.1.0/DarkPlay-1.1.0.apk", picked?.url)
         assertEquals(55_000_000L, picked?.size)
     }
 
     @Test
     fun `evrensel apk yoksa eski abi adlandirmasina geri dusulur`() {
         val legacy = listOf(
-            ReleaseAsset("Play-1.0.3-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.0.3/Play-1.0.3-arm64-v8a.apk", 13_000_000),
-            ReleaseAsset("Play-1.0.3-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.0.3/Play-1.0.3-SHA256.txt", 200),
+            ReleaseAsset("DarkPlay-1.0.3-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.0.3/DarkPlay-1.0.3-arm64-v8a.apk", 13_000_000),
+            ReleaseAsset("DarkPlay-1.0.3-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.0.3/DarkPlay-1.0.3-SHA256.txt", 200),
         )
         val picked = UpdateApkRules.pick("v1.0.3", legacy, listOf("arm64-v8a"))
         assertNotNull(picked)
-        assertEquals("Play-1.0.3-arm64-v8a.apk", picked?.name)
+        assertEquals("DarkPlay-1.0.3-arm64-v8a.apk", picked?.name)
     }
 
     @Test
     fun `evrensel apk boyutu gecersizse abi adlandirmasina geri dusulur`() {
         val list = listOf(
-            ReleaseAsset("Play-1.1.0.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0.apk", UpdateApkRules.MAX_APK_BYTES + 1),
-            ReleaseAsset("Play-1.1.0-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-arm64-v8a.apk", 13_000_000),
-            ReleaseAsset("Play-1.1.0-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-SHA256.txt", 200),
+            ReleaseAsset("DarkPlay-1.1.0.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/DarkPlay-1.1.0.apk", UpdateApkRules.MAX_APK_BYTES + 1),
+            ReleaseAsset("DarkPlay-1.1.0-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/DarkPlay-1.1.0-arm64-v8a.apk", 13_000_000),
+            ReleaseAsset("DarkPlay-1.1.0-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.1.0/DarkPlay-1.1.0-SHA256.txt", 200),
         )
         val picked = UpdateApkRules.pick("v1.1.0", list, listOf("arm64-v8a"))
-        assertEquals("Play-1.1.0-arm64-v8a.apk", picked?.name)
+        assertEquals("DarkPlay-1.1.0-arm64-v8a.apk", picked?.name)
     }
 
     @Test
     fun `evrensel apk adresi guvensizse abi adlandirmasina geri dusulur`() {
         val list = listOf(
-            ReleaseAsset("Play-1.1.0.apk", "http://insecure.example.com/Play-1.1.0.apk", 55_000_000),
-            ReleaseAsset("Play-1.1.0-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-arm64-v8a.apk", 13_000_000),
-            ReleaseAsset("Play-1.1.0-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.1.0/Play-1.1.0-SHA256.txt", 200),
+            ReleaseAsset("DarkPlay-1.1.0.apk", "http://insecure.example.com/DarkPlay-1.1.0.apk", 55_000_000),
+            ReleaseAsset("DarkPlay-1.1.0-arm64-v8a.apk", "https://github.com/liberta09/Play/releases/download/v1.1.0/DarkPlay-1.1.0-arm64-v8a.apk", 13_000_000),
+            ReleaseAsset("DarkPlay-1.1.0-SHA256.txt", "https://github.com/liberta09/Play/releases/download/v1.1.0/DarkPlay-1.1.0-SHA256.txt", 200),
         )
         val picked = UpdateApkRules.pick("v1.1.0", list, listOf("arm64-v8a"))
-        assertEquals("Play-1.1.0-arm64-v8a.apk", picked?.name)
+        assertEquals("DarkPlay-1.1.0-arm64-v8a.apk", picked?.name)
     }
 
     @Test
     fun `cihazin en tercih ettigi islemci turu secilir`() {
-        assertEquals("Play-1.0.3-arm64-v8a.apk", UpdateApkRules.pick("v1.0.3", all, listOf("arm64-v8a", "armeabi-v7a", "armeabi"))?.name)
-        assertEquals("Play-1.0.3-armeabi-v7a.apk", UpdateApkRules.pick("v1.0.3", all, listOf("armeabi-v7a", "armeabi"))?.name)
-        assertEquals("Play-1.0.3-x86_64.apk", UpdateApkRules.pick("v1.0.3", all, listOf("x86_64", "x86", "arm64-v8a"))?.name)
+        assertEquals("DarkPlay-1.0.3-arm64-v8a.apk", UpdateApkRules.pick("v1.0.3", all, listOf("arm64-v8a", "armeabi-v7a", "armeabi"))?.name)
+        assertEquals("DarkPlay-1.0.3-armeabi-v7a.apk", UpdateApkRules.pick("v1.0.3", all, listOf("armeabi-v7a", "armeabi"))?.name)
+        assertEquals("DarkPlay-1.0.3-x86_64.apk", UpdateApkRules.pick("v1.0.3", all, listOf("x86_64", "x86", "arm64-v8a"))?.name)
     }
 
     @Test
     fun `tercih sirasi cihazdan gelir release sirasindan degil`() {
         // x86 emülatörde x86_64 önce gelir; yalnızca arm64 varsa o seçilir.
         val onlyArm = assets("arm64-v8a")
-        assertEquals("Play-1.0.3-arm64-v8a.apk", UpdateApkRules.pick("v1.0.3", onlyArm, listOf("x86_64", "arm64-v8a"))?.name)
+        assertEquals("DarkPlay-1.0.3-arm64-v8a.apk", UpdateApkRules.pick("v1.0.3", onlyArm, listOf("x86_64", "arm64-v8a"))?.name)
     }
 
     @Test
@@ -116,8 +116,8 @@ class UpdateApkRulesTest {
     @Test
     fun `sonuc apk adresi boyutu ve ozet adresini tasir`() {
         val apk = UpdateApkRules.pick("v1.0.3", all, listOf("arm64-v8a"))!!
-        assertEquals("https://github.com/liberta09/Play/releases/download/v1.0.3/Play-1.0.3-arm64-v8a.apk", apk.url)
-        assertEquals("https://github.com/liberta09/Play/releases/download/v1.0.3/Play-1.0.3-SHA256.txt", apk.sha256Url)
+        assertEquals("https://github.com/liberta09/Play/releases/download/v1.0.3/DarkPlay-1.0.3-arm64-v8a.apk", apk.url)
+        assertEquals("https://github.com/liberta09/Play/releases/download/v1.0.3/DarkPlay-1.0.3-SHA256.txt", apk.sha256Url)
         assertEquals(13_000_000, apk.size)
     }
 
@@ -133,11 +133,11 @@ class UpdateApkRulesTest {
     @Test
     fun `sifir ya da asiri boyutlu apk atlanir sonraki islemci turune bakilir`() {
         val list = listOf(
-            ReleaseAsset("Play-1.0.3-arm64-v8a.apk", "https://github.com/a/b/c.apk", 0),
-            ReleaseAsset("Play-1.0.3-armeabi-v7a.apk", "https://github.com/a/b/d.apk", 12_000_000),
-            ReleaseAsset("Play-1.0.3-SHA256.txt", "https://github.com/a/b/h.txt", 100),
+            ReleaseAsset("DarkPlay-1.0.3-arm64-v8a.apk", "https://github.com/a/b/c.apk", 0),
+            ReleaseAsset("DarkPlay-1.0.3-armeabi-v7a.apk", "https://github.com/a/b/d.apk", 12_000_000),
+            ReleaseAsset("DarkPlay-1.0.3-SHA256.txt", "https://github.com/a/b/h.txt", 100),
         )
-        assertEquals("Play-1.0.3-armeabi-v7a.apk", UpdateApkRules.pick("v1.0.3", list, listOf("arm64-v8a", "armeabi-v7a"))?.name)
+        assertEquals("DarkPlay-1.0.3-armeabi-v7a.apk", UpdateApkRules.pick("v1.0.3", list, listOf("arm64-v8a", "armeabi-v7a"))?.name)
         val huge = list.map { it.copy(size = UpdateApkRules.MAX_APK_BYTES + 1) }
         assertNull(UpdateApkRules.pick("v1.0.3", huge, listOf("arm64-v8a", "armeabi-v7a")))
     }
@@ -153,12 +153,12 @@ class UpdateApkRulesTest {
     fun `sha256sum bicimleri okunur`() {
         val h = "a".repeat(64)
         val k = "B".repeat(64)
-        val text = "$h *Play-1.0.3-arm64-v8a.apk\r\n$k  Play-1.0.3-x86_64.apk\n"
-        assertEquals(h, UpdateApkRules.parseSha256(text, "Play-1.0.3-arm64-v8a.apk"))
-        assertEquals(k.lowercase(), UpdateApkRules.parseSha256(text, "Play-1.0.3-x86_64.apk")) // boşluk biçimi, büyük harf
-        assertNull(UpdateApkRules.parseSha256(text, "Play-1.0.3-armeabi-v7a.apk"))
+        val text = "$h *DarkPlay-1.0.3-arm64-v8a.apk\r\n$k  DarkPlay-1.0.3-x86_64.apk\n"
+        assertEquals(h, UpdateApkRules.parseSha256(text, "DarkPlay-1.0.3-arm64-v8a.apk"))
+        assertEquals(k.lowercase(), UpdateApkRules.parseSha256(text, "DarkPlay-1.0.3-x86_64.apk")) // boşluk biçimi, büyük harf
+        assertNull(UpdateApkRules.parseSha256(text, "DarkPlay-1.0.3-armeabi-v7a.apk"))
         // BOM dayanıklılığı testi (\uFEFF)
-        assertEquals(h, UpdateApkRules.parseSha256("\uFEFF$text", "Play-1.0.3-arm64-v8a.apk"))
+        assertEquals(h, UpdateApkRules.parseSha256("\uFEFF$text", "DarkPlay-1.0.3-arm64-v8a.apk"))
     }
 
     @Test
@@ -197,7 +197,7 @@ class UpdateFlowTest {
     private lateinit var dir: File
 
     private val apkBytes = ByteArray(200 * 1024) { (it * 31).toByte() }
-    private val apkName = "Play-9.9.9-x86_64.apk"
+    private val apkName = "DarkPlay-9.9.9-x86_64.apk"
 
     private var hashLine = ""
     private var apkResponse: () -> MockResponse = { MockResponse.Builder().body(Buffer().write(apkBytes)).build() }
@@ -225,7 +225,7 @@ class UpdateFlowTest {
                             apkRanges += request.headers["Range"]
                             apkHandler?.invoke(request) ?: apkResponse()
                         }
-                        "/dl/Play-9.9.9-SHA256.txt" -> hashResponse?.invoke() ?: MockResponse.Builder().body(hashLine).build()
+                        "/dl/DarkPlay-9.9.9-SHA256.txt" -> hashResponse?.invoke() ?: MockResponse.Builder().body(hashLine).build()
                         else -> MockResponse.Builder().code(404).build()
                     }
                 }
@@ -243,7 +243,7 @@ class UpdateFlowTest {
         val base = server.url("/dl").toString()
         return """{"tag_name":"v9.9.9","html_url":"https://github.com/liberta09/Play/releases/tag/v9.9.9","assets":[
             {"name":"$apkName","browser_download_url":"$base/$apkName","size":${apkBytes.size}},
-            {"name":"Play-9.9.9-SHA256.txt","browser_download_url":"$base/Play-9.9.9-SHA256.txt","size":100}]}"""
+            {"name":"DarkPlay-9.9.9-SHA256.txt","browser_download_url":"$base/DarkPlay-9.9.9-SHA256.txt","size":100}]}"""
     }
 
     private class FakePlatform : InstallPlatform {
@@ -529,8 +529,8 @@ class UpdateFlowTest {
 
     @Test
     fun `baska surume ait yarim dosya temizlenir`() = runTest {
-        val stale = File(dir, "Play-9.0.0-x86_64.apk.part").also { it.writeBytes(ByteArray(10)) }
-        val oldApk = File(dir, "Play-9.0.0-x86_64.apk").also { it.writeBytes(ByteArray(10)) }
+        val stale = File(dir, "DarkPlay-9.0.0-x86_64.apk.part").also { it.writeBytes(ByteArray(10)) }
+        val oldApk = File(dir, "DarkPlay-9.0.0-x86_64.apk").also { it.writeBytes(ByteArray(10)) }
         apkHandler = ::rangeAware
         val (flow, _) = newFlow(FakePlatform())
         flow.await { it is UpdateState.Offer }
@@ -631,12 +631,12 @@ class UpdateFlowTest {
 
     @Test
     fun `apk adi klasor disina cikamaz`() {
-        assertTrue(UpdateApkRules.isPlausibleApkName("Play-1.0.4-arm64-v8a.apk"))
-        assertFalse(UpdateApkRules.isPlausibleApkName("../Play-1.0.4.apk"))
-        assertFalse(UpdateApkRules.isPlausibleApkName("a/Play-1.0.4.apk"))
-        assertFalse(UpdateApkRules.isPlausibleApkName("Play-1.0.4.apk\\x"))
+        assertTrue(UpdateApkRules.isPlausibleApkName("DarkPlay-1.0.4-arm64-v8a.apk"))
+        assertFalse(UpdateApkRules.isPlausibleApkName("../DarkPlay-1.0.4.apk"))
+        assertFalse(UpdateApkRules.isPlausibleApkName("a/DarkPlay-1.0.4.apk"))
+        assertFalse(UpdateApkRules.isPlausibleApkName("DarkPlay-1.0.4.apk\\x"))
         assertFalse(UpdateApkRules.isPlausibleApkName("evil.apk"))
-        assertFalse(UpdateApkRules.isPlausibleApkName("Play-1.0.4.txt"))
+        assertFalse(UpdateApkRules.isPlausibleApkName("DarkPlay-1.0.4.txt"))
     }
 
     @Test
@@ -748,7 +748,7 @@ class UpdateFlowTest {
             "v9.9.9",
             listOf(
                 ReleaseAsset(apkName, server.url("/dl/$apkName").toString(), apkBytes.size.toLong()),
-                ReleaseAsset("Play-9.9.9-SHA256.txt", server.url("/dl/Play-9.9.9-SHA256.txt").toString(), 100),
+                ReleaseAsset("DarkPlay-9.9.9-SHA256.txt", server.url("/dl/DarkPlay-9.9.9-SHA256.txt").toString(), 100),
             ),
             listOf("x86_64"),
             server.hostName,

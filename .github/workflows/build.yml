@@ -1,10 +1,10 @@
-# Plato — otomatik derleme (GitHub Actions)
+# Dark Play — otomatik derleme (GitHub Actions)
 #
 # Her main gönderiminde (ve Actions sekmesinden elle "Run workflow" ile):
 #   1. "Testler" işi birim testlerini çalıştırır (bozuk kod görünür olsun).
 #   2. "APK" işi imzalı release APK'sını derler, çalıştırmanın Artifacts bölümüne koyar
 #      ve main'deyse "v<sürüm>" etiketiyle bir GitHub Release yayımlar
-#      (Play-<sürüm>.apk + Play-<sürüm>-SHA256.txt; uygulama içi güncelleme bunları bulur).
+#      (DarkPlay-<sürüm>.apk + DarkPlay-<sürüm>-SHA256.txt; uygulama içi güncelleme bunları bulur).
 #
 # Sürüm: build.gradle.kts'teki taban sürüme çalıştırma numarası eklenir (ör. 1.2.0 → 1.2.0.7),
 # böylece her derleme bir öncekinden yenidir ve uygulama içi güncelleme çalışır.
@@ -114,7 +114,7 @@ jobs:
             echo "::add-mask::$pass"
             keytool -genkeypair -keystore keystore/play-release.keystore -alias play \
               -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass "$pass" -keypass "$pass" -dname "CN=Play temporary" >/dev/null 2>&1
+              -storepass "$pass" -keypass "$pass" -dname "CN=Dark Play temporary" >/dev/null 2>&1
             echo "TEMP_KEYSTORE_PASSWORD=$pass" >> "$GITHUB_ENV"
             echo "kind=temporary" >> "$GITHUB_OUTPUT"
             echo "::warning::KEYSTORE_BASE64/KEYSTORE_PASSWORD tanımlı değil; geçici anahtarla imzalanıyor. Bu APK bir sonrakinin üzerine kurulamaz."
@@ -149,7 +149,7 @@ jobs:
 
       - name: APK imzasını doğrula
         run: |
-          apk="app/build/outputs/apk/release/Play-${{ steps.version.outputs.name }}.apk"
+          apk="app/build/outputs/apk/release/DarkPlay-${{ steps.version.outputs.name }}.apk"
           test -f "$apk" || { echo "::error::$apk bulunamadı"; exit 1; }
           apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
           if [ -z "$apksigner" ]; then
@@ -170,10 +170,10 @@ jobs:
       - name: APK'yı yükle (Artifacts)
         uses: actions/upload-artifact@v4
         with:
-          name: Play-${{ steps.version.outputs.name }}
+          name: DarkPlay-${{ steps.version.outputs.name }}
           path: |
-            app/build/outputs/apk/release/Play-${{ steps.version.outputs.name }}.apk
-            app/build/outputs/apk/release/Play-${{ steps.version.outputs.name }}-SHA256.txt
+            app/build/outputs/apk/release/DarkPlay-${{ steps.version.outputs.name }}.apk
+            app/build/outputs/apk/release/DarkPlay-${{ steps.version.outputs.name }}-SHA256.txt
           retention-days: 30
           if-no-files-found: error
 
@@ -192,8 +192,8 @@ jobs:
           ⚠️ Geçici anahtarla imzalandı: önceki sürümün üzerine kurulamaz, önce kaldırman gerekir. Depo ayarlarına KEYSTORE_BASE64 ve KEYSTORE_PASSWORD ekleyince bu sorun kalkar."
           fi
           if ! gh release create "v$NAME" \
-            "$dir/Play-$NAME.apk" "$dir/Play-$NAME-SHA256.txt" \
-            --target "$GITHUB_SHA" --title "Plato $NAME" --notes "$notes" --latest > /tmp/release.txt 2>&1; then
+            "$dir/DarkPlay-$NAME.apk" "$dir/DarkPlay-$NAME-SHA256.txt" \
+            --target "$GITHUB_SHA" --title "Dark Play $NAME" --notes "$notes" --latest > /tmp/release.txt 2>&1; then
             cat /tmp/release.txt
             msg=$(tail -5 /tmp/release.txt | sed -e ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=GitHub Release::$msg"

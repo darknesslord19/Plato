@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Varsayılan (İngilizce). Türkçe karşılıklar values-tr/strings.xml içinde; iki dosyanın anahtarları aynı olmalı. -->
 <resources>
-    <string name="app_name" translatable="false">Plato</string>
+    <string name="app_name" translatable="false">Dark Play</string>
     <!-- Ara noktayla ayrılmış iki parça (yıl · tür, S1 · 23 dk vb.). -->
     <string name="dot_join" translatable="false">%1$s · %2$s</string>
     <string name="download_progress_of" translatable="false">%1$s / %2$s</string>
@@ -176,7 +176,7 @@
     <string name="addons_add_checking">Checking addon…</string>
     <string name="addons_remove">Remove</string>
     <string name="addons_remove_title">Remove addon?</string>
-    <string name="addons_remove_message">“%1$s” will be removed from Play.</string>
+    <string name="addons_remove_message">“%1$s” will be removed from Dark Play.</string>
     <string name="addons_enabled_toggle">Enable %1$s</string>
     <string name="addons_row_info">v%1$s · %2$s</string>
     <string name="addons_timeout">Source timeout: %1$d s</string>
@@ -185,7 +185,7 @@
     <string name="torrent_server_row">Torrent server: %1$s</string>
     <string name="torrent_server_none">built-in</string>
     <string name="torrent_server_title">Torrent server</string>
-    <string name="torrent_server_message">Torrent sources play with Play\'s built-in engine. If you run your own server (TorrServer compatible), enter its address; leave empty to use the built-in engine.</string>
+    <string name="torrent_server_message">Torrent sources play with Dark Play\'s built-in engine. If you run your own server (TorrServer compatible), enter its address; leave empty to use the built-in engine.</string>
     <string name="torrent_server_field">Server address</string>
     <string name="torrent_server_hint">192.168.1.20:8090</string>
     <string name="torrent_server_invalid">Enter an address like 192.168.1.20:8090</string>
@@ -200,8 +200,8 @@
     <string name="addon_error_not_json">That address didn\'t return a valid addon (the response isn\'t JSON). Check that it ends in manifest.json.</string>
     <string name="addon_error_missing_field">The addon is missing the “%1$s” field.</string>
     <string name="addon_error_invalid_field">The addon\'s “%1$s” field is malformed.</string>
-    <string name="addon_error_no_stream">This addon provides neither streams nor subtitles, so Play can\'t use it.</string>
-    <string name="addon_error_unsupported_types">This addon doesn\'t offer movies or series, so Play can\'t use it.</string>
+    <string name="addon_error_no_stream">This addon provides neither streams nor subtitles, so Dark Play can\'t use it.</string>
+    <string name="addon_error_unsupported_types">This addon doesn\'t offer movies or series, so Dark Play can\'t use it.</string>
     <string name="addon_error_no_plugins">This repository doesn\'t list any usable addons.</string>
     <string name="addon_error_plugin_file">“%1$s” couldn\'t be downloaded or isn\'t a valid addon file. Check the link and try again.</string>
     <string name="addon_error_plugin_file_reason">“%1$s” couldn\'t be downloaded or isn\'t a valid addon file (%2$s). Check the link and try again.</string>
@@ -257,7 +257,7 @@
     <string name="addon_type_subtitles">Subtitle extension</string>
     <string name="add_done_repo">Addon repository added</string>
     <string name="add_done_repo_skipped">Addon repository added · %1$d skipped</string>
-    <string name="plugins_note">Addons are written by third parties; Play doesn\'t provide content.</string>
+    <string name="plugins_note">Addons are written by third parties; Dark Play doesn\'t provide content.</string>
     <plurals name="plugins_count">
         <item quantity="one">%d addon</item>
         <item quantity="other">%d addons</item>
@@ -276,7 +276,7 @@
     <string name="plugin_settings_failed">Settings could not be loaded.</string>
     <string name="repos_remove">Remove repository</string>
     <string name="repos_remove_title">Remove repository?</string>
-    <string name="repos_remove_message">“%1$s” and its addons will be removed from Play.</string>
+    <string name="repos_remove_message">“%1$s” and its addons will be removed from Dark Play.</string>
 
     <!-- Kütüphane -->
     <string name="library_favorites">Favorites</string>
@@ -331,7 +331,7 @@
     <string name="player_audio">Audio</string>
     <string name="player_audio_track">Track %1$d</string>
     <string name="settings_subtitle_language">Preferred subtitle language</string>
-    <string name="about_no_content">Play doesn\'t provide any content; you add your own addons.</string>
+    <string name="about_no_content">Dark Play doesn\'t provide any content; you add your own addons.</string>
 
     <!-- Web siteleri (Eklentiler içinde) -->
     <string name="web_add">Add website</string>
@@ -345,7 +345,7 @@
     <string name="web_error_already_added">This website is already added.</string>
     <string name="web_remove">Remove website</string>
     <string name="web_remove_title">Remove website?</string>
-    <string name="web_remove_message">“%1$s” will be removed from Play and its cookies and stored data will be cleared.</string>
+    <string name="web_remove_message">“%1$s” will be removed from Dark Play and its cookies and stored data will be cleared.</string>
     <string name="web_close">Close</string>
     <string name="web_forward">Forward</string>
     <string name="web_refresh">Refresh</string>
@@ -404,7 +404,7 @@
     <string name="update_progress">%1$d%%</string>
     <string name="update_cancel">Cancel</string>
     <string name="update_permission_title">Allow installing updates</string>
-    <string name="update_permission_message">Android needs your OK before Play can install updates. Turn on "Allow from this source", then come back.</string>
+    <string name="update_permission_message">Android needs your OK before Dark Play can install updates. Turn on "Allow from this source", then come back.</string>
     <string name="update_open_settings">Open settings</string>
     <string name="update_failed_title">Update didn\'t finish</string>
     <string name="update_failed_download">The download didn\'t complete. Check your connection, or get this version from the browser.</string>
@@ -446,10 +446,10 @@
 
     <!-- Güncelleme indirmesi: bildirimler -->
     <string name="update_channel_name">App updates</string>
-    <string name="update_notification_downloading">Downloading Play %1$s</string>
+    <string name="update_notification_downloading">Downloading Dark Play %1$s</string>
     <string name="update_notification_ready">Update downloaded</string>
-    <string name="update_notification_ready_text">Tap to install Play %1$s</string>
-    <string name="update_notification_failed_text">Open Play to try again</string>
+    <string name="update_notification_ready_text">Tap to install Dark Play %1$s</string>
+    <string name="update_notification_failed_text">Open Dark Play to try again</string>
     <string name="update_retry">Try again</string>
 
     <!-- Oynatıcı: kaynak, altyazı, ses, çözünürlük -->
@@ -546,7 +546,7 @@
     <string name="provider_verify_close">Close</string>
     <string name="provider_verify_hint">Please check the box on screen</string>
     <string name="provider_error_dex_missing">Plugin file not found, re-download failed</string>
-    <string name="provider_error_incompatible">This plugin is not compatible with Play\'s version</string>
+    <string name="provider_error_incompatible">This plugin is not compatible with Dark Play\'s version</string>
     <string name="provider_error_load_failed">Failed to load plugin</string>
     <string name="provider_error_not_found">Plugin not found</string>
     <string name="provider_error_no_api">No plugin API found</string>

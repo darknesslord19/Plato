@@ -749,14 +749,14 @@ fun PlayRoot() {
                         ) {
                             Icon(
                                 imageVector = PlayIcons.PlayTriangle,
-                                contentDescription = "Plato",
+                                contentDescription = "Dark Play",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(28.dp),
                             )
                             if (isExpanded) {
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
-                                    text = "Plato",
+                                    text = "Dark Play",
                                     style = MaterialTheme.typography.titleLarge.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 22.sp,

@@ -43,7 +43,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.kaan.play"
+        applicationId = "com.dark.play"
         minSdk = 24
         targetSdk = 37
         // CI (GitHub Actions) sürümü verir: 1.2.0.<çalıştırma>; yerelde 1.2.0.
@@ -219,11 +219,11 @@ configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configu
 }
 
 
-// Release derlemesi sonunda Play-<sürüm>.apk ve Play-<sürüm>-SHA256.txt üretilir.
+// Release derlemesi sonunda DarkPlay-<sürüm>.apk ve DarkPlay-<sürüm>-SHA256.txt üretilir.
 tasks.matching { it.name == "assembleRelease" }.configureEach {
     doLast {
         val releaseDir = layout.buildDirectory.dir("outputs/apk/release").get().asFile
-        val targetApk = File(releaseDir, "Play-${android.defaultConfig.versionName}.apk")
+        val targetApk = File(releaseDir, "DarkPlay-${android.defaultConfig.versionName}.apk")
         val generatedApk = releaseDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") && it.name != targetApk.name }
         if (generatedApk != null) {
             generatedApk.copyTo(targetApk, overwrite = true)
@@ -239,7 +239,7 @@ tasks.matching { it.name == "assembleRelease" }.configureEach {
                 }
                 md.digest().joinToString("") { "%02x".format(it) }
             }
-            val hashFile = File(releaseDir, "Play-${android.defaultConfig.versionName}-SHA256.txt")
+            val hashFile = File(releaseDir, "DarkPlay-${android.defaultConfig.versionName}-SHA256.txt")
             hashFile.writeText("$hash *${targetApk.name}\n")
             println("Release APK: ${targetApk.name} (${targetApk.length()} bytes)")
             println("SHA-256: $hash -> ${hashFile.name}")

@@ -20,34 +20,37 @@ object UpdateApkRules {
     /** SHA-256 dosyası küçük bir metindir. */
     const val MAX_HASH_FILE_BYTES = 16L * 1024
 
+    /** Release dosya adı öneki: `DarkPlay-<sürüm>.apk`, `DarkPlay-<sürüm>-SHA256.txt` (CI ve build.gradle aynı adı üretir). */
+    const val PREFIX = "DarkPlay"
+
     /**
-     * [tag] sürümünün APK'sı seçilir. Önce tek evrensel `Play-<sürüm>.apk` aranır; yoksa eski release'lerle uyum
-     * için [abis] (cihazın tercih sırası) içinden ilk uyan `Play-<sürüm>-<abi>.apk` seçilir. Adlar kesin eşleşir:
-     * `Play-<sürüm>.apk` (veya `Play-<sürüm>-<abi>.apk`) ve `Play-<sürüm>-SHA256.txt`; ikisinden biri yoksa ya da
+     * [tag] sürümünün APK'sı seçilir. Önce tek evrensel `DarkPlay-<sürüm>.apk` aranır; yoksa eski release'lerle uyum
+     * için [abis] (cihazın tercih sırası) içinden ilk uyan `DarkPlay-<sürüm>-<abi>.apk` seçilir. Adlar kesin eşleşir:
+     * `DarkPlay-<sürüm>.apk` (veya `DarkPlay-<sürüm>-<abi>.apk`) ve `DarkPlay-<sürüm>-SHA256.txt`; ikisinden biri yoksa ya da
      * adres güvenli değilse null (kullanıcı release sayfasına yönlenir).
      */
     fun pick(tag: String, assets: List<ReleaseAsset>, abis: List<String>, debugHost: String? = null): UpdateApk? {
         val version = tag.trim().removePrefix("v").removePrefix("V")
         if (version.isEmpty()) return null
         val byName = assets.associateBy { it.name }
-        val hashAsset = byName["Play-$version-SHA256.txt"]?.takeIf { isSafeDownload(it.url, debugHost) } ?: return null
+        val hashAsset = byName["$PREFIX-$version-SHA256.txt"]?.takeIf { isSafeDownload(it.url, debugHost) } ?: return null
 
-        val universal = byName["Play-$version.apk"]
+        val universal = byName["$PREFIX-$version.apk"]
         if (universal != null && universal.size in 1..MAX_APK_BYTES && isSafeDownload(universal.url, debugHost)) {
             return UpdateApk(universal.name, universal.url, universal.size, hashAsset.url)
         }
 
         for (abi in abis) {
-            val asset = byName["Play-$version-$abi.apk"] ?: continue
+            val asset = byName["$PREFIX-$version-$abi.apk"] ?: continue
             if (asset.size !in 1..MAX_APK_BYTES || !isSafeDownload(asset.url, debugHost)) continue
             return UpdateApk(asset.name, asset.url, asset.size, hashAsset.url)
         }
         return null
     }
 
-    /** İndirme klasörüne yazılan/okunan APK adı: `Play-<...>.apk`, yol ayırıcı yok (klasör dışına çıkamaz). */
+    /** İndirme klasörüne yazılan/okunan APK adı: `DarkPlay-<...>.apk`, yol ayırıcı yok (klasör dışına çıkamaz). */
     fun isPlausibleApkName(name: String): Boolean =
-        name.startsWith("Play-") && name.endsWith(".apk") && name.none { it == '/' || it == '\\' } && ".." !in name
+        name.startsWith("$PREFIX-") && name.endsWith(".apk") && name.none { it == '/' || it == '\\' } && ".." !in name
 
     /**
      * `sha256sum` biçimi (`<64 onaltılık> *<ad>` ya da `<özet>  <ad>`): [fileName] satırının özeti, küçük harfle.
