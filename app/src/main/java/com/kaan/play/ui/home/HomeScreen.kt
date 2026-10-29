@@ -64,6 +64,7 @@ import com.kaan.play.data.tmdb.TmdbImages
 import com.kaan.play.data.tmdb.PosterUrlTemplate
 import com.kaan.play.i18n.AppLanguage
 import com.kaan.play.ui.components.Button
+import com.kaan.play.data.home.HomeCatalog
 import com.kaan.play.ui.components.ErrorMessage
 import com.kaan.play.ui.components.Loadable
 import com.kaan.play.ui.components.PosterCard
@@ -101,11 +102,12 @@ private val ScreenPadding = 20.dp
 @Composable
 fun HomeScreen(
     onOpenDetail: (MediaType, Int) -> Unit,
-    onOpenCategory: (HomeRow) -> Unit,
+    onOpenCategory: (String) -> Unit,
     onContinue: (ContinueItem) -> Unit,
     onAddAddon: () -> Unit,
     onOpenSearch: (String) -> Unit = {},
     onOpenProviderDetail: (providerId: String, url: String) -> Unit = { _, _ -> },
+    onEditHome: () -> Unit = {},
 ) {
     val container = rememberContainer()
     val scope = rememberCoroutineScope()
@@ -170,6 +172,7 @@ fun HomeScreen(
                 onOpenProviderDetail = onOpenProviderDetail,
                 onOpenProviderCategory = { activeProviderRow = it },
                 onOpenSearch = onOpenSearch,
+                onEditHome = onEditHome,
             )
         }
 
@@ -238,32 +241,44 @@ private fun HomeEmptyState(onAddAddon: () -> Unit) {
 @Composable
 private fun HomeContent(
     onOpenDetail: (MediaType, Int) -> Unit,
-    onOpenCategory: (HomeRow) -> Unit,
+    onOpenCategory: (String) -> Unit,
     onContinue: (ContinueItem) -> Unit,
     onOpenProviderDetail: (providerId: String, url: String) -> Unit = { _, _ -> },
     onOpenProviderCategory: (CatalogRow) -> Unit = {},
     onOpenSearch: (String) -> Unit = {},
+    onEditHome: () -> Unit = {},
 ) {
     val container = rememberContainer()
     val homeProviders by container.providers.homeProviders.collectAsStateWithLifecycle(initialValue = emptyList())
     val loadSemaphore = remember { Semaphore(3) }
 
     // Dil değişince (etkinlik yeniden kurulur) yeni dille taze bir ViewModel: satırlar yeni dilde yüklenir.
-    val vm = containerViewModel(key = "home-${AppLanguage.effective().iso}") { HomeViewModel(it.tmdb, it.continueWatching) }
+    val vm = containerViewModel(key = "home-${AppLanguage.effective().iso}") {
+        HomeViewModel(it.tmdb, it.continueWatching, it.homeLayout)
+    }
     val rows by vm.rows.collectAsStateWithLifecycle()
     val hero by vm.hero.collectAsStateWithLifecycle()
+    val loadedLayout by vm.layout.collectAsStateWithLifecycle()
     // Durum kompozisyon kapsamında okunur (LazyColumn DSL bloğunda değil): değişince bu ekran yeniden çizilir.
     val continueWatching = vm.continueWatching.collectAsStateWithLifecycle().value
     val layout = rememberPlayLayout()
     val cardWidth = if (layout.widthDp >= 600) 152.dp else 132.dp
     val heroHeight = heroHeightFor(layout.widthDp, layout.heightDp)
 
+    // Kullanıcının düzeni (sıra + görünürlük; Ana sayfayı düzenle). Okunana kadar yalnızca kapak yer tutucusu.
+    val sections = loadedLayout.orEmpty().filter { it.visible }
+    val visibleIds = sections.mapTo(HashSet()) { it.id }
+    val heroOn = loadedLayout == null || HomeCatalog.HERO in visibleIds
+    val tmdbSections = sections.filter { !it.isSpecial }
+
     val heroItems = (hero as? Loadable.Ready)?.value.orEmpty()
-    val hasHero = heroItems.isNotEmpty()
-    val hasContinue = continueWatching.isNotEmpty()
+    val hasHero = heroOn && heroItems.isNotEmpty()
+    val hasContinue = HomeCatalog.CONTINUE in visibleIds && continueWatching.isNotEmpty()
+    val firstTmdb = tmdbSections.firstOrNull()
     // Kumanda: başlangıç odağı kapak düğmesinde (yoksa devam et / ilk satırın ilk kartında); geri dönünce son odaklanan öğe.
     // Kapak yüklenirken beklenir ki odak sonradan eklenen öğenin altına düşmesin.
-    val firstReady = hero !is Loadable.Loading && (hasHero || hasContinue || rows.getValue(HomeRow.TrendingMovies) is Loadable.Ready)
+    val firstReady = loadedLayout != null && (!heroOn || hero !is Loadable.Loading) &&
+        (hasHero || hasContinue || firstTmdb == null || rows[firstTmdb.rowKey()] is Loadable.Ready)
     val focus = rememberFocusMemory(enabled = firstReady)
 
     // LazyColumn anahtar bazlı konumu korur: en üste sonradan eklenen "devam et" satırı ekranın üstüne itilirdi.
@@ -273,8 +288,9 @@ private fun HomeContent(
     // Sağlayıcı raflarıyla aynı adı taşıyan TMDB rafı (ör. "Popüler filmler") ikinci kopya olarak gizlenir;
     // yalnızca gerçekten görünen sağlayıcı rafları sayılır (addon rafı yüklenemezse TMDB rafı kalır).
     val shownProviderTitles = remember { mutableStateMapOf<String, List<String>>() }
-    val tmdbTitles = HomeRow.entries.associateWith { stringResource(it.titleRes()) }
-    val providerIds = homeProviders.mapTo(HashSet()) { it.id }
+    val providersOn = HomeCatalog.PROVIDERS in visibleIds
+    val tmdbTitles = tmdbSections.associate { it.rowKey() to it.title() }
+    val providerIds = if (providersOn) homeProviders.mapTo(HashSet()) { it.id } else emptySet()
     val hiddenTmdbRows = ProviderRules.duplicateTmdbRows(
         tmdbTitles,
         shownProviderTitles.filterKeys { it in providerIds }.values.flatten(),
@@ -295,86 +311,113 @@ private fun HomeContent(
                     isDefaultFocus = true,
                     onOpen = onOpenDetail,
                 )
-                // Yükleniyor: aynı boyutta sönük kutu (yerleşim zıplamasın). Başarısızsa kapak hiç çıkmaz.
-                hero is Loadable.Loading -> Box(Modifier.fillMaxWidth().height(heroHeight).background(MaterialTheme.colorScheme.surfaceVariant))
+                // Yükleniyor: aynı boyutta sönük kutu (yerleşim zıplamasın). Başarısızsa ya da gizliyse kapak çıkmaz.
+                heroOn && hero is Loadable.Loading -> Box(Modifier.fillMaxWidth().height(heroHeight).background(MaterialTheme.colorScheme.surfaceVariant))
                 else -> Spacer(Modifier.statusBarsPadding().height(8.dp))
             }
         }
-        if (hasContinue) {
-            item(key = "continue") {
-                Section(title = stringResource(R.string.home_row_continue)) {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = ScreenPadding),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(continueWatching, key = { "${it.entry.type}-${it.entry.tmdbId}" }) { item ->
-                            ContinueCard(
-                                item,
-                                modifier = Modifier.focusMemory(
-                                    focus, "c-${item.entry.type}-${item.entry.tmdbId}",
-                                    isDefault = !hasHero && item === continueWatching.first(),
-                                ),
-                                width = cardWidth,
-                            ) { onContinue(item) }
+        sections.forEach { section ->
+            when {
+                section.id == HomeCatalog.HERO -> Unit
+                section.id == HomeCatalog.CONTINUE -> if (hasContinue) {
+                    item(key = "continue") {
+                        Section(title = stringResource(R.string.home_row_continue)) {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = ScreenPadding),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                items(continueWatching, key = { "${it.entry.type}-${it.entry.tmdbId}" }) { item ->
+                                    ContinueCard(
+                                        item,
+                                        modifier = Modifier.focusMemory(
+                                            focus, "c-${item.entry.type}-${item.entry.tmdbId}",
+                                            isDefault = !hasHero && item === continueWatching.first(),
+                                        ),
+                                        width = cardWidth,
+                                    ) { onContinue(item) }
+                                }
+                            }
                         }
                     }
                 }
-            }
-        }
-        homeProviders.forEach { provider ->
-            item(key = "home_provider_${provider.id}") {
-                LazyProviderSection(
-                    provider = provider,
-                    cardWidth = cardWidth,
-                    focus = focus,
-                    loadSemaphore = loadSemaphore,
-                    onOpenDetail = onOpenDetail,
-                    onOpenProviderDetail = onOpenProviderDetail,
-                    onOpenProviderCategory = onOpenProviderCategory,
-                    onOpenSearch = onOpenSearch,
-                    onShownTitles = { titles -> shownProviderTitles[provider.id] = titles },
-                )
-            }
-        }
-        HomeRow.entries.filterNot { it in hiddenTmdbRows }.forEach { row ->
-            item(key = row.name) {
-                Section(
-                    title = stringResource(row.titleRes()),
-                    onSeeAll = { onOpenCategory(row) },
-                    headerModifier = Modifier.focusMemory(focus, "h-${row.name}"),
-                ) {
-                    when (val state = rows.getValue(row)) {
-                        Loadable.Loading -> SkeletonRow(cardWidth)
-                        is Loadable.Failed -> ErrorMessage(state.error, onRetry = { vm.load(row) }, modifier = Modifier.fillMaxWidth())
-                        is Loadable.Ready -> LazyRow(
-                            contentPadding = PaddingValues(horizontal = ScreenPadding),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            items(state.value, key = { "${it.type}-${it.id}" }) { media ->
-                                PosterCard(
-                                    title = media.title,
-                                    subtitle = media.year?.toString(),
-                                    imageUrl = media.posterUrl(),
-                                    tmdbId = media.id,
-                                    mediaType = media.type,
-                                    onClick = { onOpenDetail(media.type, media.id) },
-                                    modifier = Modifier
-                                        .width(cardWidth)
-                                        .focusMemory(
-                                            focus,
-                                            "${row.name}-${media.type}-${media.id}",
-                                            isDefault = !hasHero && !hasContinue && row == HomeRow.TrendingMovies && media == state.value.first(),
-                                        ),
+                section.id == HomeCatalog.PROVIDERS -> homeProviders.forEach { provider ->
+                    item(key = "home_provider_${provider.id}") {
+                        LazyProviderSection(
+                            provider = provider,
+                            cardWidth = cardWidth,
+                            focus = focus,
+                            loadSemaphore = loadSemaphore,
+                            onOpenDetail = onOpenDetail,
+                            onOpenProviderDetail = onOpenProviderDetail,
+                            onOpenProviderCategory = onOpenProviderCategory,
+                            onOpenSearch = onOpenSearch,
+                            onShownTitles = { titles -> shownProviderTitles[provider.id] = titles },
+                        )
+                    }
+                }
+                section.rowKey() in hiddenTmdbRows -> Unit
+                else -> item(key = "row_${section.rowKey()}") {
+                    val key = section.rowKey()
+                    // Satır ekrana gelince yüklenir (LazyColumn yalnızca görünenleri kurar).
+                    LaunchedEffect(key) { vm.ensure(section) }
+                    Section(
+                        title = section.title(),
+                        onSeeAll = { onOpenCategory(section.id) },
+                        headerModifier = Modifier.focusMemory(focus, "h-${section.id}"),
+                    ) {
+                        when (val state = rows[key] ?: Loadable.Loading) {
+                            Loadable.Loading -> SkeletonRow(cardWidth)
+                            is Loadable.Failed -> ErrorMessage(state.error, onRetry = { vm.load(section) }, modifier = Modifier.fillMaxWidth())
+                            is Loadable.Ready -> if (state.value.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.home_category_empty),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = ScreenPadding),
                                 )
+                            } else {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = ScreenPadding),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    items(state.value, key = { "${it.type}-${it.id}" }) { media ->
+                                        PosterCard(
+                                            title = media.title,
+                                            subtitle = media.year?.toString(),
+                                            imageUrl = media.posterUrl(),
+                                            tmdbId = media.id,
+                                            mediaType = media.type,
+                                            onClick = { onOpenDetail(media.type, media.id) },
+                                            modifier = Modifier
+                                                .width(cardWidth)
+                                                .focusMemory(
+                                                    focus,
+                                                    "${section.id}-${media.type}-${media.id}",
+                                                    isDefault = !hasHero && !hasContinue && section == firstTmdb &&
+                                                        media == state.value.first(),
+                                                ),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+        // Sıra, görünürlük, hazır ve kendi kategorileri: Ana sayfayı düzenle (Ayarlar > Görünüm'de de var).
+        if (loadedLayout != null) {
+            item(key = "edit_home") {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    com.kaan.play.ui.components.OutlinedButton(
+                        onClick = onEditHome,
+                        modifier = Modifier.focusMemory(focus, "edit_home"),
+                    ) { Text(stringResource(R.string.home_edit)) }
+                }
+            }
+        }
     }
 }
-
 
 /**
  * Kapak yüksekliği (dp): dik telefonda genişliğe yakın, geniş/yatay ekranda alçak ve en çok ekran yüksekliğinin
@@ -484,12 +527,6 @@ private fun SkeletonRow(cardWidth: Dp) {
     }
 }
 
-internal fun HomeRow.titleRes(): Int = when (this) {
-    HomeRow.TrendingMovies -> R.string.home_row_trending_movies
-    HomeRow.TrendingSeries -> R.string.home_row_trending_series
-    HomeRow.PopularMovies -> R.string.home_row_popular_movies
-    HomeRow.PopularSeries -> R.string.home_row_popular_series
-}
 
 
 private sealed interface ProviderSectionUiState {
@@ -720,7 +757,7 @@ private fun ProviderCatalogView(
     onOpenDetail: (MediaType, Int) -> Unit,
     onOpenProviderDetail: (providerId: String, url: String) -> Unit,
     onOpenSearch: (String) -> Unit,
-    onOpenCategory: (HomeRow) -> Unit,
+    onOpenCategory: (String) -> Unit,
     onContinue: (ContinueItem) -> Unit,
     onOpenProviderCategory: (CatalogRow) -> Unit,
     modifier: Modifier = Modifier,

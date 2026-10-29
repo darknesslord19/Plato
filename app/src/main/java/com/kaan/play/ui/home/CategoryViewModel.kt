@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaan.play.data.model.MediaSummary
 import com.kaan.play.data.tmdb.TmdbException
+import com.kaan.play.data.tmdb.TmdbQuery
 import com.kaan.play.data.tmdb.TmdbRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +22,7 @@ data class CategoryState(
 )
 
 /** Bir ana sayfa sırasının tamamı ("tümü"): ilk sayfa hemen, sonrakiler kaydırdıkça. */
-class CategoryViewModel(private val tmdb: TmdbRepository, private val row: HomeRow) : ViewModel() {
+class CategoryViewModel(private val tmdb: TmdbRepository, private val query: TmdbQuery) : ViewModel() {
 
     private val _state = MutableStateFlow(CategoryState())
     val state: StateFlow<CategoryState> = _state.asStateFlow()
@@ -34,7 +35,7 @@ class CategoryViewModel(private val tmdb: TmdbRepository, private val row: HomeR
         _state.value = CategoryState()
         viewModelScope.launch {
             try {
-                val first = row.page(tmdb, 1)
+                val first = tmdb.list(query, 1)
                 _state.update { it.copy(items = first.items, page = first.page, hasMore = first.hasMore, loading = false) }
             } catch (e: TmdbException) {
                 _state.update { it.copy(loading = false, error = e) }
@@ -49,7 +50,7 @@ class CategoryViewModel(private val tmdb: TmdbRepository, private val row: HomeR
         _state.update { it.copy(loadingMore = true) }
         viewModelScope.launch {
             try {
-                val next = row.page(tmdb, s.page + 1)
+                val next = tmdb.list(query, s.page + 1)
                 _state.update {
                     it.copy(
                         items = it.items + next.items.filter { n -> it.items.none { o -> o.id == n.id && o.type == n.type } },

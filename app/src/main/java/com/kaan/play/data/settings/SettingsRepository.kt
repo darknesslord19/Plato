@@ -13,8 +13,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
-/** Koyu tema varsayılandır. */
-enum class ThemeMode { Dark, Light, System }
+/**
+ * Arka plan parlaklığı. Koyu varsayılandır. Orta karanlık: gri-lacivert yumuşak zemin; Simsiyah: OLED için tam siyah.
+ * Adlar DataStore'a yazılır (sıra değil), yenileri sona eklenir.
+ */
+enum class ThemeMode { Dark, Light, System, Medium, Black }
+
+/** Tema seçimi: parlaklık + renk paleti anahtarı (bkz. `ui/theme/Palettes`). */
+data class Appearance(val mode: ThemeMode, val palette: String)
 
 /** Oynatıcıda görüntünün ekrana oturma biçimi (seçim kaydedilir): sığdır, doldur (kırp), uzat, 16:9, 4:3. */
 enum class ResizeMode { Fit, Fill, Stretch, Ratio16x9, Ratio4x3 }
@@ -46,6 +52,21 @@ class SettingsRepository(val store: DataStore<Preferences>) {
 
     val themeMode: Flow<ThemeMode> = store.data.map { prefs ->
         ThemeMode.entries.firstOrNull { it.name == prefs[THEME] } ?: DEFAULT_THEME
+    }
+
+    /** Renk paleti anahtarı; bilinmeyen anahtar arayüzde varsayılan palete düşer. */
+    val themePalette: Flow<String> = store.data.map { it[PALETTE] ?: DEFAULT_PALETTE }.distinctUntilChanged()
+
+    val appearance: Flow<Appearance> = store.data.map { prefs ->
+        Appearance(
+            ThemeMode.entries.firstOrNull { it.name == prefs[THEME] } ?: DEFAULT_THEME,
+            prefs[PALETTE] ?: DEFAULT_PALETTE,
+        )
+    }.distinctUntilChanged()
+
+    suspend fun setThemePalette(key: String) {
+        require(key.isNotBlank() && key.length <= 40) { "Geçersiz palet" }
+        store.edit { it[PALETTE] = key }
     }
 
     /** Addon başına kaynak isteği zaman aşımı (saniye). */
@@ -268,6 +289,7 @@ class SettingsRepository(val store: DataStore<Preferences>) {
 
     companion object {
         val DEFAULT_THEME = ThemeMode.Dark
+        const val DEFAULT_PALETTE = "play"
         const val DEFAULT_TIMEOUT_SECONDS = 15
         const val DEFAULT_ALWAYS_RESUME = true
         const val DEFAULT_REMEMBER_LAST_PROFILE = true
@@ -284,6 +306,7 @@ class SettingsRepository(val store: DataStore<Preferences>) {
 
         private val THEME = stringPreferencesKey("theme_mode")
         private val POSTER_URL_TEMPLATE = stringPreferencesKey("poster_url_template")
+        private val PALETTE = stringPreferencesKey("theme_palette")
         private val TIMEOUT = intPreferencesKey("source_timeout_seconds")
         private val ALWAYS_RESUME = booleanPreferencesKey("always_resume")
         private val REMEMBER_LAST_PROFILE = booleanPreferencesKey("remember_last_profile")

@@ -33,6 +33,13 @@ internal class TmdbService(
     suspend fun popular(type: String, language: String, page: Int): ListDto =
         get("$type/popular", ListDto.serializer(), language, "page" to page.toString())
 
+    /**
+     * Genel liste isteği (ana sayfa kategorileri): `movie/top_rated`, `discover/tv`, `search/movie` gibi yollar,
+     * ek sorgu parametreleriyle. Yol ve parametreler yalnızca uygulamanın kendi kategori tanımlarından gelir.
+     */
+    suspend fun list(path: String, language: String, page: Int, params: Map<String, String>): ListDto =
+        get(path, ListDto.serializer(), language, *(params + ("page" to page.toString())).toList().toTypedArray())
+
     /** Tür kimliği -> ad listesi (`genre/movie/list`, `genre/tv/list`), istenen dilde. */
     suspend fun genres(type: String, language: String): GenreListDto =
         get("genre/$type/list", GenreListDto.serializer(), language)

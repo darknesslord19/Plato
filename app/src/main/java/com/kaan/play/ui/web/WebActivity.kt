@@ -80,7 +80,7 @@ import com.kaan.play.data.web.AdHideLoader
 import com.kaan.play.data.web.AdHostLoader
 import com.kaan.play.data.web.WebPolicy
 import com.kaan.play.ui.nav.PlayIcons
-import com.kaan.play.ui.theme.PlayTheme
+import com.kaan.play.ui.theme.PlayAppTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -128,7 +128,7 @@ class WebActivity : AppCompatActivity(), WebPageListener, PlayWebChromeClient.Fu
         }
 
         val settings = (application as PlayApp).container.settings
-        val initialTheme = runBlocking { settings.themeMode.first() }
+        val initialAppearance = runBlocking { settings.appearance.first() }
 
         // Arka plan WebView'ın varsayılanı (beyaz) kalır: arka planı olmayan sayfalar tarayıcıdaki gibi okunur.
         val view = WebView(this).apply {
@@ -174,20 +174,7 @@ class WebActivity : AppCompatActivity(), WebPageListener, PlayWebChromeClient.Fu
         root.addView(
             ComposeView(this).apply {
                 setContent {
-                    val mode by settings.themeMode.collectAsStateWithLifecycle(initialValue = initialTheme)
-                    val dark = when (mode) {
-                        ThemeMode.Dark -> true
-                        ThemeMode.Light -> false
-                        ThemeMode.System -> isSystemInDarkTheme()
-                    }
-                    DisposableEffect(dark) {
-                        runCatching {
-                            val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-                            enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-                        }
-                        onDispose { }
-                    }
-                    PlayTheme(darkTheme = dark) {
+                    PlayAppTheme(settings, initialAppearance) {
                         WebScreen(
                             name = name.ifEmpty { url },
                             web = view,
