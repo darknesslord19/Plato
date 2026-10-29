@@ -11,7 +11,7 @@ import com.kaan.play.data.home.HomeSection
 /** Bölümün arayüz dilindeki başlığı: hazır kategoride çeviri, kullanıcının kategorisinde yazdığı ad. */
 @Composable
 internal fun HomeSection.title(): String =
-    if (isCustom) name.orEmpty() else stringResource(homeSectionTitleRes(id))
+    if (isCustom || isShelf) name.orEmpty() else stringResource(homeSectionTitleRes(id))
 
 @StringRes
 internal fun homeSectionTitleRes(id: String): Int = when (id) {

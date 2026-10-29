@@ -655,13 +655,13 @@
     <string name="appearance_home_categories">Home categories</string>
     <string name="appearance_brightness">Brightness</string>
     <string name="appearance_palette">Color palette</string>
-    <string name="home_edit">Edit home</string>
+    <string name="home_edit">Categories</string>
     <string name="home_edit_reset">Reset</string>
     <string name="home_edit_reset_message">Restore the default home layout? Your own categories will be removed.</string>
     <string name="home_edit_add_preset">Add category</string>
     <string name="home_edit_add_custom">Write your own</string>
     <string name="home_edit_edit_custom">Edit category</string>
-    <string name="home_edit_hint">Use the arrows to reorder, the switch to show or hide.</string>
+    <string name="home_edit_hint">Use the arrows to reorder, the switch to show or hide. Addon shelves appear here once they have been shown on Home.</string>
     <string name="home_edit_move_up">Move up</string>
     <string name="home_edit_move_down">Move down</string>
     <string name="home_edit_remove">Remove</string>
@@ -677,7 +677,7 @@
     <string name="home_custom_type_series">Series</string>
     <string name="home_category_empty">Nothing found in this category.</string>
     <string name="home_cat_hero">Featured carousel</string>
-    <string name="home_cat_providers">Addon shelves</string>
+    <string name="home_cat_providers">New addon shelves</string>
     <string name="home_cat_unknown">Category</string>
     <string name="home_cat_trending_all">Trending this week</string>
     <string name="home_cat_top_rated_movies">Top rated movies</string>
@@ -812,4 +812,5 @@
     <string name="episode_notification_title">New episode: %1$s</string>
     <string name="episode_notification_text">Season %1$d, episode %2$d is out</string>
     <string name="episode_notification_text_named">Season %1$d, episode %2$d is out · %3$s</string>
+    <string name="home_edit_kind_shelf">Addon shelf · %1$s</string>
 </resources>

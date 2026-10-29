@@ -636,13 +636,13 @@
     <string name="appearance_home_categories">Ana sayfa kategorileri</string>
     <string name="appearance_brightness">Parlaklık</string>
     <string name="appearance_palette">Renk paleti</string>
-    <string name="home_edit">Ana sayfayı düzenle</string>
+    <string name="home_edit">Kategoriler</string>
     <string name="home_edit_reset">Sıfırla</string>
     <string name="home_edit_reset_message">Varsayılan ana sayfa düzenine dönülsün mü? Kendi kategorilerin silinir.</string>
     <string name="home_edit_add_preset">Kategori ekle</string>
     <string name="home_edit_add_custom">Kendin yaz</string>
     <string name="home_edit_edit_custom">Kategoriyi düzenle</string>
-    <string name="home_edit_hint">Sıralamak için okları, göstermek ya da gizlemek için anahtarı kullan.</string>
+    <string name="home_edit_hint">Sıralamak için okları, göstermek ya da gizlemek için anahtarı kullan. Eklenti rafları ana sayfada bir kez görününce burada listelenir.</string>
     <string name="home_edit_move_up">Yukarı taşı</string>
     <string name="home_edit_move_down">Aşağı taşı</string>
     <string name="home_edit_remove">Kaldır</string>
@@ -658,7 +658,7 @@
     <string name="home_custom_type_series">Dizi</string>
     <string name="home_category_empty">Bu kategoride bir şey bulunamadı.</string>
     <string name="home_cat_hero">Kapak karuseli</string>
-    <string name="home_cat_providers">Eklenti rafları</string>
+    <string name="home_cat_providers">Yeni eklenti rafları</string>
     <string name="home_cat_unknown">Kategori</string>
     <string name="home_cat_trending_all">Bu hafta trend</string>
     <string name="home_cat_top_rated_movies">En beğenilen filmler</string>
@@ -793,4 +793,5 @@
     <string name="episode_notification_title">Yeni bölüm: %1$s</string>
     <string name="episode_notification_text">%1$d. sezon %2$d. bölüm yayında</string>
     <string name="episode_notification_text_named">%1$d. sezon %2$d. bölüm yayında · %3$s</string>
+    <string name="home_edit_kind_shelf">Eklenti rafı · %1$s</string>
 </resources>

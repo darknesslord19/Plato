@@ -117,4 +117,40 @@ class HomeLayoutRulesTest {
         val hidden = HomeLayoutRules.setVisible(default, "trending_movies", false)
         assertTrue("trending_movies" in HomeLayoutRules.addable(hidden).map { it.id })
     }
+
+    @Test
+    fun shelvesAreInsertedBeforeNewShelvesAnchorOnce() {
+        val shelves = listOf(
+            ShelfInfo(HomeCatalog.shelfId("addon:1", "movie:top"), "En iyiler", "Katalog"),
+            ShelfInfo(HomeCatalog.shelfId("addon:1", "series:new"), "Yeni diziler", "Katalog"),
+        )
+        val merged = HomeLayoutRules.mergeShelves(default, shelves)
+        assertEquals(
+            listOf("hero", "continue", "shelf:addon:1|movie:top", "shelf:addon:1|series:new", "providers"),
+            merged.take(5).map { it.id },
+        )
+        // İkinci kez: değişiklik yok (aynı liste).
+        assertTrue(HomeLayoutRules.mergeShelves(merged, shelves) === merged)
+        // Taşınmış raf yerinde kalır, yeni raf yine çapanın önüne gelir.
+        val moved = HomeLayoutRules.move(merged, "shelf:addon:1|movie:top", -2)
+        val more = HomeLayoutRules.mergeShelves(moved, shelves + ShelfInfo("shelf:addon:2|x", "X", "Diğer"))
+        assertEquals("shelf:addon:1|movie:top", more.first().id)
+        assertEquals("shelf:addon:2|x", more[more.indexOfFirst { it.id == "providers" } - 1].id)
+        // Ad değişince güncellenir.
+        val renamed = HomeLayoutRules.mergeShelves(merged, listOf(shelves[0].copy(title = "Yeni ad")))
+        assertEquals("Yeni ad", renamed.first { it.id == shelves[0].key }.name)
+    }
+
+    @Test
+    fun shelfRemoveOnlyHidesAndSurvivesStorage() {
+        val merged = HomeLayoutRules.mergeShelves(default, listOf(ShelfInfo("shelf:p|r", "Raf", "Eklenti")))
+        val removed = HomeLayoutRules.remove(merged, "shelf:p|r")
+        assertEquals(merged.size, removed.size)
+        assertFalse(removed.first { it.id == "shelf:p|r" }.visible)
+        assertEquals(removed, HomeLayoutRules.decode(HomeLayoutRules.encode(removed)))
+        assertEquals("p" to "r", HomeCatalog.parseShelf("shelf:p|r"))
+        assertEquals("cs:12" to "a|b", HomeCatalog.parseShelf("shelf:cs:12|a|b"))
+        assertEquals(null, HomeCatalog.parseShelf("shelf:|x"))
+        assertEquals(null, HomeCatalog.query(merged.first { it.isShelf }))
+    }
 }

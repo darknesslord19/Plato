@@ -18,10 +18,17 @@ data class HomeSection(
     val name: String? = null,
     val query: String? = null,
     val type: String? = null,
+    /** Eklenti rafında rafın geldiği eklentinin adı (düzenleme ekranında alt satır). */
+    val sub: String? = null,
 ) {
     val isCustom: Boolean get() = id.startsWith(HomeCatalog.CUSTOM_PREFIX)
     val isSpecial: Boolean get() = id in HomeCatalog.SPECIALS
+    /** Eklentinin kendi katalog rafı (`shelf:<sağlayıcı>|<raf>`); adı [name], eklenti adı [sub]. */
+    val isShelf: Boolean get() = id.startsWith(HomeCatalog.SHELF_PREFIX)
 }
+
+/** Ana sayfada görülen bir eklenti rafı (düzene eklenmek üzere). */
+data class ShelfInfo(val key: String, val title: String, val providerName: String)
 
 /** Hazır kategori: kimlik, ekleme ekranındaki grup ve TMDB listesi. Başlık arayüzde kimlikten çevrilir. */
 data class HomePreset(val id: String, val group: Group, val query: TmdbQuery) {
@@ -34,6 +41,19 @@ object HomeCatalog {
     const val CONTINUE = "continue"
     const val PROVIDERS = "providers"
     const val CUSTOM_PREFIX = "custom:"
+    const val SHELF_PREFIX = "shelf:"
+
+    /** Eklenti rafının düzen kimliği. */
+    fun shelfId(providerId: String, rowId: String) = "$SHELF_PREFIX$providerId|$rowId"
+
+    /** `shelf:` kimliğinden (sağlayıcı, raf); bozuksa null. */
+    fun parseShelf(id: String): Pair<String, String>? {
+        if (!id.startsWith(SHELF_PREFIX)) return null
+        val rest = id.removePrefix(SHELF_PREFIX)
+        val i = rest.indexOf('|')
+        if (i <= 0 || i == rest.lastIndex) return null
+        return rest.substring(0, i) to rest.substring(i + 1)
+    }
     val SPECIALS = listOf(HERO, CONTINUE, PROVIDERS)
 
     private val M = MediaType.Movie
@@ -136,6 +156,7 @@ object HomeLayoutRules {
             val valid = when {
                 s.isSpecial -> true
                 s.isCustom -> !s.name.isNullOrBlank() && !s.query.isNullOrBlank()
+                s.isShelf -> HomeCatalog.parseShelf(s.id) != null && !s.name.isNullOrBlank()
                 else -> HomeCatalog.preset(s.id) != null
             }
             valid && seen.add(s.id)
@@ -180,9 +201,43 @@ object HomeLayoutRules {
         return layout.map { if (it.id == id && it.isCustom) it.copy(name = n, query = q, type = type?.tmdbPath) else it }
     }
 
-    /** Özel bölümler (kapak, devam et, eklenti rafları) silinmez, yalnızca gizlenir. */
-    fun remove(layout: List<HomeSection>, id: String): List<HomeSection> =
-        layout.filterNot { it.id == id && !it.isSpecial }
+    /**
+     * Özel bölümler (kapak, devam et, yeni eklenti rafları) ve eklenti rafları silinmez, yalnızca gizlenir
+     * (eklenti rafı silinse eklenti onu yine getirirdi).
+     */
+    fun remove(layout: List<HomeSection>, id: String): List<HomeSection> {
+        val target = layout.firstOrNull { it.id == id } ?: return layout
+        return when {
+            target.isSpecial -> layout
+            target.isShelf -> setVisible(layout, id, false)
+            else -> layout.filterNot { it.id == id }
+        }
+    }
+
+    /**
+     * Ana sayfada ilk kez görülen eklenti raflarını düzene ekler: "yeni eklenti rafları" bölümünün hemen önüne,
+     * görülme sırasıyla (böylece ilk açılışta eskisiyle aynı yerde durur). Var olan rafın adı değiştiyse güncellenir.
+     * Değişiklik yoksa aynı liste döner.
+     */
+    fun mergeShelves(layout: List<HomeSection>, shelves: List<ShelfInfo>): List<HomeSection> {
+        if (shelves.isEmpty()) return layout
+        val byId = layout.associateBy { it.id }
+        var changed = false
+        val updated = layout.map { s ->
+            val info = if (s.isShelf) shelves.firstOrNull { it.key == s.id } else null
+            if (info != null && (info.title != s.name || info.providerName != s.sub)) {
+                changed = true
+                s.copy(name = info.title, sub = info.providerName)
+            } else {
+                s
+            }
+        }
+        val fresh = shelves.filter { it.key !in byId && it.title.isNotBlank() }.distinctBy { it.key }
+            .map { HomeSection(id = it.key, name = it.title, sub = it.providerName) }
+        if (fresh.isEmpty()) return if (changed) updated else layout
+        val anchor = updated.indexOfFirst { it.id == HomeCatalog.PROVIDERS }.takeIf { it >= 0 } ?: updated.size
+        return updated.toMutableList().apply { addAll(anchor, fresh) }
+    }
 
     /** Ekleme ekranında gösterilecek hazır kategoriler: listede olmayanlar ya da gizli olanlar. */
     fun addable(layout: List<HomeSection>): List<HomePreset> {

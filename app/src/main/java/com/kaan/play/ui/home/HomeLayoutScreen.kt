@@ -128,7 +128,7 @@ fun HomeLayoutScreen(onBack: () -> Unit) {
                         onDown = { update { HomeLayoutRules.move(it, section.id, +1) } },
                         onToggle = { v -> update { HomeLayoutRules.setVisible(it, section.id, v) } },
                         onEdit = if (section.isCustom) ({ editCustom = section }) else null,
-                        onRemove = if (!section.isSpecial) ({ update { HomeLayoutRules.remove(it, section.id) } }) else null,
+                        onRemove = if (!section.isSpecial && !section.isShelf) ({ update { HomeLayoutRules.remove(it, section.id) } }) else null,
                         modifier = Modifier.focusMemory(focus, "s-${section.id}"),
                     )
                 }
@@ -234,6 +234,7 @@ private fun SectionRow(
                 )
                 val kind = when {
                     section.isSpecial -> stringResource(R.string.home_edit_kind_special)
+                    section.isShelf -> stringResource(R.string.home_edit_kind_shelf, section.sub.orEmpty())
                     section.isCustom -> stringResource(R.string.home_edit_kind_custom, section.query.orEmpty())
                     else -> HomeCatalog.preset(section.id)?.group?.let { stringResource(it.titleRes()) }.orEmpty()
                 }
