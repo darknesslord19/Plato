@@ -1,5 +1,16 @@
 package com.kaan.play.ui.addons
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import com.kaan.play.data.cloudstream.CsDomainRules
+import com.kaan.play.ui.tv.dpadLeavesTextField
+import com.kaan.play.ui.tv.rememberCursorField
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -143,10 +154,16 @@ internal fun CsRepoRow(repo: CsRepo, onRemove: () -> Unit) {
 
 /**
  * CS eklentileri satırı — [InstalledAddonsScreen] içinde CS depo grubu olarak kullanılır.
- * [onToggle]: eklentiyi aç/kapat.
+ * [onToggle]: eklentiyi aç/kapat. [domain]: kullanıcının girdiği site adresi (yoksa null).
+ * [onEditDomain]: site adresi penceresini açar (alan adı değişen siteler için).
  */
 @Composable
-fun CsPluginRow(plugin: InstalledCsPlugin, onToggle: (Boolean) -> Unit) {
+fun CsPluginRow(
+    plugin: InstalledCsPlugin,
+    onToggle: (Boolean) -> Unit,
+    domain: String? = null,
+    onEditDomain: (() -> Unit)? = null,
+) {
     androidx.compose.material3.Surface(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -155,7 +172,7 @@ fun CsPluginRow(plugin: InstalledCsPlugin, onToggle: (Boolean) -> Unit) {
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -164,13 +181,30 @@ fun CsPluginRow(plugin: InstalledCsPlugin, onToggle: (Boolean) -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (!plugin.description.isNullOrBlank()) {
+                if (domain != null) {
+                    Text(
+                        text = stringResource(R.string.cs_domain_current, CsDomainRules.displayHost(domain)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                } else if (!plugin.description.isNullOrBlank()) {
                     Text(
                         text = plugin.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (onEditDomain != null) {
+                IconButton(onClick = onEditDomain, modifier = Modifier.focusRing()) {
+                    Icon(
+                        PlayIcons.Globe,
+                        contentDescription = stringResource(R.string.cs_domain_action),
+                        tint = if (domain != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -185,4 +219,105 @@ fun CsPluginRow(plugin: InstalledCsPlugin, onToggle: (Boolean) -> Unit) {
             )
         }
     }
+}
+
+/**
+ * Bir CloudStream eklentisinin site adresini değiştirme penceresi. Eklentinin kendi adresi yüklenip gösterilir;
+ * kullanıcı yeni adresi yazar ve kaydeder, ya da "Eklentinin adresine dön" ile geçersiz kılmayı siler.
+ * [onSave] null adresle çağrılırsa geçersiz kılma silinir; sonuç geri çağrısı false ise adres geçersizdir.
+ */
+@Composable
+fun CsDomainDialog(
+    plugin: InstalledCsPlugin,
+    current: String?,
+    loadDefault: suspend () -> String?,
+    onSave: (url: String?, onResult: (Boolean) -> Unit) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable(plugin.id) { mutableStateOf(current.orEmpty()) }
+    var invalid by remember { mutableStateOf(false) }
+    var defaultUrl by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(plugin.id) {
+        defaultUrl = loadDefault()
+        // Geçersiz kılma yoksa kutu eklentinin kendi adresiyle dolsun; kullanıcı yalnızca alan adını düzeltir.
+        if (text.isEmpty()) defaultUrl?.let { text = it }
+    }
+    val field = rememberCursorField(text) { text = it; invalid = false }
+    val save = {
+        val trimmed = text.trim()
+        val isDefault = trimmed.isEmpty() ||
+            (defaultUrl != null && CsDomainRules.normalize(trimmed) == CsDomainRules.normalize(defaultUrl!!))
+        onSave(if (isDefault) null else trimmed) { ok -> if (ok) onDismiss() else invalid = true }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Text(
+                text = stringResource(R.string.cs_domain_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = plugin.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(R.string.cs_domain_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                defaultUrl?.let {
+                    Text(
+                        text = stringResource(R.string.cs_domain_default, CsDomainRules.displayHost(it)),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                OutlinedTextField(
+                    value = field.value,
+                    onValueChange = field.onValueChange,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                    label = { Text(stringResource(R.string.cs_domain_label)) },
+                    placeholder = { Text(stringResource(R.string.web_add_hint)) },
+                    singleLine = true,
+                    isError = invalid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { save() }),
+                    modifier = Modifier.fillMaxWidth().dpadLeavesTextField(field),
+                )
+                if (invalid) {
+                    Text(
+                        text = stringResource(R.string.cs_domain_invalid),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                if (current != null) {
+                    com.kaan.play.ui.components.TextButton(
+                        onClick = { onSave(null) { ok -> if (ok) onDismiss() } },
+                    ) {
+                        Text(stringResource(R.string.cs_domain_reset))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            com.kaan.play.ui.components.TextButton(onClick = { save() }) {
+                Text(stringResource(R.string.cs_domain_save))
+            }
+        },
+        dismissButton = {
+            com.kaan.play.ui.components.TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
 }

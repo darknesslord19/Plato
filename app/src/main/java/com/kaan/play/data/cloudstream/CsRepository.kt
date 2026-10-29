@@ -75,6 +75,8 @@ class CsRepository(
     private val cs3Downloader: Cs3Downloader = Cs3Downloader { url, hash, id ->
         downloadCs3(url, hash, httpClient, store, id)
     },
+    /** Kullanıcının eklenti başına girdiği site adresleri; null ise (testler) geçersiz kılma yok. */
+    val domains: CsDomainOverrides? = null,
 ) {
 
     val repos: Flow<List<CsRepo>> = combine(
@@ -251,7 +253,7 @@ class CsRepository(
      * Açık eklentiler için [MainAPI] listesini döner.
      * Her çağrıda DEX'i [PathClassLoader] ile yükler (Android sınıf yükleyici önbelleği bunu ucuzlatır).
      */
-    suspend fun loadApis(pluginRowId: Long, allowRedownload: Boolean = true): CsApiResult {
+    suspend fun loadApis(pluginRowId: Long, allowRedownload: Boolean = true, applyDomainOverride: Boolean = true): CsApiResult {
         val row = pluginDao.byId(pluginRowId) ?: run {
             val failure = CsApiResult.PluginRowMissing(pluginRowId)
             Log.w(TAG, formatCsLog(failure))
@@ -275,7 +277,7 @@ class CsRepository(
                     false
                 }
                 if (downloaded) {
-                    return loadApis(pluginRowId, allowRedownload = false)
+                    return loadApis(pluginRowId, allowRedownload = false, applyDomainOverride = applyDomainOverride)
                 }
             }
             val failure = CsApiResult.DexFileMissing(row.pluginId)
@@ -287,8 +289,38 @@ class CsRepository(
         if (result is CsApiResult.Failure) {
             Log.w(TAG, formatCsLog(result))
         }
+        if (applyDomainOverride && result is CsApiResult.Success) applyDomain(row.pluginId, result.apis)
         return result
     }
+
+    /**
+     * Kullanıcı bu eklenti için yeni bir site adresi girdiyse her [MainAPI]'nin `mainUrl`'si onunla değiştirilir.
+     * Her yüklemede yeni örnekler geldiği için her seferinde uygulanır; hata olursa eklentinin kendi adresi kalır.
+     */
+    private suspend fun applyDomain(internalName: String, apis: List<MainAPI>) {
+        val override = runCatching { domains?.get(internalName) }.getOrNull()
+        apis.forEach { api ->
+            try {
+                // Yükleyici örnekleri önbellekte tuttuğu için eklentinin kendi adresi bir kez saklanır;
+                // geçersiz kılma kaldırılınca ona dönülür.
+                val original = synchronized(originalUrls) { originalUrls.getOrPut(api) { api.mainUrl } }
+                api.mainUrl = override ?: original
+            } catch (t: Throwable) {
+                Log.d(TAG, "applyDomain: ${api.name} adresi değiştirilemedi ${t.javaClass.simpleName}")
+            }
+        }
+    }
+
+    private val originalUrls = java.util.WeakHashMap<MainAPI, String>()
+
+    /** Eklentinin kendi (geçersiz kılınmamış) site adresi; yüklenemezse null. */
+    suspend fun defaultMainUrl(pluginRowId: Long): String? =
+        runCatching {
+            loadApis(pluginRowId, applyDomainOverride = false).apisOrEmpty().firstOrNull()
+                ?.let { api -> synchronized(originalUrls) { originalUrls[api] } ?: api.mainUrl }
+        }
+            .getOrNull()
+            ?.takeIf { it.startsWith("http", ignoreCase = true) }
 
     suspend fun enabledPlugins(): List<InstalledCsPlugin> =
         pluginDao.enabledOfType(AddonType.CLOUDSTREAM_REPO).map { it.toInstalled() }
